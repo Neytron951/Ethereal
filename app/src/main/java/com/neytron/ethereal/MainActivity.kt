@@ -79,6 +79,7 @@ import com.neytron.ethereal.ui.theme.fontFamilyFor
 import com.neytron.ethereal.ui.theme.paletteById
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.neytron.ethereal.widgets.WidgetHostManager
 
@@ -440,17 +441,21 @@ fun EtherealApp() {
             !showCreateSpaceDialog
 
     // === Ручная проверка обновлений (для кнопки в About) ===
+    val updateScope = rememberCoroutineScope()
     val handleCheckForUpdates: () -> Unit = {
         if (!updateChecking) {
             updateChecking = true
-            // Запускаем в фоне
-            scopeUpdateCheck(
-                context = context,
-                onDone = { info ->
-                    updateInfo = info
-                    updateChecking = false
+            updateScope.launch {
+                val info = withContext(Dispatchers.IO) {
+                    UpdateRepository.getUpdateInfo(
+                        context = context,
+                        currentVersion = BuildConfig.VERSION_NAME,
+                        forceRefresh = true
+                    )
                 }
-            )
+                updateInfo = info
+                updateChecking = false
+            }
         }
     }
 
@@ -836,27 +841,6 @@ fun EtherealApp() {
                     AnalyticsHelper.logOnboardingComplete(context)
                 }
             )
-        }
-    }
-}
-
-/**
- * Вспомогательная функция для фонового запроса обновлений
- * с UI-колбэком на главном потоке.
- */
-private fun scopeUpdateCheck(
-    context: Context,
-    onDone: (UpdateInfo?) -> Unit
-) {
-    val app = context.applicationContext
-    kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
-        val info = UpdateRepository.getUpdateInfo(
-            context = app,
-            currentVersion = BuildConfig.VERSION_NAME,
-            forceRefresh = true
-        )
-        withContext(Dispatchers.Main) {
-            onDone(info)
         }
     }
 }
