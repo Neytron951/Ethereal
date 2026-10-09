@@ -92,9 +92,24 @@ One grid. Multiple Spaces. No endless swiping.
 ## Screenshots
 
 <p align="center">
-  <em>Screenshots will be added soon.</em>
+  <img src="docs/screenshots/main.png" width="30%" alt="Home screen">
+  <img src="docs/screenshots/Spaces.gif" width="30%" alt="Spaces">
+  <img src="docs/screenshots/Esearch.gif" width="30%" alt="E-Search">
 </p>
 
+<p align="center">
+  <sub><b>Home</b> · <b>Spaces</b> · <b>E-Search</b></sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/AdaptTheme.gif" width="30%" alt="Theme switching">
+  <img src="docs/screenshots/blur.gif" width="30%" alt="Blur effect">
+  <img src="docs/screenshots/Start.gif" width="30%" alt="Onboarding">
+</p>
+
+<p align="center">
+  <sub><b>Theme switching</b> · <b>Frosted glass</b> · <b>Onboarding</b></sub>
+</p>
 ---
 
 ## Tech Stack
