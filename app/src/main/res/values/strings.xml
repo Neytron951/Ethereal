@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name" translatable="false">Ethereal</string>
+
+    <!-- Tabs (Settings) -->
+    <string name="tab_appearance">Theme</string>
+    <string name="tab_wallpaper">Wallpaper</string>
+    <string name="tab_tiles">Grid</string>
+    <string name="tab_esearch">ESearch</string>
+    <string name="tab_dock">Dock</string>
+    <string name="tab_about">About</string>
+
+    <!-- Common -->
+    <string name="close">Close</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="reset">Reset</string>
+    <string name="add">Add</string>
+    <string name="remove">Remove</string>
+    <string name="replace">Replace</string>
+    <string name="select">Select</string>
+    <string name="create">Create</string>
+    <string name="search">Search</string>
+    <string name="settings">Settings</string>
+    <string name="unknown">Unknown</string>
+    <string name="nothing_found">Nothing found</string>
+    <string name="system">System</string>
+    <string name="space">Space</string>
+    <string name="no_space_for_widget">No space for widget</string>
+    <string name="cannot_delete_widget">This widget cannot be deleted</string>
+    <string name="cannot_resize_widget">Cannot resize</string>
+    <string name="widget_add_failed">Failed to add widget</string>
+    <string name="widget_info_failed">Failed to get widget info</string>
+    <string name="image_save_failed">Failed to save image</string>
+    <string name="space_not_found">Space not found</string>
+    <string name="widget_denied_not_default_launcher">Denied. Set Ethereal as default launcher!</string>
+    <string name="widget_denied_system">System denied widget access</string>
+
+    <!-- Tiles -->
+    <string name="tile_add_widget">Add widget</string>
+    <string name="tile_clock">Clock</string>
+    <string name="tile_weather">Weather</string>
+    <string name="tile_app">Application</string>
+    <string name="tile_app_launcher">Application</string>
+    <string name="tile_search">Search</string>
+    <string name="tile_widget">Widget</string>
+    <string name="tile_action">Action</string>
+    <string name="tile_tile">Tile</string>
+    <string name="tile_space">Space</string>
+    <string name="tile_size_format">%1$d×%2$d</string>
+    <string name="tile_size_locked_format">%1$d×%2$d • system</string>
+
+    <!-- Tile Editor -->
+    <string name="editor_width">Width</string>
+    <string name="editor_height">Height</string>
+    <string name="editor_opacity">Opacity</string>
+    <string name="editor_opacity_subtitle">Panel transparency</string>
+    <string name="editor_blur">Blur</string>
+    <string name="editor_blur_subtitle">Background blur radius</string>
+    <string name="editor_content_scale">Content size</string>
+    <string name="editor_content_scale_subtitle">Content scale multiplier</string>
+    <string name="editor_location">Location</string>
+    <string name="editor_location_empty">Empty — auto by IP</string>
+    <string name="editor_location_current">Current: %1$s</string>
+    <string name="editor_location_hint">Start typing city...</string>
+    <string name="editor_app_choose">Choose application</string>
+    <string name="editor_app_show_label">Show label</string>
+    <string name="editor_app_image">Custom image</string>
+    <string name="editor_app_image_set">Set</string>
+    <string name="editor_app_image_not_set">Not set</string>
+
+    <!-- Space editor -->
+    <string name="editor_space_title">Space</string>
+    <string name="editor_space_name">Name</string>
+    <string name="editor_space_name_hint">Enter name</string>
+    <string name="editor_space_icon_text">Icon (emoji/symbol)</string>
+    <string name="editor_space_icon_text_hint">For example: 🎮 or G</string>
+    <string name="editor_space_icon_image">Icon (image)</string>
+
+    <!-- Create Space Dialog -->
+    <string name="create_space_title">New space</string>
+    <string name="create_space_name_label">Name</string>
+    <string name="create_space_name_hint">For example: Games</string>
+    <string name="create_space_icon_text_label">Icon (emoji/symbol)</string>
+    <string name="create_space_icon_text_hint">For example: 🎮 or G</string>
+    <string name="create_space_icon_image_label">Icon (image)</string>
+
+    <!-- ESearch -->
+    <string name="esearch_placeholder">Search</string>
+    <string name="esearch_nothing_found">Nothing found</string>
+
+    <!-- Widget Picker -->
+    <string name="widget_picker_title">Choose widget</string>
+    <string name="widget_picker_search_hint">Search widgets...</string>
+    <string name="widget_picker_empty">No widgets found</string>
+    <string name="widget_picker_nothing_found">Nothing found</string>
+    <string name="widget_picker_size_format">Size: %1$dx%2$d</string>
+    <string name="widget_picker_add">Add</string>
+
+    <!-- Settings: Appearance -->
+    <string name="settings_appearance_section">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_subtitle">Launcher palette</string>
+    <string name="settings_font">Font</string>
+    <string name="settings_font_subtitle">Font family</string>
+    <string name="settings_panel_opacity">Panel opacity</string>
+    <string name="settings_panel_opacity_subtitle">Transparency for ESearch, Dock and Settings</string>
+    <string name="settings_panel_blur">Panel blur</string>
+    <string name="settings_panel_blur_subtitle">Blur effect for ESearch, Dock and Settings</string>
+    <string name="settings_font_scale">Font size</string>
+    <string name="settings_font_scale_subtitle">Multiplier for all texts</string>
+
+    <!-- Settings: Tiles -->
+    <string name="settings_tiles_section">Tile grid settings</string>
+    <string name="settings_tile_size">Tile size</string>
+    <string name="settings_tile_size_subtitle">Size of one 1×1 tile</string>
+    <string name="settings_tile_spacing">Tile spacing</string>
+    <string name="settings_tile_spacing_subtitle">Gap between cells</string>
+    <string name="settings_tile_radius">Corner radius</string>
+    <string name="settings_tile_radius_subtitle">Tile corner rounding</string>
+    <string name="settings_reset_tiles">Reset tiles</string>
+
+    <!-- Settings: ESearch -->
+    <string name="settings_esearch_section">App search settings</string>
+    <string name="settings_esearch_override">Custom opacity</string>
+    <string name="settings_esearch_override_subtitle">Otherwise global theme value</string>
+    <string name="settings_esearch_opacity">ESearch opacity</string>
+    <string name="settings_esearch_opacity_subtitle">Only for this panel</string>
+    <string name="settings_esearch_blur">ESearch blur</string>
+    <string name="settings_esearch_blur_subtitle">Only for this panel</string>
+    <string name="settings_esearch_width">Width</string>
+    <string name="settings_esearch_width_subtitle">Percent of screen width</string>
+    <string name="settings_esearch_visible_items">Visible items</string>
+    <string name="settings_esearch_visible_items_subtitle">How many apps to show</string>
+
+    <!-- Settings: Dock -->
+    <string name="settings_dock_section">Bottom panel settings</string>
+    <string name="settings_dock_icon_size">Icon size</string>
+    <string name="settings_dock_icon_size_subtitle">Icon size in dock</string>
+    <string name="settings_dock_bottom_padding">Bottom padding</string>
+    <string name="settings_dock_bottom_padding_subtitle">Distance from bottom edge</string>
+    <string name="settings_dock_icon_shape">Icon shape</string>
+    <string name="settings_dock_icon_shape_subtitle">How icons look in Dock</string>
+    <string name="settings_dock_show_bg">Icon frame</string>
+    <string name="settings_dock_show_bg_subtitle">Show background under icons</string>
+    <string name="settings_dock_themed_icons">Adapt to theme</string>
+    <string name="settings_dock_themed_icons_subtitle">Tint icons in theme colors</string>
+    <string name="settings_dock_scrollable">Scrollable items</string>
+    <string name="settings_dock_scrollable_subtitle">Scrolls if many icons</string>
+    <string name="settings_dock_override">Custom opacity</string>
+    <string name="settings_dock_override_subtitle">Otherwise global theme value</string>
+    <string name="settings_dock_opacity">Dock opacity</string>
+    <string name="settings_dock_opacity_subtitle">Only for this panel</string>
+    <string name="settings_dock_blur">Dock blur</string>
+    <string name="settings_dock_blur_subtitle">Only for this panel</string>
+    <string name="settings_dock_apps_count">Apps in dock (selected: %1$d)</string>
+
+    <!-- Settings: Wallpaper -->
+    <string name="settings_wallpaper_title">Wallpaper</string>
+    <string name="settings_wallpaper_subtitle">Choose from gallery or use built-in</string>
+    <string name="settings_wallpaper_add">+ Add from gallery</string>
+    <string name="settings_wallpaper_empty">No saved wallpapers</string>
+    <string name="settings_wallpaper_apply_title">Where to apply wallpaper?</string>
+    <string name="settings_wallpaper_apply_home">To home screen (Ethereal)</string>
+    <string name="settings_wallpaper_apply_lock">To lock screen</string>
+    <string name="settings_wallpaper_apply_everywhere">Everywhere</string>
+    <string name="settings_wallpaper_active">Active</string>
+
+    <!-- Settings: About -->
+    <string name="settings_about_manufacturer">Manufacturer</string>
+    <string name="settings_about_model">Model</string>
+    <string name="settings_about_android">Android</string>
+    <string name="settings_about_processor">Processor</string>
+    <string name="settings_about_refresh_rate">Refresh rate</string>
+    <string name="settings_about_storage">Storage</string>
+    <string name="settings_about_ram">RAM</string>
+    <string name="settings_about_display">Display</string>
+    <string name="settings_about_developed_by">Developed by</string>
+    <string name="settings_about_license">GNU General Public License v3.0</string>
+
+    <!-- Settings: About - Analytics toggle -->
+    <string name="settings_analytics_title">Help improve Ethereal</string>
+    <string name="settings_analytics_subtitle">We only receive anonymous stats: which themes are popular, how many people use search. No names, apps or location.</string>
+
+    <!-- Widgets -->
+    <string name="widget_clock_description">Clock</string>
+    <string name="widget_icon_clock_description">Clock</string>
+    <string name="widget_icon_weather_description">Weather</string>
+    <string name="widget_icon_apps_description">Application</string>
+    <string name="widget_icon_settings_description">Settings</string>
+
+    <!-- === ONBOARDING === -->
+
+    <!-- Header -->
+    <string name="onboarding_step_of">Step %1$d of %2$d</string>
+    <string name="onboarding_back">❮ Back</string>
+    <string name="onboarding_next">Next ❯</string>
+    <string name="onboarding_finish">Finish ❯</string>
+
+    <!-- Step 1: Theme -->
+    <string name="onboarding_theme_title">Theme</string>
+    <string name="onboarding_theme_subtitle">Choose a color palette for the system</string>
+    <string name="onboarding_theme_selected">✓ Selected</string>
+
+    <!-- Step 2: Font -->
+    <string name="onboarding_font_title">System font</string>
+    <string name="onboarding_font_subtitle">All options are shown in their original font</string>
+
+    <!-- Step 3: System setup -->
+    <string name="onboarding_system_title">System setup</string>
+    <string name="onboarding_system_subtitle">Android requires you to confirm these settings yourself. We will open the right screen — you just need to tap "Allow".</string>
+
+    <string name="onboarding_task_launcher_title">Make Ethereal your home screen</string>
+    <string name="onboarding_task_launcher_subtitle">Android doesn\'t allow apps to change this automatically — only you can choose a launcher. Without this, Ethereal won\'t open on the Home button.</string>
+    <string name="onboarding_task_launcher_button">Open settings</string>
+
+    <string name="onboarding_task_battery_title">Remove battery restrictions</string>
+    <string name="onboarding_task_battery_subtitle">We know it\'s annoying, but those are Android\'s rules — we can\'t do it for you. This setting improves Ethereal\'s performance. And no, it doesn\'t mean the launcher will drain your battery — we just ask the system not to unload us from memory.</string>
+    <string name="onboarding_task_battery_button">Open settings</string>
+
+    <string name="onboarding_task_done_title">Everything is set up</string>
+    <string name="onboarding_task_done_subtitle">The system is ready. You can move on to the next step.</string>
+    <string name="onboarding_task_done_label">✓ Set up</string>
+
+    <!-- Step 4: Dock -->
+    <string name="onboarding_dock_title">Apps in Dock</string>
+    <string name="onboarding_dock_subtitle">Choose up to 5 apps for quick access (selected: %1$d/5)</string>
+
+    <!-- Final scene -->
+    <string name="onboarding_final_subtitle">System is set up and ready to go</string>
+    <string name="onboarding_final_button">Start</string>
+
+    <!-- Audio -->
+    <string name="onboarding_audio_missing">Onboarding audio not found</string>
+
+    <string name="space_show_label">Show label</string>
+    <string name="wallpaper_scale_mode_title">Wallpaper scaling</string>
+    <string name="wallpaper_scale_crop">Crop (Fill)</string>
+    <string name="wallpaper_scale_fit">Fit (Contain)</string>
+    <string name="wallpaper_scale_stretch">Stretch (Fill bounds)</string>
+    <string name="wallpaper_scale_center">Center</string>
+
+    <!-- Calendar -->
+    <string name="day_mon">Mon</string>
+    <string name="day_tue">Tue</string>
+    <string name="day_wed">Wed</string>
+    <string name="day_thu">Thu</string>
+    <string name="day_fri">Fri</string>
+    <string name="day_sat">Sat</string>
+    <string name="day_sun">Sun</string>
+
+    <!-- Weather -->
+    <string name="weather_clear">Clear</string>
+    <string name="weather_mainly_clear">Mainly clear</string>
+    <string name="weather_partly_cloudy">Partly cloudy</string>
+    <string name="weather_overcast">Overcast</string>
+    <string name="weather_fog">Fog</string>
+    <string name="weather_drizzle">Drizzle</string>
+    <string name="weather_freezing_drizzle">Freezing drizzle</string>
+    <string name="weather_light_rain">Light rain</string>
+    <string name="weather_rain">Rain</string>
+    <string name="weather_heavy_rain">Heavy rain</string>
+    <string name="weather_freezing_rain">Freezing rain</string>
+    <string name="weather_light_snow">Light snow</string>
+    <string name="weather_snow">Snow</string>
+    <string name="weather_heavy_snow">Heavy snow</string>
+    <string name="weather_snow_grains">Snow grains</string>
+    <string name="weather_rain_showers">Rain showers</string>
+    <string name="weather_violent_rain_showers">Violent rain showers</string>
+    <string name="weather_snow_showers">Snow showers</string>
+    <string name="weather_thunderstorm">Thunderstorm</string>
+    <string name="weather_thunderstorm_hail">Thunderstorm with hail</string>
+
+    <!-- === UPDATE SYSTEM === -->
+    <string name="update_title">Update</string>
+    <string name="update_available_format">Available %1$s</string>
+    <string name="update_available_subtitle">Tap to see what\'s new</string>
+    <string name="update_changelog_title">What\'s new</string>
+    <string name="update_no_changelog">No changelog provided</string>
+    <string name="update_expand">Expand</string>
+    <string name="update_collapse">Collapse</string>
+    <string name="update_button">Update</string>
+    <string name="update_check_manual">Check for updates</string>
+    <string name="update_checking">Checking...</string>
+</resources>

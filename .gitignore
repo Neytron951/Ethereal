@@ -1,0 +1,49 @@
+# Gradle files
+.gradle/
+build/
+*/build/
+app/build/
+app/release/
+*.apk
+*.aab
+output-metadata.json
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Android Studio / IntelliJ project files
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+
+# Keystore & Secrets
+*.keystore
+*.jks
+*.p12
+
+# Firebase
+google-services.json
+
+# AI / IDE Agent Artifacts
+.artifacts/
+
+# Android profiling
+*.hprof
+*.trace
+
+# Backup files
+*.bak
+*.orig
+
+# OS specific files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini

@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name" translatable="false">Ethereal</string>
+
+    <!-- Tabs (Settings) -->
+    <string name="tab_appearance">Тема</string>
+    <string name="tab_wallpaper">Обои</string>
+    <string name="tab_tiles">Сетка</string>
+    <string name="tab_esearch">ESearch</string>
+    <string name="tab_dock">Dock</string>
+    <string name="tab_about">О программе</string>
+
+    <!-- Common -->
+    <string name="close">Закрыть</string>
+    <string name="cancel">Отмена</string>
+    <string name="delete">Удалить</string>
+    <string name="reset">Сбросить</string>
+    <string name="add">Добавить</string>
+    <string name="remove">Убрать</string>
+    <string name="replace">Заменить</string>
+    <string name="select">Выбрать</string>
+    <string name="create">Создать</string>
+    <string name="search">Поиск</string>
+    <string name="settings">Настройки</string>
+    <string name="unknown">Неизвестный</string>
+    <string name="nothing_found">Ничего не найдено</string>
+    <string name="system">Системный</string>
+    <string name="space">Зона</string>
+    <string name="no_space_for_widget">Нет места для виджета</string>
+    <string name="cannot_delete_widget">Этот виджет нельзя удалить</string>
+    <string name="cannot_resize_widget">Нельзя изменить размер</string>
+    <string name="widget_add_failed">Не удалось добавить виджет</string>
+    <string name="widget_info_failed">Не удалось получить информацию о виджете</string>
+    <string name="image_save_failed">Не удалось сохранить картинку</string>
+    <string name="space_not_found">Пространство не найдено</string>
+    <string name="widget_denied_not_default_launcher">Отказано. Сделайте Ethereal лаунчером по умолчанию!</string>
+    <string name="widget_denied_system">Система отклонила доступ к виджетам</string>
+
+    <!-- Tiles -->
+    <string name="tile_add_widget">Добавить виджет</string>
+    <string name="tile_clock">Часы</string>
+    <string name="tile_weather">Погода</string>
+    <string name="tile_app">Приложение</string>
+    <string name="tile_app_launcher">Приложение</string>
+    <string name="tile_search">Поиск</string>
+    <string name="tile_widget">Виджет</string>
+    <string name="tile_action">Действие</string>
+    <string name="tile_tile">Тайл</string>
+    <string name="tile_space">Пространство</string>
+    <string name="tile_size_format">%1$d×%2$d</string>
+    <string name="tile_size_locked_format">%1$d×%2$d • системный</string>
+
+    <!-- Tile Editor -->
+    <string name="editor_width">Ширина</string>
+    <string name="editor_height">Высота</string>
+    <string name="editor_opacity">Прозрачность</string>
+    <string name="editor_opacity_subtitle">Прозрачность панели</string>
+    <string name="editor_blur">Размытие</string>
+    <string name="editor_blur_subtitle">Радиус размытия фона</string>
+    <string name="editor_content_scale">Размер содержимого</string>
+    <string name="editor_content_scale_subtitle">Множитель размера содержимого</string>
+    <string name="editor_location">Локация</string>
+    <string name="editor_location_empty">Пусто — автоопределение по IP</string>
+    <string name="editor_location_current">Сейчас: %1$s</string>
+    <string name="editor_location_hint">Начните вводить город...</string>
+    <string name="editor_app_choose">Выбрать приложение</string>
+    <string name="editor_app_show_label">Показывать название</string>
+    <string name="editor_app_image">Своя картинка</string>
+    <string name="editor_app_image_set">Установлена</string>
+    <string name="editor_app_image_not_set">Не установлена</string>
+
+    <!-- Space editor -->
+    <string name="editor_space_title">Пространство</string>
+    <string name="editor_space_name">Название</string>
+    <string name="editor_space_name_hint">Введите название</string>
+    <string name="editor_space_icon_text">Иконка (эмодзи/символ)</string>
+    <string name="editor_space_icon_text_hint">Например: 🎮 или G</string>
+    <string name="editor_space_icon_image">Иконка (картинка)</string>
+
+    <!-- Create Space Dialog -->
+    <string name="create_space_title">Новое пространство</string>
+    <string name="create_space_name_label">Название</string>
+    <string name="create_space_name_hint">Например: Игры</string>
+    <string name="create_space_icon_text_label">Иконка (эмодзи/символ)</string>
+    <string name="create_space_icon_text_hint">Например: 🎮 или G</string>
+    <string name="create_space_icon_image_label">Иконка (картинка)</string>
+
+    <!-- ESearch -->
+    <string name="esearch_placeholder">Поиск</string>
+    <string name="esearch_nothing_found">Ничего не найдено</string>
+
+    <!-- Widget Picker -->
+    <string name="widget_picker_title">Выбор виджета</string>
+    <string name="widget_picker_search_hint">Поиск виджетов...</string>
+    <string name="widget_picker_empty">Виджеты не найдены</string>
+    <string name="widget_picker_nothing_found">Ничего не найдено</string>
+    <string name="widget_picker_size_format">Размер: %1$dx%2$d</string>
+    <string name="widget_picker_add">Добавить</string>
+
+    <!-- Settings: Appearance -->
+    <string name="settings_appearance_section">Оформление</string>
+    <string name="settings_theme">Тема</string>
+    <string name="settings_theme_subtitle">Палитра всего лаунчера</string>
+    <string name="settings_font">Шрифт</string>
+    <string name="settings_font_subtitle">Семейство шрифта</string>
+    <string name="settings_panel_opacity">Непрозрачность панелей</string>
+    <string name="settings_panel_opacity_subtitle">Прозрачность ESearch, Dock и настроек</string>
+    <string name="settings_panel_blur">Размытие панелей</string>
+    <string name="settings_panel_blur_subtitle">Эффект размытия для ESearch, Dock и настроек</string>
+    <string name="settings_font_scale">Размер шрифта</string>
+    <string name="settings_font_scale_subtitle">Множитель для всех текстов</string>
+
+    <!-- Settings: Tiles -->
+    <string name="settings_tiles_section">Настройки сетки тайлов</string>
+    <string name="settings_tile_size">Размер клетки</string>
+    <string name="settings_tile_size_subtitle">Размер одного тайла 1×1</string>
+    <string name="settings_tile_spacing">Отступ между тайлами</string>
+    <string name="settings_tile_spacing_subtitle">Промежуток между клетками</string>
+    <string name="settings_tile_radius">Закругление</string>
+    <string name="settings_tile_radius_subtitle">Радиус углов тайлов</string>
+    <string name="settings_reset_tiles">Сбросить тайлы</string>
+
+    <!-- Settings: ESearch -->
+    <string name="settings_esearch_section">Настройки поиска приложений</string>
+    <string name="settings_esearch_override">Своя прозрачность</string>
+    <string name="settings_esearch_override_subtitle">Иначе используется общая из темы</string>
+    <string name="settings_esearch_opacity">Прозрачность ESearch</string>
+    <string name="settings_esearch_opacity_subtitle">Только для этой панели</string>
+    <string name="settings_esearch_blur">Размытие ESearch</string>
+    <string name="settings_esearch_blur_subtitle">Только для этой панели</string>
+    <string name="settings_esearch_width">Ширина</string>
+    <string name="settings_esearch_width_subtitle">Процент от ширины экрана</string>
+    <string name="settings_esearch_visible_items">Видимых элементов</string>
+    <string name="settings_esearch_visible_items_subtitle">Сколько приложений показывать</string>
+
+    <!-- Settings: Dock -->
+    <string name="settings_dock_section">Настройки нижней панели</string>
+    <string name="settings_dock_icon_size">Размер иконок</string>
+    <string name="settings_dock_icon_size_subtitle">Размер иконок в dock</string>
+    <string name="settings_dock_bottom_padding">Отступ снизу</string>
+    <string name="settings_dock_bottom_padding_subtitle">Расстояние от нижнего края</string>
+    <string name="settings_dock_icon_shape">Форма иконок</string>
+    <string name="settings_dock_icon_shape_subtitle">Как выглядят иконки в Dock</string>
+    <string name="settings_dock_show_bg">Рамка иконок</string>
+    <string name="settings_dock_show_bg_subtitle">Показывать фон-подложку под иконками</string>
+    <string name="settings_dock_themed_icons">Адаптировать под тему</string>
+    <string name="settings_dock_themed_icons_subtitle">Красить иконки в цвета темы</string>
+    <string name="settings_dock_scrollable">Прокрутка элементов</string>
+    <string name="settings_dock_scrollable_subtitle">Скроллится, если иконок много</string>
+    <string name="settings_dock_override">Своя прозрачность</string>
+    <string name="settings_dock_override_subtitle">Иначе используется общая из темы</string>
+    <string name="settings_dock_opacity">Прозрачность Dock</string>
+    <string name="settings_dock_opacity_subtitle">Только для этой панели</string>
+    <string name="settings_dock_blur">Размытие Dock</string>
+    <string name="settings_dock_blur_subtitle">Только для этой панели</string>
+    <string name="settings_dock_apps_count">Приложения в dock (выбрано: %1$d)</string>
+
+    <!-- Settings: Wallpaper -->
+    <string name="settings_wallpaper_title">Обои</string>
+    <string name="settings_wallpaper_subtitle">Выберите из галереи или установите готовые</string>
+    <string name="settings_wallpaper_add">+ Добавить из галереи</string>
+    <string name="settings_wallpaper_empty">Нет сохранённых обоев</string>
+    <string name="settings_wallpaper_apply_title">Куда установить обои?</string>
+    <string name="settings_wallpaper_apply_home">На рабочий стол (Ethereal)</string>
+    <string name="settings_wallpaper_apply_lock">На экран блокировки</string>
+    <string name="settings_wallpaper_apply_everywhere">Везде</string>
+    <string name="settings_wallpaper_active">Активно</string>
+
+    <!-- Settings: About -->
+    <string name="settings_about_manufacturer">Производитель</string>
+    <string name="settings_about_model">Модель</string>
+    <string name="settings_about_android">Android</string>
+    <string name="settings_about_processor">Процессор</string>
+    <string name="settings_about_refresh_rate">Частота</string>
+    <string name="settings_about_storage">Память</string>
+    <string name="settings_about_ram">RAM</string>
+    <string name="settings_about_display">Дисплей</string>
+    <string name="settings_about_developed_by">Developed by</string>
+    <string name="settings_about_license">GNU General Public License v3.0</string>
+
+    <!-- Settings: About - Analytics toggle -->
+    <string name="settings_analytics_title">Помогать улучшать Ethereal</string>
+    <string name="settings_analytics_subtitle">Делимся только анонимной статистикой. Какие темы популярны, сколько людей пользуется поиском. Без имён, приложений и местоположения.</string>
+
+    <!-- Widgets -->
+    <string name="widget_clock_description">Часы</string>
+    <string name="widget_icon_clock_description">Часы</string>
+    <string name="widget_icon_weather_description">Погода</string>
+    <string name="widget_icon_apps_description">Приложение</string>
+    <string name="widget_icon_settings_description">Настройки</string>
+
+    <!-- === ONBOARDING === -->
+
+    <!-- Header -->
+    <string name="onboarding_step_of">Шаг %1$d из %2$d</string>
+    <string name="onboarding_back">❮ Назад</string>
+    <string name="onboarding_next">Далее ❯</string>
+    <string name="onboarding_finish">Завершить ❯</string>
+
+    <!-- Step 1: Theme -->
+    <string name="onboarding_theme_title">Тема оформления</string>
+    <string name="onboarding_theme_subtitle">Выберите цветовую палитру для системы</string>
+    <string name="onboarding_theme_selected">✓ Выбрано</string>
+
+    <!-- Step 2: Font -->
+    <string name="onboarding_font_title">Шрифт системы</string>
+    <string name="onboarding_font_subtitle">Все варианты наглядно отображены своим оригинальным шрифтом</string>
+
+    <!-- Step 3: System setup -->
+    <string name="onboarding_system_title">Настройки системы</string>
+    <string name="onboarding_system_subtitle">Android требует, чтобы вы сами подтвердили эти настройки. Мы откроем нужный экран — вам останется только нажать «Разрешить».</string>
+
+    <string name="onboarding_task_launcher_title">Сделать Ethereal домашним экраном</string>
+    <string name="onboarding_task_launcher_subtitle">Android не позволяет приложениям менять это автоматически — только вы можете выбрать лаунчер. Без этого Ethereal не будет открываться по кнопке «Домой».</string>
+    <string name="onboarding_task_launcher_button">Открыть настройки</string>
+
+    <string name="onboarding_task_battery_title">Убрать ограничения батареи</string>
+    <string name="onboarding_task_battery_subtitle">Понимаем, что это гемор, но таковы правила Android — сделать это за вас мы не можем. Эта настройка улучшит производительность Ethereal. И нет, это не значит, что лаунчер начнёт жрать батарею — мы просто просим систему не выгружать нас из памяти.</string>
+    <string name="onboarding_task_battery_button">Открыть настройки</string>
+
+    <string name="onboarding_task_done_title">Всё настроено</string>
+    <string name="onboarding_task_done_subtitle">Система готова к работе. Можно переходить к следующему шагу.</string>
+    <string name="onboarding_task_done_label">✓ Настроено</string>
+
+    <!-- Step 4: Dock -->
+    <string name="onboarding_dock_title">Приложения в Dock</string>
+    <string name="onboarding_dock_subtitle">Выберите до 5 приложений для быстрого доступа (выбрано: %1$d/5)</string>
+
+    <!-- Final scene -->
+    <string name="onboarding_final_subtitle">Система настроена и готова к работе</string>
+    <string name="onboarding_final_button">Начать</string>
+
+    <!-- Audio -->
+    <string name="onboarding_audio_missing">Онбординг-аудио не найдено</string>
+
+    <string name="space_show_label">Показывать название</string>
+    <string name="wallpaper_scale_mode_title">Режим наложения обоев</string>
+    <string name="wallpaper_scale_crop">Заполнение (Crop)</string>
+    <string name="wallpaper_scale_fit">По размеру (Fit)</string>
+    <string name="wallpaper_scale_stretch">Растянуть (Stretch)</string>
+    <string name="wallpaper_scale_center">По центру (Center)</string>
+
+    <!-- Calendar -->
+    <string name="day_mon">Пн</string>
+    <string name="day_tue">Вт</string>
+    <string name="day_wed">Ср</string>
+    <string name="day_thu">Чт</string>
+    <string name="day_fri">Пт</string>
+    <string name="day_sat">Сб</string>
+    <string name="day_sun">Вс</string>
+
+    <!-- Weather -->
+    <string name="weather_clear">Ясно</string>
+    <string name="weather_mainly_clear">Преимущественно ясно</string>
+    <string name="weather_partly_cloudy">Переменная облачность</string>
+    <string name="weather_overcast">Облачно</string>
+    <string name="weather_fog">Туман</string>
+    <string name="weather_drizzle">Морось</string>
+    <string name="weather_freezing_drizzle">Ледяная морось</string>
+    <string name="weather_light_rain">Небольшой дождь</string>
+    <string name="weather_rain">Дождь</string>
+    <string name="weather_heavy_rain">Сильный дождь</string>
+    <string name="weather_freezing_rain">Ледяной дождь</string>
+    <string name="weather_light_snow">Небольшой снег</string>
+    <string name="weather_snow">Снег</string>
+    <string name="weather_heavy_snow">Сильный снег</string>
+    <string name="weather_snow_grains">Снежные зёрна</string>
+    <string name="weather_rain_showers">Ливень</string>
+    <string name="weather_violent_rain_showers">Сильный ливень</string>
+    <string name="weather_snow_showers">Снегопад</string>
+    <string name="weather_thunderstorm">Гроза</string>
+    <string name="weather_thunderstorm_hail">Гроза с градом</string>
+
+    <!-- === UPDATE SYSTEM === -->
+    <string name="update_title">Обновление</string>
+    <string name="update_available_format">Доступно %1$s</string>
+    <string name="update_available_subtitle">Нажмите, чтобы посмотреть</string>
+    <string name="update_changelog_title">Что нового</string>
+    <string name="update_no_changelog">Список изменений не указан</string>
+    <string name="update_expand">Развернуть</string>
+    <string name="update_collapse">Свернуть</string>
+    <string name="update_button">Обновить</string>
+    <string name="update_check_manual">Проверить обновления</string>
+    <string name="update_checking">Проверка...</string>
+</resources>

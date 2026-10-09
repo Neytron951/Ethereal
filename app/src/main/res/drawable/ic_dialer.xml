@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Фон -->
+    <path
+        android:fillColor="#1C261C"
+        android:pathData="M0,0 h48 v48 h-48 z" />
+
+    <!-- Трубка -->
+    <path
+        android:fillColor="#B8FF3D"
+        android:pathData="M14,12
+            C11,11 10,14 10,17
+            C10,28 20,38 31,38
+            C34,38 37,37 36,34
+            L32,29
+            L27,31
+            C22,29 19,26 17,21
+            L19,16
+            Z" />
+</vector>
