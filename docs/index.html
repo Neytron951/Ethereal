@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethereal Launcher</title>
+    <meta name="description" content="A tile-based Android launcher that replaces endless horizontal swiping with a single grid and full-screen Spaces.">
+    <link rel="icon" type="image/png" href="logo.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #161616;
+            --surface: #1F1F1F;
+            --surface-variant: #2A2A2A;
+            --primary: #EE5396;
+            --secondary: #08BDBA;
+            --outline: #393939;
+            --text-primary: #F2F4F8;
+            --text-secondary: #8D8D8D;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* ========== HERO ========== */
+        .hero {
+            padding: 100px 0 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -30%;
+            left: 20%;
+            transform: translateX(-50%);
+            width: 900px;
+            height: 900px;
+            background: radial-gradient(circle, rgba(238, 83, 150, 0.10) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .hero-left {
+            text-align: left;
+        }
+
+        .hero-logo {
+            width: 96px;
+            height: 96px;
+            margin-bottom: 20px;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+
+        .hero-tagline {
+            font-size: 1.15rem;
+            color: var(--primary);
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+
+        .hero-subtitle {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            max-width: 480px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 14px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--bg);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(238, 83, 150, 0.3);
+        }
+
+        .btn-secondary {
+            background-color: var(--surface-variant);
+            color: var(--text-primary);
+            border: 1px solid var(--outline);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--surface);
+            border-color: var(--primary);
+        }
+
+        /* ========== HERO SCREENSHOT ========== */
+        .hero-right {
+            display: flex;
+            justify-content: center;
+        }
+
+        .hero-right img {
+            max-width: 300px;
+            width: 100%;
+            border-radius: 28px;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--outline);
+            display: block;
+        }
+
+        /* ========== SECTION ========== */
+        section {
+            padding: 80px 0;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            text-align: center;
+            letter-spacing: -0.01em;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            max-width: 640px;
+            margin: 0 auto 48px;
+            font-size: 1rem;
+        }
+
+        /* ========== WHY ========== */
+        .why-content {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .why-content p {
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.75;
+        }
+
+        .why-content .accent {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .why-tagline {
+            text-align: center;
+            margin-top: 32px;
+            font-size: 1.15rem;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* ========== FEATURES ========== */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-card {
+            background-color: var(--surface);
+            border: 1px solid var(--outline);
+            border-radius: 20px;
+            padding: 28px 24px;
+            transition: all 0.25s ease;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(238, 83, 150, 0.4);
+            transform: translateY(-4px);
+        }
+
+        .feature-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background-color: rgba(238, 83, 150, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            font-size: 22px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .feature-card p {
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ========== SCREENSHOTS ========== */
+        .screenshots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            justify-items: center;
+        }
+
+        .screenshot-item {
+            width: 100%;
+            max-width: 260px;
+        }
+
+        .screenshot-item img {
+            width: 100%;
+            border-radius: 20px;
+            border: 1px solid var(--outline);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+            display: block;
+        }
+
+        .screenshot-item .caption {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* ========== REQUIREMENTS ========== */
+        .requirements {
+            text-align: center;
+        }
+
+        .requirements-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        .req-badge {
+            background-color: var(--surface);
+            border: 1px solid var(--outline);
+            border-radius: 999px;
+            padding: 10px 20px;
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+        }
+
+        .req-badge strong {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* ========== FOOTER ========== */
+        footer {
+            padding: 48px 0;
+            border-top: 1px solid var(--outline);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        footer .links {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        footer a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        footer a:hover {
+            color: var(--primary);
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 860px) {
+            .hero-content {
+                grid-template-columns: 1fr;
+                gap: 48px;
+                text-align: center;
+            }
+
+            .hero-left {
+                text-align: center;
+            }
+
+            .hero-subtitle {
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .buttons {
+                justify-content: center;
+            }
+
+            .hero h1 {
+                font-size: 2.4rem;
+            }
+
+            .hero-right img {
+                max-width: 260px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .hero {
+                padding: 60px 0 40px;
+            }
+
+            .hero h1 {
+                font-size: 2.1rem;
+            }
+
+            .hero-tagline {
+                font-size: 1rem;
+            }
+
+            .section-title {
+                font-size: 1.6rem;
+            }
+
+            section {
+                padding: 56px 0;
+            }
+
+            .btn {
+                padding: 12px 22px;
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ========== HERO ========== -->
+    <div class="hero">
+        <div class="container hero-content">
+            <div class="hero-left">
+                <img src="logo.png" alt="Ethereal Launcher" class="hero-logo">
+                <h1>Ethereal Launcher</h1>
+                <p class="hero-tagline">One grid. Multiple Spaces. No endless swiping.</p>
+                <p class="hero-subtitle">
+                    A tile-based Android launcher that replaces endless horizontal swiping with a single grid and full-screen Spaces.
+                </p>
+                <div class="buttons">
+                    <a href="https://github.com/Neytron951/Ethereal/releases" class="btn btn-primary">
+                        Download
+                    </a>
+                    <a href="https://github.com/Neytron951/Ethereal" class="btn btn-secondary">
+                        View on GitHub
+                    </a>
+                </div>
+            </div>
+            <div class="hero-right">
+                <img src="screenshots/main.png" alt="Ethereal home screen">
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== WHY ========== -->
+    <section>
+        <div class="container">
+            <h2 class="section-title">Why Ethereal</h2>
+            <div class="why-content">
+                <p>
+                    Most Android launchers keep the same paradigm they've had for over a decade: an infinitely wide home screen that you scroll through horizontally, folders nested inside folders, and widgets fighting for whatever space is left.
+                </p>
+                <p>
+                    Ethereal takes a different approach. Instead of endless pages, everything lives on <span class="accent">one dense grid</span>. Instead of folders, you get <span class="accent">Spaces</span> — full screens with their own layouts, widgets, and apps.
+                </p>
+                <p>
+                    Tap a Space to enter, tap to leave. No digging through nested folders, no swiping through screens you forgot existed. The home screen stops being a place you scroll through and becomes a place you actually organize.
+                </p>
+                <p class="why-tagline">One grid. Multiple Spaces. No endless swiping.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== FEATURES ========== -->
+    <section>
+        <div class="container">
+            <h2 class="section-title">Features</h2>
+            <p class="section-subtitle">Everything you need in a launcher, nothing you don't.</p>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">▦</div>
+                    <h3>Tiles</h3>
+                    <p>A single dense grid where apps, widgets and Spaces live together. Drag and drop with automatic collision handling.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">◫</div>
+                    <h3>Spaces</h3>
+                    <p>Folders reimagined as full screens. Each Space has its own layout, widgets and apps. Tap to enter, tap to leave.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <h3>29 Themes</h3>
+                    <p>From AMOLED black to Catppuccin, Dracula, Nord and more. Sixteen bundled fonts, custom icon shapes.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">❄</div>
+                    <h3>Frosted Glass</h3>
+                    <p>Adjustable panel opacity and blur. Panels, Dock and E-Search all share the same visual language.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⌕</div>
+                    <h3>E-Search</h3>
+                    <p>Swipe up from the home screen. Frosted overlay, adaptive sorting by usage frequency, cascade animation.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🖼</div>
+                    <h3>Wallpapers</h3>
+                    <p>Pick from gallery or use built-in. Four scaling modes. Apply to home, lock screen, or everywhere.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">▬</div>
+                    <h3>Dock</h3>
+                    <p>Up to 8 apps. Adjustable icon size, shape, and bottom padding. Scrollable mode for many icons.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">◈</div>
+                    <h3>System Widgets</h3>
+                    <p>Real Android widgets on the grid via AppWidgetHost. Built-in clock, weather and search widgets.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== SCREENSHOTS ========== -->
+    <section>
+        <div class="container">
+            <h2 class="section-title">Screenshots</h2>
+            <p class="section-subtitle">A quick look at Ethereal in motion.</p>
+
+            <div class="screenshots-grid">
+                <div class="screenshot-item">
+                    <img src="screenshots/Spaces.gif" alt="Spaces">
+                    <div class="caption">Spaces</div>
+                </div>
+                <div class="screenshot-item">
+                    <img src="screenshots/Esearch.gif" alt="E-Search">
+                    <div class="caption">E-Search</div>
+                </div>
+                <div class="screenshot-item">
+                    <img src="screenshots/AdaptTheme.gif" alt="Theme switching">
+                    <div class="caption">Theme switching</div>
+                </div>
+                <div class="screenshot-item">
+                    <img src="screenshots/blur.gif" alt="Frosted glass">
+                    <div class="caption">Frosted glass</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== REQUIREMENTS ========== -->
+    <section class="requirements">
+        <div class="container">
+            <h2 class="section-title">Requirements</h2>
+            <p class="section-subtitle">Lightweight, open source, no ads, no tracking.</p>
+
+            <div class="requirements-list">
+                <div class="req-badge"><strong>Android 8.1</strong> or higher</div>
+                <div class="req-badge"><strong>GPL v3.0</strong> license</div>
+                <div class="req-badge"><strong>100%</strong> Kotlin</div>
+                <div class="req-badge"><strong>No</strong> ads</div>
+                <div class="req-badge"><strong>Optional</strong> analytics</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== FOOTER ========== -->
+    <footer>
+        <div class="container">
+            <div class="links">
+                <a href="https://github.com/Neytron951/Ethereal">GitHub</a>
+                <a href="https://github.com/Neytron951/Ethereal/releases">Releases</a>
+                <a href="https://github.com/Neytron951/Ethereal/issues">Issues</a>
+                <a href="https://github.com/Neytron951/Ethereal/blob/main/LICENSE.txt">License</a>
+            </div>
+            <p>Developed by Neytron951 · GNU General Public License v3.0</p>
+        </div>
+    </footer>
+
+</body>
+</html>
