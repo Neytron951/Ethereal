@@ -34,13 +34,10 @@ class EtherealAppWidgetHost(private val appContext: Context) : AppWidgetHost(app
     fun createHostView(context: Context, appWidgetId: Int): AppWidgetHostView? {
         return try {
             val info = getProviderInfo(appWidgetId)
-            Log.d("EtherealWidget", "EtherealAppWidgetHost.createHostView: appWidgetId=$appWidgetId, provider=${info?.provider?.className}")
             val view = createView(context, appWidgetId, info)
-            Log.d("EtherealWidget", "EtherealAppWidgetHost.createHostView: view created = $view")
             (view?.parent as? ViewGroup)?.removeView(view)
             view
-        } catch (e: Exception) {
-            Log.e("EtherealWidget", "EtherealAppWidgetHost.createHostView: ERROR creating view for appWidgetId=$appWidgetId", e)
+        } catch (_: Throwable) {
             null
         }
     }
@@ -48,12 +45,15 @@ class EtherealAppWidgetHost(private val appContext: Context) : AppWidgetHost(app
     fun removeWidget(appWidgetId: Int) {
         try {
             deleteAppWidgetId(appWidgetId)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Throwable) {
         }
     }
 
     fun getProviderInfo(appWidgetId: Int): AppWidgetProviderInfo? {
-        return AppWidgetManager.getInstance(appContext).getAppWidgetInfo(appWidgetId)
+        return try {
+            AppWidgetManager.getInstance(appContext).getAppWidgetInfo(appWidgetId)
+        } catch (_: Throwable) {
+            null
+        }
     }
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Slider
@@ -72,6 +73,7 @@ fun TileEditorPanel(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(max = 540.dp)
             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
             .background(palette.surface.copy(alpha = 0.98f))
             .clickable(
@@ -291,10 +293,15 @@ private fun TileSettingsMode(
     onDelete: () -> Unit,
     onClose: () -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = tileDisplayName(tile),
@@ -466,6 +473,7 @@ private fun TileSettingsMode(
                 fontSize = 13.sp
             )
         }
+    }
     }
 }
 

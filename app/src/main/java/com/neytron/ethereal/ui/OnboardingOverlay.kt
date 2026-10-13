@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -338,7 +339,7 @@ private fun OnboardingWizard(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val totalSteps = 4
-    var currentStep by remember { mutableIntStateOf(1) }
+    var currentStep by rememberSaveable { mutableIntStateOf(1) }
 
     var isLauncherDefault by remember { mutableStateOf(isDefaultLauncher(context)) }
     var isBatteryUnrestricted by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
@@ -529,7 +530,7 @@ private fun OnboardingWizard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            val nextEnabled = currentStep != 3 || allTasksDone
+            val nextEnabled = true
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

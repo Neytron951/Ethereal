@@ -1,5 +1,8 @@
 package com.neytron.ethereal.ui
 
+import android.content.Context
+import android.os.Build
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -92,11 +95,13 @@ fun SettingsScreen(
     esearchBlur: Float,
     esearchWidth: Float,
     esearchVisibleItems: Int,
+    esearchAutoKeyboard: Boolean = true,
     onESearchUseOverrideChange: (Boolean) -> Unit,
     onESearchOpacityChange: (Float) -> Unit,
     onESearchBlurChange: (Float) -> Unit,
     onESearchWidthChange: (Float) -> Unit,
     onESearchVisibleItemsChange: (Int) -> Unit,
+    onESearchAutoKeyboardChange: (Boolean) -> Unit = {},
     dockIconSize: Float,
     dockBottomPadding: Float,
     dockUseOverride: Boolean,
@@ -129,6 +134,8 @@ fun SettingsScreen(
     onCheckForUpdates: () -> Unit,
     onOpenUpdateOverlay: () -> Unit,
     onRestartOnboarding: (() -> Unit)? = null,
+    onExportBackup: () -> Unit = {},
+    onImportBackup: () -> Unit = {},
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -234,11 +241,13 @@ fun SettingsScreen(
                             blur = esearchBlur,
                             width = esearchWidth,
                             visibleItems = esearchVisibleItems,
+                            autoKeyboard = esearchAutoKeyboard,
                             onUseOverrideChange = onESearchUseOverrideChange,
                             onOpacityChange = onESearchOpacityChange,
                             onBlurChange = onESearchBlurChange,
                             onWidthChange = onESearchWidthChange,
-                            onVisibleItemsChange = onESearchVisibleItemsChange
+                            onVisibleItemsChange = onESearchVisibleItemsChange,
+                            onAutoKeyboardChange = onESearchAutoKeyboardChange
                         )
                         SettingsTab.DOCK -> DockTab(
                             apps = apps,
@@ -274,7 +283,9 @@ fun SettingsScreen(
                             updateInfo = updateInfo,
                             updateChecking = updateChecking,
                             onCheckForUpdates = onCheckForUpdates,
-                            onOpenUpdateOverlay = onOpenUpdateOverlay
+                            onOpenUpdateOverlay = onOpenUpdateOverlay,
+                            onExportBackup = onExportBackup,
+                            onImportBackup = onImportBackup
                         )
                     }
                 }
@@ -521,11 +532,13 @@ private fun ESearchTab(
     blur: Float,
     width: Float,
     visibleItems: Int,
+    autoKeyboard: Boolean,
     onUseOverrideChange: (Boolean) -> Unit,
     onOpacityChange: (Float) -> Unit,
     onBlurChange: (Float) -> Unit,
     onWidthChange: (Float) -> Unit,
-    onVisibleItemsChange: (Int) -> Unit
+    onVisibleItemsChange: (Int) -> Unit,
+    onAutoKeyboardChange: (Boolean) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -536,6 +549,15 @@ private fun ESearchTab(
                 text = stringResource(R.string.settings_esearch_section),
                 color = palette.textSecondary,
                 fontSize = 12.sp
+            )
+        }
+        item {
+            SettingsToggle(
+                title = stringResource(R.string.settings_esearch_auto_keyboard),
+                subtitle = stringResource(R.string.settings_esearch_auto_keyboard_subtitle),
+                checked = autoKeyboard,
+                palette = palette,
+                onCheckedChange = onAutoKeyboardChange
             )
         }
         item {
@@ -868,7 +890,9 @@ private fun AboutTab(
     updateInfo: UpdateInfo?,
     updateChecking: Boolean,
     onCheckForUpdates: () -> Unit,
-    onOpenUpdateOverlay: () -> Unit
+    onOpenUpdateOverlay: () -> Unit,
+    onExportBackup: () -> Unit,
+    onImportBackup: () -> Unit
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -1065,6 +1089,30 @@ private fun AboutTab(
         }
 
         item {
+            Spacer(modifier = Modifier.height(4.dp))
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_backup_section),
+                    color = palette.textSecondary,
+                    fontSize = 12.sp
+                )
+                SettingsButton(
+                    title = stringResource(R.string.settings_backup_export),
+                    palette = palette,
+                    onClick = onExportBackup
+                )
+                SettingsButton(
+                    title = stringResource(R.string.settings_backup_import),
+                    palette = palette,
+                    onClick = onImportBackup
+                )
+            }
+        }
+
+        item {
             Text(
                 text = stringResource(R.string.settings_about_license),
                 color = palette.textSecondary,
@@ -1218,10 +1266,15 @@ private fun getDeviceInfo(context: android.content.Context): DeviceInfo {
     }
 
     val refreshRate = try {
-        val display = context.display
+        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.display
+        } else {
+            @Suppress("DEPRECATION")
+            (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)?.defaultDisplay
+        }
         val rate = display?.refreshRate ?: 60f
         String.format("%.0f Hz", rate)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         "—"
     }
 

@@ -123,6 +123,8 @@
 
     <!-- Settings: ESearch -->
     <string name="settings_esearch_section">App search settings</string>
+    <string name="settings_esearch_auto_keyboard">Auto-open keyboard</string>
+    <string name="settings_esearch_auto_keyboard_subtitle">Automatically open keyboard when opening search</string>
     <string name="settings_esearch_override">Custom opacity</string>
     <string name="settings_esearch_override_subtitle">Otherwise global theme value</string>
     <string name="settings_esearch_opacity">ESearch opacity</string>
@@ -168,6 +170,14 @@
     <string name="settings_wallpaper_active">Active</string>
 
     <!-- Settings: About -->
+    <string name="settings_backup_section">Backup &amp; Restore</string>
+    <string name="settings_backup_export">Export settings (JSON)</string>
+    <string name="settings_backup_export_subtitle">Save layout, themes and spaces to file</string>
+    <string name="settings_backup_import">Import settings (JSON)</string>
+    <string name="settings_backup_import_subtitle">Restore launcher configuration from file</string>
+    <string name="settings_backup_import_success">Configuration successfully imported!</string>
+    <string name="settings_backup_import_error">Failed to import JSON file</string>
+
     <string name="settings_about_manufacturer">Manufacturer</string>
     <string name="settings_about_model">Model</string>
     <string name="settings_about_android">Android</string>

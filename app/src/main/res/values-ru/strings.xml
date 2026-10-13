@@ -123,6 +123,8 @@
 
     <!-- Settings: ESearch -->
     <string name="settings_esearch_section">Настройки поиска приложений</string>
+    <string name="settings_esearch_auto_keyboard">Авто-клавиатура</string>
+    <string name="settings_esearch_auto_keyboard_subtitle">Автоматически открывать клавиатуру при поиске</string>
     <string name="settings_esearch_override">Своя прозрачность</string>
     <string name="settings_esearch_override_subtitle">Иначе используется общая из темы</string>
     <string name="settings_esearch_opacity">Прозрачность ESearch</string>
@@ -168,6 +170,14 @@
     <string name="settings_wallpaper_active">Активно</string>
 
     <!-- Settings: About -->
+    <string name="settings_backup_section">Резервное копирование</string>
+    <string name="settings_backup_export">Экспорт настроек (JSON)</string>
+    <string name="settings_backup_export_subtitle">Сохранить тайлы, темы и пространства в файл</string>
+    <string name="settings_backup_import">Импорт настроек (JSON)</string>
+    <string name="settings_backup_import_subtitle">Восстановить конфигурацию из файла</string>
+    <string name="settings_backup_import_success">Конфигурация успешно импортирована!</string>
+    <string name="settings_backup_import_error">Ошибка чтения файла JSON</string>
+
     <string name="settings_about_manufacturer">Производитель</string>
     <string name="settings_about_model">Модель</string>
     <string name="settings_about_android">Android</string>

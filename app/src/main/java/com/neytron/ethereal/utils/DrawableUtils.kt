@@ -2,6 +2,7 @@ package com.neytron.ethereal.utils
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.graphics.drawable.AdaptiveIconDrawable
@@ -23,28 +24,32 @@ fun Drawable.toImageBitmap(
     bgTint: androidx.compose.ui.graphics.Color? = null,
     fgTint: androidx.compose.ui.graphics.Color? = null
 ): ImageBitmap? {
-    return when (this) {
-        is BitmapDrawable -> {
-            // BitmapDrawable не поддерживает tint-разделение —
-            // если нужен tint, применяем ко всей иконке
-            if (bgTint != null || fgTint != null) {
-                val tint = fgTint ?: bgTint
-                val bmp = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-                val canvas = Canvas(bmp)
-                val paint = android.graphics.Paint().apply {
-                    colorFilter = PorterDuffColorFilter(
-                        tint!!.toArgb(),
-                        PorterDuff.Mode.SRC_IN
-                    )
+    return try {
+        when (this) {
+            is BitmapDrawable -> {
+                // BitmapDrawable не поддерживает tint-разделение —
+                // если нужен tint, применяем ко всей иконке
+                if (bgTint != null || fgTint != null) {
+                    val tint = fgTint ?: bgTint
+                    val bmp = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+                    val canvas = Canvas(bmp)
+                    val paint = Paint().apply {
+                        colorFilter = PorterDuffColorFilter(
+                            tint!!.toArgb(),
+                            PorterDuff.Mode.SRC_IN
+                        )
+                    }
+                    canvas.drawBitmap(bmp, 0f, 0f, paint)
+                    bmp.asImageBitmap()
+                } else {
+                    bitmap.asImageBitmap()
                 }
-                canvas.drawBitmap(bmp, 0f, 0f, paint)
-                bmp.asImageBitmap()
-            } else {
-                bitmap.asImageBitmap()
             }
+            is AdaptiveIconDrawable -> renderAdaptive(this, sizePx, bgTint, fgTint)
+            else -> renderNormal(this)
         }
-        is AdaptiveIconDrawable -> renderAdaptive(this, sizePx, bgTint, fgTint)
-        else -> renderNormal(this)
+    } catch (_: Throwable) {
+        null
     }
 }
 
@@ -54,64 +59,73 @@ private fun renderAdaptive(
     bgTint: androidx.compose.ui.graphics.Color?,
     fgTint: androidx.compose.ui.graphics.Color?
 ): ImageBitmap? {
-    val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
+    return try {
+        val safeSize = sizePx.coerceIn(1, 1024)
+        val bitmap = Bitmap.createBitmap(safeSize, safeSize, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
 
-    val bg: Drawable? = try { drawable.background } catch (e: Exception) { null }
-    val fg: Drawable? = try { drawable.foreground } catch (e: Exception) { null }
+        val bg: Drawable? = try { drawable.background } catch (_: Throwable) { null }
+        val fg: Drawable? = try { drawable.foreground } catch (_: Throwable) { null }
 
-    if (bg == null && fg == null) {
-        drawable.setBounds(0, 0, sizePx, sizePx)
-        drawable.draw(canvas)
-        return bitmap.asImageBitmap()
-    }
+        if (bg == null && fg == null) {
+            drawable.setBounds(0, 0, safeSize, safeSize)
+            drawable.draw(canvas)
+            return bitmap.asImageBitmap()
+        }
 
-    // === 1) Фон ===
-    if (bgTint != null) {
-        // Заливаем сплошным цветом, игнорируя оригинальный слой
-        canvas.drawColor(bgTint.toArgb())
-    } else {
-        bg?.let {
-            it.setBounds(0, 0, sizePx, sizePx)
+        // === 1) Фон ===
+        if (bgTint != null) {
+            // Заливаем сплошным цветом, игнорируя оригинальный слой
+            canvas.drawColor(bgTint.toArgb())
+        } else {
+            bg?.let {
+                it.setBounds(0, 0, safeSize, safeSize)
+                it.draw(canvas)
+            }
+        }
+
+        // === 2) Логотип ===
+        fg?.let {
+            val scaleFactor = 1.5f
+            canvas.save()
+            canvas.translate(safeSize / 2f, safeSize / 2f)
+            canvas.scale(scaleFactor, scaleFactor)
+            canvas.translate(-safeSize / 2f, -safeSize / 2f)
+
+            if (fgTint != null) {
+                // Красим логотип в один цвет
+                it.setColorFilter(
+                    PorterDuffColorFilter(fgTint.toArgb(), PorterDuff.Mode.SRC_IN)
+                )
+            }
+
+            it.setBounds(0, 0, safeSize, safeSize)
             it.draw(canvas)
-        }
-    }
 
-    // === 2) Логотип ===
-    fg?.let {
-        val scaleFactor = 1.5f
-        canvas.save()
-        canvas.translate(sizePx / 2f, sizePx / 2f)
-        canvas.scale(scaleFactor, scaleFactor)
-        canvas.translate(-sizePx / 2f, -sizePx / 2f)
+            // Сбрасываем filter
+            it.setColorFilter(null)
 
-        if (fgTint != null) {
-            // Красим логотип в один цвет
-            it.setColorFilter(
-                PorterDuffColorFilter(fgTint.toArgb(), PorterDuff.Mode.SRC_IN)
-            )
+            canvas.restore()
         }
 
-        it.setBounds(0, 0, sizePx, sizePx)
-        it.draw(canvas)
-
-        // Сбрасываем filter
-        it.setColorFilter(null)
-
-        canvas.restore()
+        bitmap.asImageBitmap()
+    } catch (_: Throwable) {
+        null
     }
-
-    return bitmap.asImageBitmap()
 }
 
 private fun renderNormal(drawable: Drawable): ImageBitmap? {
-    val w = drawable.intrinsicWidth.coerceAtLeast(1)
-    val h = drawable.intrinsicHeight.coerceAtLeast(1)
+    return try {
+        val w = drawable.intrinsicWidth.let { if (it <= 0) 256 else it.coerceAtMost(1024) }
+        val h = drawable.intrinsicHeight.let { if (it <= 0) 256 else it.coerceAtMost(1024) }
 
-    val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-    drawable.setBounds(0, 0, w, h)
-    drawable.draw(canvas)
+        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        drawable.setBounds(0, 0, w, h)
+        drawable.draw(canvas)
 
-    return bitmap.asImageBitmap()
+        bitmap.asImageBitmap()
+    } catch (_: Throwable) {
+        null
+    }
 }

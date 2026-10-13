@@ -23,8 +23,7 @@ object WidgetHostManager {
     fun startListening(context: Context) {
         try {
             getHost(context).startListening()
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Throwable) {
         }
     }
 
@@ -34,8 +33,7 @@ object WidgetHostManager {
     fun stopListening(context: Context) {
         try {
             getHost(context).stopListening()
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Throwable) {
         }
     }
 
@@ -47,8 +45,7 @@ object WidgetHostManager {
         try {
             getHost(context).startListening()
             getHost(context).allocateAppWidgetId()
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Throwable) {
         }
     }
 
@@ -58,8 +55,7 @@ object WidgetHostManager {
     fun removeWidget(context: Context, appWidgetId: Int) {
         try {
             getHost(context).removeWidget(appWidgetId)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Throwable) {
         }
     }
 
@@ -70,7 +66,7 @@ object WidgetHostManager {
         return try {
             val manager = AppWidgetManager.getInstance(context)
             manager.getAppWidgetInfo(appWidgetId) != null
-        } catch (e: Exception) {
+        } catch (_: Throwable) {
             false
         }
     }

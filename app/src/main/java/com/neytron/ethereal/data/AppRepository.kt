@@ -13,19 +13,23 @@ object AppRepository {
 
         val realApps = pm.queryIntentActivities(intent, 0)
             .mapNotNull { resolveInfo ->
-                val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
-                val label = resolveInfo.loadLabel(pm).toString()
-                val packageName = activityInfo.packageName
-                val icon = resolveInfo.loadIcon(pm)
+                try {
+                    val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
+                    val label = resolveInfo.loadLabel(pm).toString()
+                    val packageName = activityInfo.packageName
+                    val icon = resolveInfo.loadIcon(pm) ?: return@mapNotNull null
 
-                // Пропускаем сам лаунчер
-                if (packageName == context.packageName) return@mapNotNull null
+                    // Пропускаем сам лаунчер
+                    if (packageName == context.packageName) return@mapNotNull null
 
-                AppInfo(
-                    label = label,
-                    packageName = packageName,
-                    icon = icon
-                )
+                    AppInfo(
+                        label = label,
+                        packageName = packageName,
+                        icon = icon
+                    )
+                } catch (_: Throwable) {
+                    null
+                }
             }
 
         // ============================================================

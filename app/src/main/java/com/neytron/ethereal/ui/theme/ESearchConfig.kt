@@ -9,7 +9,8 @@ data class ESearchConfig(
     val heightFraction: Float = 0.6f,
     val visibleItems: Int = 6,
     val placeholder: String = "Поиск",
-    val themedIcons: Boolean = false
+    val themedIcons: Boolean = false,
+    val autoShowKeyboard: Boolean = true
 )
 
 val LocalESearchConfig = compositionLocalOf { ESearchConfig() }

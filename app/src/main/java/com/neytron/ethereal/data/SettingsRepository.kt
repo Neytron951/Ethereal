@@ -48,6 +48,7 @@ object SettingsRepository {
     private const val KEY_ESEARCH_BLUR = "esearch_blur"
     private const val KEY_ESEARCH_WIDTH = "esearch_width"
     private const val KEY_ESEARCH_VISIBLE_ITEMS = "esearch_visible_items"
+    private const val KEY_ESEARCH_AUTO_KEYBOARD = "esearch_auto_keyboard"
 
     private const val DEFAULT_ESEARCH_WIDTH = 0.75f
     private const val DEFAULT_ESEARCH_VISIBLE = 6
@@ -241,6 +242,12 @@ object SettingsRepository {
         prefs(context).getInt(KEY_ESEARCH_VISIBLE_ITEMS, DEFAULT_ESEARCH_VISIBLE)
     fun setESearchVisibleItems(context: Context, value: Int) {
         prefs(context).edit().putInt(KEY_ESEARCH_VISIBLE_ITEMS, value.coerceIn(3, 12)).apply()
+    }
+
+    fun getESearchAutoKeyboard(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_ESEARCH_AUTO_KEYBOARD, true)
+    fun setESearchAutoKeyboard(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_ESEARCH_AUTO_KEYBOARD, value).apply()
     }
 
     // ============================================================

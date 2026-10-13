@@ -47,6 +47,7 @@ import java.io.File
 import com.neytron.ethereal.data.AnalyticsHelper
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.data.AppRepository
+import com.neytron.ethereal.data.BackupRepository
 import com.neytron.ethereal.data.SettingsRepository
 import com.neytron.ethereal.data.UpdateCheckWorker
 import com.neytron.ethereal.data.UpdateInfo
@@ -159,6 +160,7 @@ fun EtherealApp() {
     var esearchBlur by remember { mutableStateOf(SettingsRepository.getESearchBlur(context)) }
     var esearchWidth by remember { mutableStateOf(SettingsRepository.getESearchWidth(context)) }
     var esearchVisibleItems by remember { mutableStateOf(SettingsRepository.getESearchVisibleItems(context)) }
+    var esearchAutoKeyboard by remember { mutableStateOf(SettingsRepository.getESearchAutoKeyboard(context)) }
 
     var tileSize by remember { mutableStateOf(SettingsRepository.getTileSize(context)) }
     var tileSpacing by remember { mutableStateOf(SettingsRepository.getTileSpacing(context)) }
@@ -339,6 +341,46 @@ fun EtherealApp() {
         }
     }
 
+    val exportBackupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val jsonStr = BackupRepository.exportToJson(context)
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    outputStream.write(jsonStr.toByteArray())
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    val importBackupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val jsonStr = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    inputStream.bufferedReader().use { it.readText() }
+                }
+                if (!jsonStr.isNullOrBlank()) {
+                    val success = BackupRepository.importFromJson(context, jsonStr)
+                    if (success) {
+                        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                        if (intent != null) {
+                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(intent)
+                            (context as? Activity)?.finish()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     val palette = paletteById(paletteId)
 
     val view = LocalView.current
@@ -371,7 +413,8 @@ fun EtherealApp() {
         heightFraction = 0.6f,
         visibleItems = esearchVisibleItems,
         placeholder = esearchPlaceholder,
-        themedIcons = dockThemedIcons
+        themedIcons = dockThemedIcons,
+        autoShowKeyboard = esearchAutoKeyboard
     )
 
     val dockConfig = DockConfig(
@@ -687,6 +730,7 @@ fun EtherealApp() {
                         esearchBlur = esearchBlur,
                         esearchWidth = esearchWidth,
                         esearchVisibleItems = esearchVisibleItems,
+                        esearchAutoKeyboard = esearchAutoKeyboard,
                         onESearchUseOverrideChange = { v ->
                             esearchUseOverride = v
                             SettingsRepository.setESearchUseOverride(context, v)
@@ -706,6 +750,10 @@ fun EtherealApp() {
                         onESearchVisibleItemsChange = { v ->
                             esearchVisibleItems = v
                             SettingsRepository.setESearchVisibleItems(context, v)
+                        },
+                        onESearchAutoKeyboardChange = { v ->
+                            esearchAutoKeyboard = v
+                            SettingsRepository.setESearchAutoKeyboard(context, v)
                         },
 
                         dockIconSize = dockIconSize,
@@ -795,6 +843,8 @@ fun EtherealApp() {
                         updateChecking = updateChecking,
                         onCheckForUpdates = handleCheckForUpdates,
                         onOpenUpdateOverlay = { showUpdateOverlay = true },
+                        onExportBackup = { exportBackupLauncher.launch("ethereal_backup.json") },
+                        onImportBackup = { importBackupLauncher.launch(arrayOf("application/json", "*/*")) },
 
                         modifier = Modifier
                             .fillMaxSize()

@@ -1,5 +1,7 @@
 package com.neytron.ethereal.ui
 
+import android.content.Context
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -41,6 +43,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -149,7 +153,10 @@ private fun ESearchPanel(
     onAppClick: (AppInfo) -> Unit
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val haptic = LocalHapticFeedback.current
+    val config = LocalESearchConfig.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     var query by remember { mutableStateOf("") }
     var selectedIndex by remember { mutableIntStateOf(0) }
     val focusRequester = remember { FocusRequester() }
@@ -183,7 +190,19 @@ private fun ESearchPanel(
     }
 
     LaunchedEffect(filtered) { selectedIndex = 0 }
-    LaunchedEffect(Unit) { if (!rouletteMode) focusRequester.requestFocus() }
+    LaunchedEffect(Unit) {
+        if (!rouletteMode) {
+            delay(250L)
+            if (config.autoShowKeyboard) {
+                focusRequester.requestFocus()
+                keyboardController?.show()
+                try {
+                    val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                    imm?.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+                } catch (_: Exception) {}
+            }
+        }
+    }
 
     var isFirstSelection by remember { mutableStateOf(true) }
     LaunchedEffect(selectedIndex) {
@@ -249,7 +268,6 @@ private fun ESearchPanel(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .focusRequester(focusRequester)
-                                    .focusable()
                             )
                         }
                     }
