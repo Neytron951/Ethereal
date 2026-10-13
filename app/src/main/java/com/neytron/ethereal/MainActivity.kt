@@ -34,9 +34,14 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import android.graphics.BitmapFactory
 import android.media.MediaPlayer
+import android.widget.Toast
 import android.os.Build
 import androidx.core.view.WindowCompat
 import androidx.compose.runtime.SideEffect
@@ -47,6 +52,8 @@ import java.io.File
 import com.neytron.ethereal.data.AnalyticsHelper
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.data.AppRepository
+import com.neytron.ethereal.data.IconPackInfo
+import com.neytron.ethereal.data.IconPackRepository
 import com.neytron.ethereal.data.BackupRepository
 import com.neytron.ethereal.data.SettingsRepository
 import com.neytron.ethereal.data.UpdateCheckWorker
@@ -138,8 +145,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun EtherealApp() {
     val context = LocalContext.current
+    val appScope = rememberCoroutineScope()
 
     var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    var iconPacks by remember { mutableStateOf<List<IconPackInfo>>(emptyList()) }
+    var iconPackPackage by remember { mutableStateOf(SettingsRepository.getIconPackPackage(context)) }
     var dockPackages by remember { mutableStateOf(SettingsRepository.getDockPackages(context)) }
     var paletteId by remember { mutableStateOf(SettingsRepository.getPaletteId(context)) }
     var opacity by remember { mutableStateOf(SettingsRepository.getOpacity(context)) }
@@ -205,6 +215,10 @@ fun EtherealApp() {
     var showUpdateOverlay by remember { mutableStateOf(false) }
 
     val esearchPlaceholder = stringResource(R.string.esearch_placeholder)
+    val backupExportSuccessMessage = stringResource(R.string.settings_backup_export_success)
+    val backupExportErrorMessage = stringResource(R.string.settings_backup_export_error)
+    val backupImportSuccessMessage = stringResource(R.string.settings_backup_import_success)
+    val backupImportErrorMessage = stringResource(R.string.settings_backup_import_error)
 
     val tileEditorState = rememberTileEditorState()
 
@@ -225,6 +239,13 @@ fun EtherealApp() {
             )
         }
         updateInfo = cached
+    }
+
+    // === Перезагрузка приложений при смене пакета иконок ===
+    LaunchedEffect(iconPackPackage) {
+        apps = withContext(Dispatchers.IO) {
+            AppRepository.getInstalledApps(context, iconPackPackage)
+        }
     }
 
     // === Перехват кнопки Домой (Home) ===
@@ -272,11 +293,6 @@ fun EtherealApp() {
 
     // === Загрузка данных при старте ===
     LaunchedEffect(Unit) {
-        val loadedApps = withContext(Dispatchers.IO) {
-            AppRepository.getInstalledApps(context)
-        }
-        apps = loadedApps
-
         withContext(Dispatchers.IO) {
             WallpaperRepository.installBuiltinWallpapers(
                 context,
@@ -300,6 +316,58 @@ fun EtherealApp() {
                 if (file.exists()) file.absolutePath else null
             }
             currentWallpaperPath = path
+        }
+    }
+
+    LifecycleEventEffect(event = Lifecycle.Event.ON_RESUME) {
+        appScope.launch {
+            IconPackRepository.clearCache()
+            val loadedPacks = withContext(Dispatchers.IO) {
+                IconPackRepository.getInstalledIconPacks(context)
+            }
+            iconPacks = loadedPacks
+            val activePack = iconPackPackage?.takeIf { packageName ->
+                loadedPacks.any { it.packageName == packageName }
+            }
+            if (activePack != iconPackPackage) {
+                iconPackPackage = activePack
+                SettingsRepository.setIconPackPackage(context, activePack)
+            }
+            apps = withContext(Dispatchers.IO) {
+                AppRepository.getInstalledApps(context, activePack)
+            }
+        }
+    }
+
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (context == null) return
+                appScope.launch {
+                    IconPackRepository.clearCache()
+                    val loadedPacks = withContext(Dispatchers.IO) {
+                        IconPackRepository.getInstalledIconPacks(context)
+                    }
+                    iconPacks = loadedPacks
+                    val activePack = iconPackPackage?.takeIf { packageName ->
+                        loadedPacks.any { it.packageName == packageName }
+                    }
+                    apps = withContext(Dispatchers.IO) {
+                        AppRepository.getInstalledApps(context, activePack)
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addDataScheme("package")
+        }
+        context.registerReceiver(receiver, filter)
+        onDispose {
+            context.unregisterReceiver(receiver)
         }
     }
 
@@ -347,11 +415,15 @@ fun EtherealApp() {
         if (uri != null) {
             try {
                 val jsonStr = BackupRepository.exportToJson(context)
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                val output = context.contentResolver.openOutputStream(uri)
+                    ?: error("Cannot open backup output")
+                output.use { outputStream ->
                     outputStream.write(jsonStr.toByteArray())
                 }
+                Toast.makeText(context, backupExportSuccessMessage, Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 e.printStackTrace()
+                Toast.makeText(context, backupExportErrorMessage, Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -364,19 +436,22 @@ fun EtherealApp() {
                 val jsonStr = context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     inputStream.bufferedReader().use { it.readText() }
                 }
-                if (!jsonStr.isNullOrBlank()) {
-                    val success = BackupRepository.importFromJson(context, jsonStr)
-                    if (success) {
-                        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                        if (intent != null) {
-                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(intent)
-                            (context as? Activity)?.finish()
-                        }
+                val success = !jsonStr.isNullOrBlank() &&
+                        BackupRepository.importFromJson(context, jsonStr)
+                if (success) {
+                    Toast.makeText(context, backupImportSuccessMessage, Toast.LENGTH_LONG).show()
+                    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                    if (intent != null) {
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                        (context as? Activity)?.finish()
                     }
+                } else {
+                    Toast.makeText(context, backupImportErrorMessage, Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                Toast.makeText(context, backupImportErrorMessage, Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -801,6 +876,18 @@ fun EtherealApp() {
                             dockThemedIcons = v
                             SettingsRepository.setDockThemedIcons(context, v)
                             AnalyticsHelper.logThemedIconsToggled(context, v)
+                        },
+                        iconPacks = iconPacks,
+                        selectedIconPack = iconPackPackage,
+                        onIconPackChange = { packageName ->
+                            iconPackPackage = packageName
+                            SettingsRepository.setIconPackPackage(context, packageName)
+                            IconPackRepository.clearCache()
+                            appScope.launch {
+                                apps = withContext(Dispatchers.IO) {
+                                    AppRepository.getInstalledApps(context, packageName)
+                                }
+                            }
                         },
 
                         tileSize = tileSize,

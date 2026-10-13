@@ -25,6 +25,7 @@ enum class TileType {
     EMPTY,
     SETTINGS,
     WIDGET,
+    EQUALIZER,
     APP,
     ACTION,
     /** Виджет запуска приложения (с кастомным визуалом) */

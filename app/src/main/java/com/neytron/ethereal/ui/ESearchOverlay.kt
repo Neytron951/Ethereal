@@ -1,7 +1,11 @@
 package com.neytron.ethereal.ui
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -17,7 +21,9 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -29,6 +35,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.Alignment
@@ -73,9 +81,11 @@ fun ESearchOverlay(
     rouletteMode: Boolean = false,
     onRouletteComplete: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val appearance = LocalAppearance.current
     val config = LocalESearchConfig.current
     val haptic = LocalHapticFeedback.current
+    var contextApp by remember { mutableStateOf<AppInfo?>(null) }
 
     val effectiveOpacity = config.opacityOverride ?: appearance.opacity
     val effectiveBlur = config.blurOverride ?: appearance.blur
@@ -129,11 +139,142 @@ fun ESearchOverlay(
                 themedIcons = config.themedIcons,
                 rouletteMode = rouletteMode,
                 onRouletteComplete = onRouletteComplete,
+                onAppLongClick = { contextApp = it },
                 onAppClick = { app ->
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onAppClick(app)
                 }
             )
+        }
+    }
+
+    contextApp?.let { app ->
+        BackHandler { contextApp = null }
+        AnimatedVisibility(
+            visible = true,
+            enter = fadeIn(animationSpec = tween(200)) + scaleIn(initialScale = 0.9f, animationSpec = spring(stiffness = Spring.StiffnessMedium)),
+            exit = fadeOut(animationSpec = tween(150)) + scaleOut(targetScale = 0.95f, animationSpec = tween(150))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { contextApp = null },
+                contentAlignment = Alignment.Center
+            ) {
+                FrostedGlassBox(
+                    blur = effectiveBlur,
+                    opacity = effectiveOpacity,
+                    backgroundColor = palette.background,
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier
+                        .fillMaxWidth(0.88f)
+                        .border(1.dp, palette.outline.copy(alpha = 0.5f), RoundedCornerShape(22.dp))
+                        .clickable(enabled = false, onClick = {})
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Text(
+                                text = stringResource(R.string.esearch_context_title),
+                                color = palette.textSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = app.label,
+                                color = palette.textPrimary,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = app.packageName,
+                                color = palette.textSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(palette.surfaceVariant.copy(alpha = 0.6f))
+                                .clickable {
+                                    contextApp = null
+                                    val intent = Intent(
+                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        Uri.parse("package:${app.packageName}")
+                                    )
+                                    context.startActivity(intent)
+                                }
+                                .padding(vertical = 12.dp, horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.esearch_app_info),
+                                color = palette.textPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(palette.primary.copy(alpha = 0.15f))
+                                .clickable {
+                                    contextApp = null
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.packageName}"))
+                                    )
+                                }
+                                .padding(vertical = 12.dp, horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.esearch_uninstall),
+                                color = palette.primary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { contextApp = null }
+                                .padding(vertical = 12.dp, horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.cancel),
+                                color = palette.textSecondary,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -150,6 +291,7 @@ private fun ESearchPanel(
     themedIcons: Boolean,
     rouletteMode: Boolean = false,
     onRouletteComplete: () -> Unit = {},
+    onAppLongClick: (AppInfo) -> Unit,
     onAppClick: (AppInfo) -> Unit
 ) {
     val context = LocalContext.current
@@ -307,6 +449,7 @@ private fun ESearchPanel(
                                 themedIcons = themedIcons,
                                 alreadyShown = app.packageName in shownPackages,
                                 onShown = { pkg -> shownPackages.add(pkg) },
+                                onLongClick = { onAppLongClick(app) },
                                 onClick = { onAppClick(app) }
                             )
                         }
@@ -327,6 +470,7 @@ private fun ESearchItem(
     themedIcons: Boolean,
     alreadyShown: Boolean,
     onShown: (String) -> Unit,
+    onLongClick: () -> Unit,
     onClick: () -> Unit
 ) {
     // === Каскадная анимация появления ===
@@ -391,11 +535,14 @@ private fun ESearchItem(
                 scaleY = scale
             )
             .background(bg)
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val bmp = remember(app.packageName, themedIcons, palette.id) {
+        val bmp = remember(app.packageName, app.icon, themedIcons, palette.id) {
             if (themedIcons) {
                 renderThemedIcon(app.icon, palette).asImageBitmap()
             } else {

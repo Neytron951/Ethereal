@@ -1,5 +1,6 @@
 package com.neytron.ethereal.tiles
 
+import android.Manifest
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
@@ -27,6 +28,8 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +41,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.neytron.ethereal.R
 import com.neytron.ethereal.data.AnalyticsHelper
 import com.neytron.ethereal.data.AppInfo
@@ -100,6 +104,7 @@ fun TilesScreen(
     val spaceNotFoundMsg = stringResource(R.string.space_not_found)
     val widgetDeniedNotDefaultMsg = stringResource(R.string.widget_denied_not_default_launcher)
     val widgetDeniedSystemMsg = stringResource(R.string.widget_denied_system)
+    val audioPermissionDeniedMsg = stringResource(R.string.audio_spectrum_permission_denied)
 
     val tileSize: Dp = tileSizeDp.dp
     val spacing: Dp = spacingDp.dp
@@ -146,6 +151,8 @@ fun TilesScreen(
     var pendingBindWidgetId by remember { mutableStateOf<Int?>(null) }
     var pendingConfigureWidgetId by remember { mutableStateOf<Int?>(null) }
     var pendingImageTile by remember { mutableStateOf<Tile?>(null) }
+    var pendingSpectrumPreset by remember { mutableStateOf<TilePreset?>(null) }
+    var showSpectrumPermissionExplanation by remember { mutableStateOf(false) }
 
     var isTransitioning by remember { mutableStateOf(false) }
     var transitionPivotFractionX by remember { mutableStateOf(0.5f) }
@@ -318,8 +325,33 @@ fun TilesScreen(
         }
     }
 
+    val spectrumPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val pending = pendingSpectrumPreset
+        pendingSpectrumPreset = null
+        if (granted && pending != null) {
+            handlePresetClick(pending)
+        } else if (!granted) {
+            scope.launch { snackbarHostState.showSnackbar(audioPermissionDeniedMsg) }
+        }
+    }
+
+    val handlePresetSelection: (TilePreset) -> Unit = { preset ->
+        if (
+            preset.type == TileType.EQUALIZER &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingSpectrumPreset = preset
+            showSpectrumPermissionExplanation = true
+        } else {
+            handlePresetClick(preset)
+        }
+    }
+
     LaunchedEffect(handlePresetClick) {
-        onPresetClickReady(handlePresetClick)
+        onPresetClickReady(handlePresetSelection)
     }
 
     val handleDeleteTile: (Tile) -> Unit = { tile ->
@@ -826,6 +858,37 @@ fun TilesScreen(
                     }
 
                     onShowCreateSpaceDialogChange(false)
+                }
+            )
+        }
+
+        if (showSpectrumPermissionExplanation) {
+            AlertDialog(
+                onDismissRequest = {
+                    showSpectrumPermissionExplanation = false
+                    pendingSpectrumPreset = null
+                },
+                title = { androidx.compose.material3.Text(stringResource(R.string.audio_spectrum_permission_title)) },
+                text = { androidx.compose.material3.Text(stringResource(R.string.audio_spectrum_permission_rationale)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showSpectrumPermissionExplanation = false
+                            spectrumPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                    ) {
+                        androidx.compose.material3.Text(stringResource(R.string.continue_label))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showSpectrumPermissionExplanation = false
+                            pendingSpectrumPreset = null
+                        }
+                    ) {
+                        androidx.compose.material3.Text(stringResource(R.string.cancel))
+                    }
                 }
             )
         }

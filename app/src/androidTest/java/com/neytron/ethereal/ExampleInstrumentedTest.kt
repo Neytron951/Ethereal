@@ -2,6 +2,10 @@ package com.neytron.ethereal
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.neytron.ethereal.data.BackupRepository
+import com.neytron.ethereal.data.SettingsRepository
+import org.json.JSONArray
+import org.json.JSONObject
 
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -19,6 +23,20 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.example.ethereal", appContext.packageName)
+        assertEquals("com.neytron.ethereal", appContext.packageName)
+    }
+
+    @Test
+    fun malformedBackupDoesNotPartiallyApplySettings() {
+        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        val originalPalette = SettingsRepository.getPaletteId(appContext)
+        val malformedBackup = JSONObject()
+            .put("version", 2)
+            .put("settings", JSONObject().put("palette_id", "must_not_be_applied"))
+            .put("spaces", JSONArray())
+            .put("layouts", JSONObject())
+
+        assertFalse(BackupRepository.importFromJson(appContext, malformedBackup.toString()))
+        assertEquals(originalPalette, SettingsRepository.getPaletteId(appContext))
     }
 }

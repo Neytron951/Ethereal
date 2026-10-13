@@ -27,6 +27,7 @@
     <string name="nothing_found">Ничего не найдено</string>
     <string name="system">Системный</string>
     <string name="space">Зона</string>
+    <string name="continue_label">Продолжить</string>
     <string name="no_space_for_widget">Нет места для виджета</string>
     <string name="cannot_delete_widget">Этот виджет нельзя удалить</string>
     <string name="cannot_resize_widget">Нельзя изменить размер</string>
@@ -45,6 +46,7 @@
     <string name="tile_app_launcher">Приложение</string>
     <string name="tile_search">Поиск</string>
     <string name="tile_widget">Виджет</string>
+    <string name="tile_equalizer">Спектр</string>
     <string name="tile_action">Действие</string>
     <string name="tile_tile">Тайл</string>
     <string name="tile_space">Пространство</string>
@@ -89,6 +91,14 @@
     <!-- ESearch -->
     <string name="esearch_placeholder">Поиск</string>
     <string name="esearch_nothing_found">Ничего не найдено</string>
+    <string name="esearch_app_info">О приложении</string>
+    <string name="esearch_uninstall">Удалить</string>
+    <string name="esearch_context_title">Действия с приложением</string>
+    <string name="audio_spectrum_permission_title">Доступ к аудиоспектру</string>
+    <string name="audio_spectrum_permission_rationale">Виджет анализирует системный вывод звука через Android Visualizer и не записывает и не сохраняет звук. Android требует разрешение на микрофон; некоторые устройства могут ограничивать визуализацию.</string>
+    <string name="audio_spectrum_permission_required">Нужно разрешение на аудио</string>
+    <string name="audio_spectrum_permission_denied">Разрешение на аудио не предоставлено</string>
+    <string name="audio_spectrum_unavailable">Аудиоспектр недоступен</string>
 
     <!-- Widget Picker -->
     <string name="widget_picker_title">Выбор виджета</string>
@@ -110,6 +120,9 @@
     <string name="settings_panel_blur_subtitle">Эффект размытия для ESearch, Dock и настроек</string>
     <string name="settings_font_scale">Размер шрифта</string>
     <string name="settings_font_scale_subtitle">Множитель для всех текстов</string>
+    <string name="icon_pack_title">Набор иконок</string>
+    <string name="icon_pack_subtitle">Иконки из установленных наборов ADW, Nova, Apex или Holo</string>
+    <string name="icon_pack_system">Системные иконки</string>
 
     <!-- Settings: Tiles -->
     <string name="settings_tiles_section">Настройки сетки тайлов</string>
@@ -172,11 +185,13 @@
     <!-- Settings: About -->
     <string name="settings_backup_section">Резервное копирование</string>
     <string name="settings_backup_export">Экспорт настроек (JSON)</string>
-    <string name="settings_backup_export_subtitle">Сохранить тайлы, темы и пространства в файл</string>
+    <string name="settings_backup_export_subtitle">Сохранить настройки, раскладки, пространства, обои и изображения</string>
     <string name="settings_backup_import">Импорт настроек (JSON)</string>
     <string name="settings_backup_import_subtitle">Восстановить конфигурацию из файла</string>
     <string name="settings_backup_import_success">Конфигурация успешно импортирована!</string>
     <string name="settings_backup_import_error">Ошибка чтения файла JSON</string>
+    <string name="settings_backup_export_success">Резервная копия экспортирована</string>
+    <string name="settings_backup_export_error">Не удалось экспортировать копию</string>
 
     <string name="settings_about_manufacturer">Производитель</string>
     <string name="settings_about_model">Модель</string>

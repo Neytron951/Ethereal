@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import com.neytron.ethereal.BuildConfig
 import com.neytron.ethereal.R
 import com.neytron.ethereal.data.AppInfo
+import com.neytron.ethereal.data.IconPackInfo
 import com.neytron.ethereal.data.UpdateInfo
 import com.neytron.ethereal.ui.theme.AllPalettes
 import com.neytron.ethereal.ui.theme.EtherealFont
@@ -120,6 +121,9 @@ fun SettingsScreen(
     onDockScrollableChange: (Boolean) -> Unit,
     onDockIconShapeChange: (String) -> Unit,
     onDockShowIconBackgroundChange: (Boolean) -> Unit,
+    iconPacks: List<IconPackInfo>,
+    selectedIconPack: String?,
+    onIconPackChange: (String?) -> Unit,
     tileSize: Float,
     tileSpacing: Float,
     tileRadius: Float,
@@ -222,7 +226,10 @@ fun SettingsScreen(
                             fontFamilyName = fontFamilyName,
                             onFontFamilyChange = onFontFamilyChange,
                             themedIcons = dockThemedIcons,
-                            onThemedIconsChange = onDockThemedIconsChange
+                            onThemedIconsChange = onDockThemedIconsChange,
+                            iconPacks = iconPacks,
+                            selectedIconPack = selectedIconPack,
+                            onIconPackChange = onIconPackChange
                         )
                         SettingsTab.TILES -> TilesTab(
                             palette = currentPalette,
@@ -365,7 +372,10 @@ private fun AppearanceTab(
     fontFamilyName: String,
     onFontFamilyChange: (String) -> Unit,
     themedIcons: Boolean,
-    onThemedIconsChange: (Boolean) -> Unit
+    onThemedIconsChange: (Boolean) -> Unit,
+    iconPacks: List<IconPackInfo>,
+    selectedIconPack: String?,
+    onIconPackChange: (String?) -> Unit
 ) {
     val appearance = LocalAppearance.current
 
@@ -394,6 +404,14 @@ private fun AppearanceTab(
             )
         }
         item {
+            IconPackDropdown(
+                palette = currentPalette,
+                iconPacks = iconPacks,
+                selectedPackage = selectedIconPack,
+                onIconPackChange = onIconPackChange
+            )
+        }
+        item {
             SettingsToggle(
                 title = stringResource(R.string.settings_dock_themed_icons),
                 subtitle = stringResource(R.string.settings_dock_themed_icons_subtitle),
@@ -402,6 +420,7 @@ private fun AppearanceTab(
                 onCheckedChange = onThemedIconsChange
             )
         }
+
         item {
             SettingsSlider(
                 title = stringResource(R.string.settings_panel_opacity),
@@ -436,6 +455,82 @@ private fun AppearanceTab(
             )
         }
         item { Spacer(modifier = Modifier.height(20.dp)) }
+    }
+}
+
+@Composable
+private fun IconPackDropdown(
+    palette: EtherealPalette,
+    iconPacks: List<IconPackInfo>,
+    selectedPackage: String?,
+    onIconPackChange: (String?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = iconPacks.firstOrNull { it.packageName == selectedPackage }?.label
+        ?: stringResource(R.string.icon_pack_system)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(palette.surfaceVariant.copy(alpha = 0.4f))
+            .padding(14.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.icon_pack_title),
+            color = palette.textPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = stringResource(R.string.icon_pack_subtitle),
+            color = palette.textSecondary,
+            fontSize = 11.sp
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(palette.surface)
+                    .clickable { expanded = true }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = selectedLabel,
+                    color = palette.textPrimary,
+                    fontSize = 14.sp,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text("⌄", color = palette.textSecondary, fontSize = 16.sp)
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.icon_pack_system)) },
+                    onClick = {
+                        expanded = false
+                        onIconPackChange(null)
+                    }
+                )
+                iconPacks.forEach { pack ->
+                    DropdownMenuItem(
+                        text = { Text(pack.label) },
+                        onClick = {
+                            expanded = false
+                            onIconPackChange(pack.packageName)
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 

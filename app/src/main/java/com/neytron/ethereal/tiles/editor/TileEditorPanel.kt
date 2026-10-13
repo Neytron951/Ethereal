@@ -233,6 +233,7 @@ private fun PresetChip(
         "clock" -> R.drawable.clock_24dp
         "weather" -> R.drawable.cloud_24dp
         "app_launcher" -> R.drawable.apps_24dp
+        "equalizer" -> R.drawable.audio_spectrum_24dp
         else -> null
     }
 
@@ -240,6 +241,7 @@ private fun PresetChip(
         "clock" -> stringResource(R.string.tile_clock)
         "weather" -> stringResource(R.string.tile_weather)
         "app_launcher" -> stringResource(R.string.tile_app)
+        "equalizer" -> stringResource(R.string.tile_equalizer)
         else -> preset.label
     }
 
@@ -1266,6 +1268,7 @@ private fun tileDisplayName(tile: Tile): String = when {
     tile.payload == "ethereal_search" -> stringResource(R.string.tile_search)
     tile.type == TileType.SETTINGS -> stringResource(R.string.settings)
     tile.type == TileType.APP_LAUNCHER -> stringResource(R.string.tile_app_launcher)
+    tile.type == TileType.EQUALIZER -> stringResource(R.string.tile_equalizer)
     tile.type == TileType.APP -> tile.payload ?: stringResource(R.string.tile_app)
     tile.type == TileType.WIDGET -> stringResource(R.string.tile_widget)
     tile.type == TileType.ACTION -> stringResource(R.string.tile_action)
@@ -1296,5 +1299,12 @@ fun defaultPresets(): List<TilePreset> = listOf(
         w = 1, h = 1,
         payload = null,
         clickable = true
+    ),
+    TilePreset(
+        id = "equalizer",
+        label = "Spectrum",
+        type = TileType.EQUALIZER,
+        w = 2, h = 1,
+        clickable = false
     )
 )

@@ -217,6 +217,11 @@ fun TileCell(
                 }
             }
 
+            TileType.EQUALIZER -> AudioSpectrumTileContent(
+                palette = palette,
+                contentScale = contentScale
+            )
+
             TileType.APP -> {
                 Text(
                     text = tile.payload?.take(1)?.uppercase() ?: "?",
@@ -341,7 +346,7 @@ private fun AppLauncherContent(
         return
     }
 
-    val bmp = remember(app.packageName, themedIcons, palette.id) {
+    val bmp = remember(app.packageName, app.icon, themedIcons, palette.id) {
         if (themedIcons) {
             renderThemedIcon(app.icon, palette).asImageBitmap()
         } else {

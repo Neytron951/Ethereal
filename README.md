@@ -50,6 +50,7 @@ One grid. Multiple Spaces. No endless swiping.
 - **16 font families** — system default plus bundled custom fonts
 - **Frosted glass UI** — adjustable panel opacity and blur
 - **Custom icon shapes** — circle, square, squircle, cut corner
+- **Icon packs** — compatible ADW, Nova, Apex, and Holo packs
 - **Themed icons** — tint app icons in your theme colors (Material You style)
 - **Font size scaling** for the whole launcher
 
@@ -57,6 +58,7 @@ One grid. Multiple Spaces. No endless swiping.
 
 - **Clock** — time and date, localized
 - **Weather** — live data from Open-Meteo, IP-based or manual city
+- **Audio spectrum** — eight live frequency bands from Android's audio visualizer (requires microphone permission; analyzes playback without recording or storing it; device support varies)
 - **E-Search** — quick app search accessible from a tile
 
 ### Dock
@@ -70,6 +72,7 @@ One grid. Multiple Spaces. No endless swiping.
 ### E-Search
 
 - Swipe up from the home screen to open
+- Long-press an app for system app info or uninstall actions
 - Frosted glass overlay with adjustable blur
 - Adaptive app sorting by usage frequency
 - Cascade animation on open
@@ -86,6 +89,7 @@ One grid. Multiple Spaces. No endless swiping.
 - Onboarding wizard for first-time setup
 - Optional anonymous analytics (can be disabled at any time)
 - In-app update notifications via GitHub Releases
+- Settings backup includes layouts, Spaces, saved wallpapers, and custom tile images
 
 ---
 

@@ -27,6 +27,7 @@
     <string name="nothing_found">Nothing found</string>
     <string name="system">System</string>
     <string name="space">Space</string>
+    <string name="continue_label">Continue</string>
     <string name="no_space_for_widget">No space for widget</string>
     <string name="cannot_delete_widget">This widget cannot be deleted</string>
     <string name="cannot_resize_widget">Cannot resize</string>
@@ -45,6 +46,7 @@
     <string name="tile_app_launcher">Application</string>
     <string name="tile_search">Search</string>
     <string name="tile_widget">Widget</string>
+    <string name="tile_equalizer">Spectrum</string>
     <string name="tile_action">Action</string>
     <string name="tile_tile">Tile</string>
     <string name="tile_space">Space</string>
@@ -89,6 +91,14 @@
     <!-- ESearch -->
     <string name="esearch_placeholder">Search</string>
     <string name="esearch_nothing_found">Nothing found</string>
+    <string name="esearch_app_info">App info</string>
+    <string name="esearch_uninstall">Uninstall</string>
+    <string name="esearch_context_title">App actions</string>
+    <string name="audio_spectrum_permission_title">Audio spectrum access</string>
+    <string name="audio_spectrum_permission_rationale">The widget reads the device audio output through Android\'s visualizer. It does not record or save audio. Android requires microphone permission, and some devices may restrict audio visualization.</string>
+    <string name="audio_spectrum_permission_required">Audio permission required</string>
+    <string name="audio_spectrum_permission_denied">Audio permission was not granted</string>
+    <string name="audio_spectrum_unavailable">Audio spectrum unavailable</string>
 
     <!-- Widget Picker -->
     <string name="widget_picker_title">Choose widget</string>
@@ -110,6 +120,9 @@
     <string name="settings_panel_blur_subtitle">Blur effect for ESearch, Dock and Settings</string>
     <string name="settings_font_scale">Font size</string>
     <string name="settings_font_scale_subtitle">Multiplier for all texts</string>
+    <string name="icon_pack_title">Icon pack</string>
+    <string name="icon_pack_subtitle">Use icons from an installed ADW, Nova, Apex or Holo pack</string>
+    <string name="icon_pack_system">System icons</string>
 
     <!-- Settings: Tiles -->
     <string name="settings_tiles_section">Tile grid settings</string>
@@ -172,11 +185,13 @@
     <!-- Settings: About -->
     <string name="settings_backup_section">Backup &amp; Restore</string>
     <string name="settings_backup_export">Export settings (JSON)</string>
-    <string name="settings_backup_export_subtitle">Save layout, themes and spaces to file</string>
+    <string name="settings_backup_export_subtitle">Save settings, layouts, spaces, wallpapers and custom images</string>
     <string name="settings_backup_import">Import settings (JSON)</string>
     <string name="settings_backup_import_subtitle">Restore launcher configuration from file</string>
     <string name="settings_backup_import_success">Configuration successfully imported!</string>
     <string name="settings_backup_import_error">Failed to import JSON file</string>
+    <string name="settings_backup_export_success">Backup exported</string>
+    <string name="settings_backup_export_error">Could not export backup</string>
 
     <string name="settings_about_manufacturer">Manufacturer</string>
     <string name="settings_about_model">Model</string>

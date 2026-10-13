@@ -21,6 +21,7 @@ object SettingsRepository {
     private const val KEY_DOCK_ICON_SHAPE = "dock_icon_shape"
     private const val KEY_DOCK_SHOW_BG = "dock_show_icon_bg"
     private const val KEY_DOCK_THEMED_ICONS = "dock_themed_icons"
+    private const val KEY_ICON_PACK = "icon_pack_package"
 
     private const val DEFAULT_DOCK_ICON_SIZE = 50f
     private const val DEFAULT_DOCK_BOTTOM_PADDING = 32f
@@ -160,6 +161,13 @@ object SettingsRepository {
         prefs(context).getBoolean(KEY_DOCK_THEMED_ICONS, false)
     fun setDockThemedIcons(context: Context, value: Boolean) {
         prefs(context).edit().putBoolean(KEY_DOCK_THEMED_ICONS, value).apply()
+    }
+
+    fun getIconPackPackage(context: Context): String? =
+        prefs(context).getString(KEY_ICON_PACK, null)
+
+    fun setIconPackPackage(context: Context, packageName: String?) {
+        prefs(context).edit().putString(KEY_ICON_PACK, packageName).apply()
     }
 
     // ============================================================

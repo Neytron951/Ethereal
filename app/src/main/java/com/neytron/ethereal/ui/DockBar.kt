@@ -85,17 +85,30 @@ fun DockBar(
     val spacing = if (itemCount >= 5) 6.dp else 8.dp
     val horizontalPadding = if (itemCount >= 5) 12.dp else 16.dp
 
-    val packageKey = remember(apps) { apps.map { it.packageName }.sorted().joinToString("|") }
-    var order by remember(apps) { mutableStateOf(apps) }
-
-    LaunchedEffect(packageKey) {
+    var order by remember {
         val savedOrder = SettingsRepository.getDockOrder(context)
         val sorted = apps.sortedBy { app ->
             val idx = savedOrder.indexOf(app.packageName)
             if (idx == -1) Int.MAX_VALUE else idx
         }
-        if (sorted.isNotEmpty()) {
-            order = sorted
+        mutableStateOf(if (sorted.isNotEmpty()) sorted else apps)
+    }
+
+    LaunchedEffect(apps) {
+        val savedOrder = SettingsRepository.getDockOrder(context)
+        val currentMap = apps.associateBy { it.packageName }
+        val updatedOrder = order.map { oldApp ->
+            currentMap[oldApp.packageName] ?: oldApp
+        }
+        val existingPackages = updatedOrder.mapTo(mutableSetOf()) { it.packageName }
+        val newApps = apps.filter { it.packageName !in existingPackages }
+
+        val combined = (updatedOrder + newApps).sortedBy { app ->
+            val idx = savedOrder.indexOf(app.packageName)
+            if (idx == -1) Int.MAX_VALUE else idx
+        }
+        if (combined.isNotEmpty()) {
+            order = combined
         }
     }
 
@@ -417,6 +430,7 @@ private fun PresetChip(
         "clock" -> R.drawable.clock_24dp
         "weather" -> R.drawable.cloud_24dp
         "app_launcher" -> R.drawable.apps_24dp
+        "equalizer" -> R.drawable.audio_spectrum_24dp
         else -> null
     }
 
@@ -424,6 +438,7 @@ private fun PresetChip(
         "clock" -> stringResource(R.string.tile_clock)
         "weather" -> stringResource(R.string.tile_weather)
         "app_launcher" -> stringResource(R.string.tile_app)
+        "equalizer" -> stringResource(R.string.tile_equalizer)
         else -> preset.label
     }
 
@@ -522,7 +537,7 @@ private fun DockItem(
 
     val offsetX = if (isDragging) dragOffsetX else with(density) { shift.toPx() }
 
-    val bmp = remember(app.packageName, themedIcons, palette.id) {
+    val bmp = remember(app.packageName, app.icon, themedIcons, palette.id) {
         if (themedIcons) {
             renderThemedIcon(app.icon, palette).asImageBitmap()
         } else {

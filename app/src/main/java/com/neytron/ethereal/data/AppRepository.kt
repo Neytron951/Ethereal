@@ -5,7 +5,7 @@ import android.content.Intent
 
 object AppRepository {
 
-    fun getInstalledApps(context: Context): List<AppInfo> {
+    fun getInstalledApps(context: Context, iconPackPackage: String? = null): List<AppInfo> {
         val pm = context.packageManager
         val intent = Intent(Intent.ACTION_MAIN, null).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
@@ -17,7 +17,10 @@ object AppRepository {
                     val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
                     val label = resolveInfo.loadLabel(pm).toString()
                     val packageName = activityInfo.packageName
-                    val icon = resolveInfo.loadIcon(pm) ?: return@mapNotNull null
+                    val activityName = activityInfo.name
+                    val icon = iconPackPackage?.let {
+                        IconPackRepository.loadIcon(context, it, packageName, activityName)
+                    } ?: resolveInfo.loadIcon(pm) ?: return@mapNotNull null
 
                     // Пропускаем сам лаунчер
                     if (packageName == context.packageName) return@mapNotNull null
@@ -25,7 +28,8 @@ object AppRepository {
                     AppInfo(
                         label = label,
                         packageName = packageName,
-                        icon = icon
+                        icon = icon,
+                        activityName = activityName
                     )
                 } catch (_: Throwable) {
                     null
