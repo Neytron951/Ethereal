@@ -142,11 +142,25 @@ object UpdateRepository {
                 return null
             }
 
+            val assets = obj.optJSONArray("assets")
+            var apkUrl = ""
+            if (assets != null) {
+                for (i in 0 until assets.length()) {
+                    val asset = assets.getJSONObject(i)
+                    val name = asset.optString("name", "")
+                    if (name.endsWith(".apk", ignoreCase = true)) {
+                        apkUrl = asset.optString("browser_download_url", "")
+                        break
+                    }
+                }
+            }
+
             UpdateInfo(
                 currentVersion = current,
                 latestVersion = latest,
                 changelog = obj.optString("body", "").trim(),
                 htmlUrl = obj.optString("html_url", ""),
+                apkUrl = apkUrl,
                 publishedAt = obj.optString("published_at", ""),
                 checkedAt = System.currentTimeMillis()
             )
@@ -176,6 +190,7 @@ object UpdateRepository {
                 latestVersion = latest,
                 changelog = obj.optString("changelog", ""),
                 htmlUrl = obj.optString("htmlUrl", ""),
+                apkUrl = obj.optString("apkUrl", ""),
                 publishedAt = obj.optString("publishedAt", ""),
                 checkedAt = obj.optLong("checkedAt", 0L)
             )
@@ -192,6 +207,7 @@ object UpdateRepository {
                 put("latestVersion", info.latestVersion.toString())
                 put("changelog", info.changelog)
                 put("htmlUrl", info.htmlUrl)
+                put("apkUrl", info.apkUrl)
                 put("publishedAt", info.publishedAt)
                 put("checkedAt", info.checkedAt)
             }

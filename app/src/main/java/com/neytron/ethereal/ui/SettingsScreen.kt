@@ -53,6 +53,27 @@ import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.data.IconPackInfo
 import com.neytron.ethereal.data.UpdateInfo
 import com.neytron.ethereal.ui.theme.AllPalettes
+import android.content.Intent
+import androidx.core.content.FileProvider
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownColor
+import com.mikepenz.markdown.m3.markdownTypography
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.neytron.ethereal.ui.theme.EtherealFont
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.IconShape
@@ -138,8 +159,10 @@ fun SettingsScreen(
     onCheckForUpdates: () -> Unit,
     onOpenUpdateOverlay: () -> Unit,
     onRestartOnboarding: (() -> Unit)? = null,
-    onExportBackup: () -> Unit = {},
-    onImportBackup: () -> Unit = {},
+    onExportBackup: (Boolean, Boolean, Boolean) -> Unit = { _, _, _ -> },
+    onImportBackup: (Boolean, Boolean, Boolean) -> Unit = { _, _, _ -> },
+    isExporting: Boolean = false,
+    isImporting: Boolean = false,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -292,7 +315,9 @@ fun SettingsScreen(
                             onCheckForUpdates = onCheckForUpdates,
                             onOpenUpdateOverlay = onOpenUpdateOverlay,
                             onExportBackup = onExportBackup,
-                            onImportBackup = onImportBackup
+                            onImportBackup = onImportBackup,
+                            isExporting = isExporting,
+                            isImporting = isImporting
                         )
                     }
                 }
@@ -986,14 +1011,17 @@ private fun AboutTab(
     updateChecking: Boolean,
     onCheckForUpdates: () -> Unit,
     onOpenUpdateOverlay: () -> Unit,
-    onExportBackup: () -> Unit,
-    onImportBackup: () -> Unit
+    onExportBackup: (Boolean, Boolean, Boolean) -> Unit,
+    onImportBackup: (Boolean, Boolean, Boolean) -> Unit,
+    isExporting: Boolean,
+    isImporting: Boolean
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val deviceInfo = remember { getDeviceInfo(context) }
     val uriHandler = LocalUriHandler.current
     var versionClicks by remember { mutableIntStateOf(0) }
+    var showUpdatesAndDataDialog by remember { mutableStateOf(false) }
 
     androidx.compose.foundation.lazy.LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1010,7 +1038,7 @@ private fun AboutTab(
                     updateInfo = updateInfo,
                     updateChecking = updateChecking,
                     onCheckForUpdates = onCheckForUpdates,
-                    onOpenUpdateOverlay = onOpenUpdateOverlay
+                    onOpenUpdateOverlay = { showUpdatesAndDataDialog = true }
                 )
             }
         }
@@ -1115,28 +1143,26 @@ private fun AboutTab(
             }
         }
 
-        // === Кнопка ручной проверки обновлений ===
+        // === Кнопка "Обновления и данные" ===
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(palette.surfaceVariant.copy(alpha = 0.4f))
-                    .clickable(enabled = !updateChecking) {
+                    .background(palette.primary.copy(alpha = 0.15f))
+                    .border(1.dp, palette.primary.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                    .clickable {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onCheckForUpdates()
+                        showUpdatesAndDataDialog = true
                     }
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (updateChecking)
-                        stringResource(R.string.update_checking)
-                    else
-                        stringResource(R.string.update_check_manual),
-                    color = if (updateChecking) palette.textSecondary else palette.primary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    text = stringResource(R.string.settings_updates_and_data),
+                    color = palette.primary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -1184,30 +1210,6 @@ private fun AboutTab(
         }
 
         item {
-            Spacer(modifier = Modifier.height(4.dp))
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_backup_section),
-                    color = palette.textSecondary,
-                    fontSize = 12.sp
-                )
-                SettingsButton(
-                    title = stringResource(R.string.settings_backup_export),
-                    palette = palette,
-                    onClick = onExportBackup
-                )
-                SettingsButton(
-                    title = stringResource(R.string.settings_backup_import),
-                    palette = palette,
-                    onClick = onImportBackup
-                )
-            }
-        }
-
-        item {
             Text(
                 text = stringResource(R.string.settings_about_license),
                 color = palette.textSecondary,
@@ -1216,6 +1218,603 @@ private fun AboutTab(
         }
 
         item { Spacer(modifier = Modifier.height(24.dp)) }
+    }
+
+    if (showUpdatesAndDataDialog) {
+        UpdatesAndDataDialog(
+            palette = palette,
+            updateInfo = updateInfo,
+            updateChecking = updateChecking,
+            onCheckForUpdates = onCheckForUpdates,
+            onExportBackup = onExportBackup,
+            onImportBackup = onImportBackup,
+            isExporting = isExporting,
+            isImporting = isImporting,
+            onDismiss = { showUpdatesAndDataDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun UpdatesAndDataDialog(
+    palette: EtherealPalette,
+    updateInfo: UpdateInfo?,
+    updateChecking: Boolean,
+    onCheckForUpdates: () -> Unit,
+    onExportBackup: (Boolean, Boolean, Boolean) -> Unit,
+    onImportBackup: (Boolean, Boolean, Boolean) -> Unit,
+    isExporting: Boolean,
+    isImporting: Boolean,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val haptic = LocalHapticFeedback.current
+
+    var showExportOptions by remember { mutableStateOf(false) }
+    var showImportOptions by remember { mutableStateOf(false) }
+
+    var exportSettings by remember { mutableStateOf(true) }
+    var exportSpaces by remember { mutableStateOf(true) }
+    var exportWallpapers by remember { mutableStateOf(true) }
+
+    var importSettings by remember { mutableStateOf(true) }
+    var importSpaces by remember { mutableStateOf(true) }
+    var importWallpapers by remember { mutableStateOf(true) }
+
+    var downloading by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableIntStateOf(0) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.65f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.96f)
+                .fillMaxHeight(0.92f)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {}
+                ),
+            shape = RoundedCornerShape(24.dp),
+            color = palette.background.copy(alpha = 0.98f),
+            border = BorderStroke(1.dp, palette.surfaceVariant)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.updates_and_data_title),
+                        color = palette.textPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(palette.surfaceVariant.copy(alpha = 0.5f))
+                            .clickable(onClick = onDismiss),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "✕", color = palette.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    // === Данные и бэкапы ===
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = stringResource(R.string.data_section_title),
+                            color = palette.textSecondary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        SettingsButton(
+                            title = stringResource(R.string.data_export_button),
+                            palette = palette,
+                            onClick = { showExportOptions = true }
+                        )
+                        SettingsButton(
+                            title = stringResource(R.string.data_import_button),
+                            palette = palette,
+                            onClick = { showImportOptions = true }
+                        )
+                    }
+
+                    // === Обновления приложения ===
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = stringResource(R.string.updates_section_title),
+                            color = palette.textSecondary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            VersionBadge(
+                                text = "v${BuildConfig.VERSION_NAME}",
+                                palette = palette,
+                                isLatest = false
+                            )
+                            Text(text = "→", color = palette.textSecondary)
+                            VersionBadge(
+                                text = updateInfo?.latestVersion?.display() ?: "v${BuildConfig.VERSION_NAME}",
+                                palette = palette,
+                                isLatest = updateInfo?.hasUpdate == true
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(palette.surfaceVariant.copy(alpha = 0.4f))
+                                .clickable(enabled = !updateChecking) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onCheckForUpdates()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (updateChecking) stringResource(R.string.update_checking) else stringResource(R.string.update_check_manual),
+                                color = if (updateChecking) palette.textSecondary else palette.primary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        if (updateInfo != null && updateInfo.hasUpdate && updateInfo.changelog.isNotBlank()) {
+                            ChangelogSection(
+                                changelog = updateInfo.changelog,
+                                palette = palette
+                            )
+                        }
+
+                        if (updateInfo != null && updateInfo.hasUpdate) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (downloading) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(palette.surfaceVariant.copy(alpha = 0.3f))
+                                            .padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.update_downloading_progress, downloadProgress),
+                                            color = palette.textPrimary,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        LinearProgressIndicator(
+                                            progress = downloadProgress / 100f,
+                                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                            color = palette.primary,
+                                            trackColor = palette.surfaceVariant
+                                        )
+                                    }
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(palette.primary)
+                                            .clickable {
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                val targetApkUrl = if (updateInfo.apkUrl.isNotBlank()) {
+                                                    updateInfo.apkUrl
+                                                } else {
+                                                    "https://github.com/Neytron951/Ethereal/releases/download/${updateInfo.latestVersion.display()}/Ethereal.apk"
+                                                }
+                                                downloading = true
+                                                downloadProgress = 0
+                                                downloadError = null
+                                                scope.launch(Dispatchers.IO) {
+                                                    try {
+                                                        val url = URL(targetApkUrl)
+                                                        val conn = url.openConnection() as HttpURLConnection
+                                                        conn.connectTimeout = 10000
+                                                        conn.readTimeout = 10000
+                                                        conn.connect()
+
+                                                        if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+                                                            error("HTTP ${conn.responseCode}")
+                                                        }
+
+                                                        val fileLength = conn.contentLength
+                                                        val input = BufferedInputStream(conn.inputStream)
+                                                        val outputFile = File(context.cacheDir, "update.apk")
+                                                        val output = FileOutputStream(outputFile)
+
+                                                        val data = ByteArray(4096)
+                                                        var total: Long = 0
+                                                        var count: Int
+                                                        while (input.read(data).also { count = it } != -1) {
+                                                            total += count.toLong()
+                                                            if (fileLength > 0) {
+                                                                downloadProgress = ((total * 100) / fileLength).toInt()
+                                                            }
+                                                            output.write(data, 0, count)
+                                                        }
+                                                        output.flush()
+                                                        output.close()
+                                                        input.close()
+
+                                                        withContext(Dispatchers.Main) {
+                                                            downloading = false
+                                                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", outputFile)
+                                                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                                setDataAndType(uri, "application/vnd.android.package-archive")
+                                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                            }
+                                                            context.startActivity(intent)
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        e.printStackTrace()
+                                                        withContext(Dispatchers.Main) {
+                                                            downloading = false
+                                                            downloadError = e.message
+                                                            if (updateInfo.htmlUrl.isNotBlank()) {
+                                                                uriHandler.openUri(updateInfo.htmlUrl)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            .padding(vertical = 14.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.update_download_in_app),
+                                            color = palette.background,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(palette.surfaceVariant.copy(alpha = 0.5f))
+                                            .clickable {
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                if (updateInfo.htmlUrl.isNotBlank()) {
+                                                    uriHandler.openUri(updateInfo.htmlUrl)
+                                                }
+                                            }
+                                            .padding(vertical = 12.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.update_download_manual),
+                                            color = palette.textPrimary,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+
+                                if (downloadError != null) {
+                                    Text(
+                                        text = "Error: $downloadError",
+                                        color = Color.Red,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showExportOptions) {
+        AlertDialog(
+            onDismissRequest = { showExportOptions = false },
+            title = { Text(text = stringResource(R.string.export_options_title), color = palette.textPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Switch(checked = exportSettings, onCheckedChange = { exportSettings = it })
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = stringResource(R.string.option_settings), color = palette.textPrimary, fontSize = 14.sp)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Switch(checked = exportSpaces, onCheckedChange = { exportSpaces = it })
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = stringResource(R.string.option_spaces_layouts), color = palette.textPrimary, fontSize = 14.sp)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Switch(checked = exportWallpapers, onCheckedChange = { exportWallpapers = it })
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = stringResource(R.string.option_wallpapers_assets), color = palette.textPrimary, fontSize = 14.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showExportOptions = false
+                    onExportBackup(exportSettings, exportSpaces, exportWallpapers)
+                }) {
+                    Text(text = stringResource(R.string.continue_button), color = palette.primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExportOptions = false }) {
+                    Text(text = stringResource(R.string.cancel), color = palette.textSecondary)
+                }
+            },
+            containerColor = palette.background
+        )
+    }
+
+    if (showImportOptions) {
+        AlertDialog(
+            onDismissRequest = { showImportOptions = false },
+            title = { Text(text = stringResource(R.string.import_options_title), color = palette.textPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Switch(checked = importSettings, onCheckedChange = { importSettings = it })
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = stringResource(R.string.option_settings), color = palette.textPrimary, fontSize = 14.sp)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Switch(checked = importSpaces, onCheckedChange = { importSpaces = it })
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = stringResource(R.string.option_spaces_layouts), color = palette.textPrimary, fontSize = 14.sp)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Switch(checked = importWallpapers, onCheckedChange = { importWallpapers = it })
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = stringResource(R.string.option_wallpapers_assets), color = palette.textPrimary, fontSize = 14.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showImportOptions = false
+                    onImportBackup(importSettings, importSpaces, importWallpapers)
+                }) {
+                    Text(text = stringResource(R.string.continue_button), color = palette.primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImportOptions = false }) {
+                    Text(text = stringResource(R.string.cancel), color = palette.textSecondary)
+                }
+            },
+            containerColor = palette.background
+        )
+    }
+
+    if (isExporting || isImporting) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.7f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = palette.background,
+                border = BorderStroke(1.dp, palette.surfaceVariant),
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(28.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator(color = palette.primary)
+                    Text(
+                        text = if (isExporting) stringResource(R.string.data_exporting) else stringResource(R.string.data_importing),
+                        color = palette.textPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+}
+
+@Composable
+private fun VersionBadge(
+    text: String,
+    palette: EtherealPalette,
+    isLatest: Boolean
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (isLatest) palette.primary.copy(alpha = 0.15f)
+                else palette.surfaceVariant.copy(alpha = 0.5f)
+            )
+            .border(
+                width = if (isLatest) 1.dp else 0.dp,
+                color = if (isLatest) palette.primary.copy(alpha = 0.5f) else Color.Transparent,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (isLatest) palette.primary else palette.textSecondary,
+            fontSize = 13.sp,
+            fontWeight = if (isLatest) FontWeight.Bold else FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun ChangelogSection(
+    changelog: String,
+    palette: EtherealPalette,
+    modifier: Modifier = Modifier
+) {
+    val trimmed = changelog.trim()
+    if (trimmed.isBlank()) return
+
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(palette.surfaceVariant.copy(alpha = 0.35f))
+            .border(
+                width = 1.dp,
+                color = palette.outline.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .padding(14.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.update_changelog_title),
+            color = palette.textPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        val maxCollapsedHeight = 140.dp
+        val scrollState = rememberScrollState()
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (expanded) {
+                        Modifier
+                            .heightIn(max = 300.dp)
+                            .verticalScroll(scrollState)
+                    } else {
+                        Modifier
+                            .heightIn(max = maxCollapsedHeight)
+                            .verticalScroll(scrollState, enabled = false)
+                    }
+                )
+        ) {
+            Markdown(
+                content = trimmed,
+                colors = markdownColor(
+                    text = palette.textPrimary,
+                    codeText = palette.primary,
+                    codeBackground = palette.surface,
+                    inlineCodeBackground = palette.surface,
+                    dividerColor = palette.outline
+                ),
+                typography = markdownTypography(
+                    text = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp
+                    ),
+                    h1 = TextStyle(
+                        color = palette.primary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    h2 = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    h3 = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    paragraph = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp
+                    ),
+                    bullet = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp
+                    )
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        ExpandToggle(
+            expanded = expanded,
+            palette = palette,
+            onClick = { expanded = !expanded }
+        )
+    }
+}
+
+@Composable
+private fun ExpandToggle(
+    expanded: Boolean,
+    palette: EtherealPalette,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = if (expanded) stringResource(R.string.update_collapse) else stringResource(R.string.update_expand),
+            color = palette.primary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text = if (expanded) "▲" else "▼", color = palette.primary, fontSize = 11.sp)
     }
 }
 

@@ -1,6 +1,10 @@
 package com.neytron.ethereal.data
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import com.neytron.ethereal.tiles.SpaceRepository
 import com.neytron.ethereal.tiles.Tile
 import com.neytron.ethereal.tiles.TileLayoutRepository
@@ -10,6 +14,9 @@ import com.neytron.ethereal.ui.navigation.ScreenStack
 import org.json.JSONArray
 import org.json.JSONObject
 import android.util.Base64
+import com.neytron.ethereal.widgets.EtherealAppWidgetHost
+import com.neytron.ethereal.widgets.WidgetHostManager
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.MessageDigest
 import java.util.UUID
@@ -19,54 +26,63 @@ object BackupRepository {
     /**
      * Экспортирует настройки, список пространств и все тайлы в JSON-строку.
      */
-    fun exportToJson(context: Context): String {
+    fun exportToJson(
+        context: Context,
+        includeSettings: Boolean = true,
+        includeSpacesAndLayouts: Boolean = true,
+        includeWallpapersAndAssets: Boolean = true
+    ): String {
         val root = JSONObject()
 
         root.put("version", 2)
         root.put("timestamp", System.currentTimeMillis())
 
         // === 1) Настройки ===
-        val settingsObj = JSONObject().apply {
-            put("palette_id", SettingsRepository.getPaletteId(context))
-            put("font_family", SettingsRepository.getFont(context))
-            put("font_scale", SettingsRepository.getFontScale(context))
-            put("panel_opacity", SettingsRepository.getOpacity(context))
-            put("panel_blur", SettingsRepository.getBlur(context))
+        if (includeSettings) {
+            val settingsObj = JSONObject().apply {
+                put("palette_id", SettingsRepository.getPaletteId(context))
+                put("font_family", SettingsRepository.getFont(context))
+                put("font_scale", SettingsRepository.getFontScale(context))
+                put("panel_opacity", SettingsRepository.getOpacity(context))
+                put("panel_blur", SettingsRepository.getBlur(context))
 
-            val dockSet = JSONArray()
-            SettingsRepository.getDockPackages(context).forEach { dockSet.put(it) }
-            put("dock_packages", dockSet)
+                val dockSet = JSONArray()
+                SettingsRepository.getDockPackages(context).forEach { dockSet.put(it) }
+                put("dock_packages", dockSet)
 
-            put("dock_icon_size", SettingsRepository.getDockIconSize(context))
-            put("dock_bottom_padding", SettingsRepository.getDockBottomPadding(context))
-            put("dock_use_override", SettingsRepository.getDockUseOverride(context))
-            put("dock_opacity", SettingsRepository.getDockOpacity(context))
-            put("dock_blur", SettingsRepository.getDockBlur(context))
-            put("dock_scrollable", SettingsRepository.getDockScrollable(context))
-            put("dock_icon_shape", SettingsRepository.getDockIconShape(context))
-            put("dock_show_icon_bg", SettingsRepository.getDockShowIconBackground(context))
-            put("dock_themed_icons", SettingsRepository.getDockThemedIcons(context))
-            put("icon_pack_package", SettingsRepository.getIconPackPackage(context) ?: JSONObject.NULL)
+                put("dock_icon_size", SettingsRepository.getDockIconSize(context))
+                put("dock_bottom_padding", SettingsRepository.getDockBottomPadding(context))
+                put("dock_use_override", SettingsRepository.getDockUseOverride(context))
+                put("dock_opacity", SettingsRepository.getDockOpacity(context))
+                put("dock_blur", SettingsRepository.getDockBlur(context))
+                put("dock_scrollable", SettingsRepository.getDockScrollable(context))
+                put("dock_icon_shape", SettingsRepository.getDockIconShape(context))
+                put("dock_show_icon_bg", SettingsRepository.getDockShowIconBackground(context))
+                put("dock_themed_icons", SettingsRepository.getDockThemedIcons(context))
+                put("icon_pack_package", SettingsRepository.getIconPackPackage(context) ?: JSONObject.NULL)
 
-            put("esearch_use_override", SettingsRepository.getESearchUseOverride(context))
-            put("esearch_opacity", SettingsRepository.getESearchOpacity(context))
-            put("esearch_blur", SettingsRepository.getESearchBlur(context))
-            put("esearch_width", SettingsRepository.getESearchWidth(context))
-            put("esearch_visible_items", SettingsRepository.getESearchVisibleItems(context))
-            put("esearch_auto_keyboard", SettingsRepository.getESearchAutoKeyboard(context))
+                put("esearch_use_override", SettingsRepository.getESearchUseOverride(context))
+                put("esearch_opacity", SettingsRepository.getESearchOpacity(context))
+                put("esearch_blur", SettingsRepository.getESearchBlur(context))
+                put("esearch_width", SettingsRepository.getESearchWidth(context))
+                put("esearch_visible_items", SettingsRepository.getESearchVisibleItems(context))
+                put("esearch_auto_keyboard", SettingsRepository.getESearchAutoKeyboard(context))
 
-            put("tile_size", SettingsRepository.getTileSize(context))
-            put("tile_spacing", SettingsRepository.getTileSpacing(context))
-            put("tile_radius", SettingsRepository.getTileRadius(context))
-            put("tile_columns", SettingsRepository.getTileColumns(context))
+                put("tile_size", SettingsRepository.getTileSize(context))
+                put("tile_spacing", SettingsRepository.getTileSpacing(context))
+                put("tile_radius", SettingsRepository.getTileRadius(context))
+                put("tile_columns", SettingsRepository.getTileColumns(context))
 
-            put("wallpaper_scale_mode", SettingsRepository.getWallpaperScaleMode(context))
-            put("analytics_enabled", SettingsRepository.getAnalyticsEnabled(context))
+                put("wallpaper_scale_mode", SettingsRepository.getWallpaperScaleMode(context))
+                put("analytics_enabled", SettingsRepository.getAnalyticsEnabled(context))
+            }
+            root.put("settings", settingsObj)
+        } else {
+            root.put("settings", JSONObject())
         }
-        root.put("settings", settingsObj)
 
         // === 2) Пространства ===
-        val spacesList = SpaceRepository.getAllSpaces(context)
+        val spacesList = if (includeSpacesAndLayouts) SpaceRepository.getAllSpaces(context) else emptyList()
         val spacesArr = JSONArray()
         spacesList.forEach { space ->
             spacesArr.put(JSONObject().apply {
@@ -81,20 +97,20 @@ object BackupRepository {
 
         // === 3) Раскладки тайлов ===
         val layoutsObj = JSONObject()
+        if (includeSpacesAndLayouts) {
+            val rootTiles = TileLayoutRepository.getTiles(context, ScreenStack.ROOT_ID)
+            layoutsObj.put(ScreenStack.ROOT_ID, serializeTiles(context, rootTiles))
 
-        // Root
-        val rootTiles = TileLayoutRepository.getTiles(context, ScreenStack.ROOT_ID)
-        layoutsObj.put(ScreenStack.ROOT_ID, serializeTiles(rootTiles))
-
-        // Custom spaces
-        spacesList.forEach { space ->
-            val tiles = TileLayoutRepository.getTiles(context, space.id)
-            layoutsObj.put(space.id, serializeTiles(tiles))
+            spacesList.forEach { space ->
+                val tiles = TileLayoutRepository.getTiles(context, space.id)
+                layoutsObj.put(space.id, serializeTiles(context, tiles))
+            }
+        } else {
+            layoutsObj.put(ScreenStack.ROOT_ID, JSONArray())
         }
-
         root.put("layouts", layoutsObj)
 
-        val assets = collectAssets(context)
+        val assets = if (includeWallpapersAndAssets) collectAssets(context) else emptyList()
         val assetRefs = assets.mapNotNull { asset ->
             val src = asset.source ?: return@mapNotNull null
             val path = try { src.canonicalPath } catch (_: Exception) { src.absolutePath }
@@ -119,7 +135,13 @@ object BackupRepository {
      * Импортирует настройки, пространства и тайлы из JSON-строки.
      * Возвращает true при успешном восстановлении.
      */
-    fun importFromJson(context: Context, jsonString: String): Boolean {
+    fun importFromJson(
+        context: Context,
+        jsonString: String,
+        includeSettings: Boolean = true,
+        includeSpacesAndLayouts: Boolean = true,
+        includeWallpapersAndAssets: Boolean = true
+    ): Boolean {
         var transaction: AssetRestoreTransaction? = null
         return try {
             require(jsonString.length <= 180 * 1024 * 1024) { "Backup file is too large" }
@@ -127,41 +149,49 @@ object BackupRepository {
             val version = source.optInt("version", -1)
             require(version in 1..2) { "Unsupported backup version: $version" }
 
-            val assets = parseAssets(source.optJSONArray("assets"))
+            val assets = if (includeWallpapersAndAssets) parseAssets(source.optJSONArray("assets")) else emptyList()
             val assetTargets = assets.associate { asset ->
                 "ethereal-asset://${asset.id}" to targetForAsset(context, asset)
             }
             val assetPathReferences = assetTargets.mapValues { (_, file) -> file.absolutePath }
             val root = replaceAssetReferences(source, assetPathReferences) as JSONObject
-            require(!containsAssetReference(root)) { "Backup refers to a missing image asset" }
 
-            val settings = root.getJSONObject("settings")
-            validateSettings(settings)
-
-            val spacesArray = root.getJSONArray("spaces")
-            val spaces = parseSpaces(spacesArray)
-            val layouts = parseLayouts(root.getJSONObject("layouts"), spaces)
-
-            transaction = restoreAssets(context, assets, assetTargets)
             val preferences = context.getSharedPreferences("ethereal_settings", Context.MODE_PRIVATE)
             val editor = preferences.edit()
-            applySettings(editor, settings)
-            editor.putString("spaces_meta", serializeSpaces(spaces).toString())
 
-            val validSpaceIds = spaces.mapTo(mutableSetOf()) { it.id }
-            preferences.all.keys
-                .filter { it.startsWith("tiles_space_") && it.removePrefix("tiles_space_") !in validSpaceIds }
-                .forEach(editor::remove)
-            layouts.forEach { (spaceId, tiles) ->
-                val key = if (spaceId == ScreenStack.ROOT_ID) "tiles_layout" else "tiles_space_$spaceId"
-                editor.putString(key, serializeTiles(tiles).toString())
+            if (includeSettings && root.has("settings")) {
+                val settings = root.getJSONObject("settings")
+                if (settings.length() > 0) {
+                    validateSettings(settings)
+                    applySettings(editor, settings)
+                }
+            }
+
+            if (includeSpacesAndLayouts && root.has("spaces") && root.has("layouts")) {
+                val spacesArray = root.getJSONArray("spaces")
+                val spaces = parseSpaces(spacesArray)
+                val layouts = parseLayouts(context, root.getJSONObject("layouts"), spaces)
+                editor.putString("spaces_meta", serializeSpaces(spaces).toString())
+
+                val validSpaceIds = spaces.mapTo(mutableSetOf()) { it.id }
+                preferences.all.keys
+                    .filter { it.startsWith("tiles_space_") && it.removePrefix("tiles_space_") !in validSpaceIds }
+                    .forEach(editor::remove)
+                layouts.forEach { (spaceId, tiles) ->
+                    val key = if (spaceId == ScreenStack.ROOT_ID) "tiles_layout" else "tiles_space_$spaceId"
+                    editor.putString(key, serializeTiles(context, tiles).toString())
+                }
+            }
+
+            if (includeWallpapersAndAssets && assets.isNotEmpty()) {
+                transaction = restoreAssets(context, assets, assetTargets)
             }
 
             if (!editor.commit()) {
-                transaction.rollback()
+                transaction?.rollback()
                 false
             } else {
-                transaction.finish()
+                transaction?.finish()
                 true
             }
         } catch (e: Exception) {
@@ -171,7 +201,7 @@ object BackupRepository {
         }
     }
 
-    private fun serializeTiles(tiles: List<Tile>): JSONArray {
+    private fun serializeTiles(context: Context, tiles: List<Tile>): JSONArray {
         val arr = JSONArray()
         tiles.forEach { tile ->
             arr.put(JSONObject().apply {
@@ -185,6 +215,17 @@ object BackupRepository {
                 put("locked", tile.locked)
                 put("clickable", tile.clickable)
                 put("config", tile.config ?: "")
+                if (tile.type == TileType.WIDGET) {
+                    val widgetId = EtherealAppWidgetHost.decodeWidgetId(tile.config)
+                    val providerName = widgetId?.let {
+                        try {
+                            AppWidgetManager.getInstance(context).getAppWidgetInfo(it)?.provider?.flattenToString()
+                        } catch (_: Exception) { null }
+                    }
+                    if (!providerName.isNullOrEmpty()) {
+                        put("widgetProvider", providerName)
+                    }
+                }
                 put("style", JSONObject().apply {
                     put("bgOpacity", tile.style.backgroundOpacity)
                     put("bgBlur", tile.style.backgroundBlur)
@@ -198,11 +239,30 @@ object BackupRepository {
         return arr
     }
 
-    private fun deserializeTiles(arr: JSONArray): List<Tile> {
+    private fun deserializeTiles(context: Context, arr: JSONArray): List<Tile> {
         val list = mutableListOf<Tile>()
         for (i in 0 until arr.length()) {
             val obj = arr.getJSONObject(i)
             val styleObj = obj.optJSONObject("style")
+            val type = TileType.valueOf(obj.getString("type"))
+            var config = obj.optString("config").takeIf { it.isNotEmpty() }
+
+            if (type == TileType.WIDGET) {
+                val providerName = obj.optString("widgetProvider").takeIf { it.isNotEmpty() }
+                if (providerName != null) {
+                    try {
+                        val host = WidgetHostManager.getHost(context)
+                        val newWidgetId = host.allocateAppWidgetId()
+                        val component = ComponentName.unflattenFromString(providerName)
+                        if (component != null) {
+                            val manager = AppWidgetManager.getInstance(context)
+                            manager.bindAppWidgetIdIfAllowed(newWidgetId, component)
+                        }
+                        config = EtherealAppWidgetHost.encodeWidgetId(newWidgetId)
+                    } catch (_: Exception) {}
+                }
+            }
+
             list.add(
                 Tile(
                     id = obj.optString("id", UUID.randomUUID().toString()),
@@ -210,7 +270,7 @@ object BackupRepository {
                     y = obj.optInt("y", 0),
                     w = obj.optInt("w", 1),
                     h = obj.optInt("h", 1),
-                    type = TileType.valueOf(obj.getString("type")),
+                    type = type,
                     payload = obj.optString("payload").takeIf { it.isNotEmpty() },
                     locked = obj.optBoolean("locked", false),
                     style = if (styleObj != null) {
@@ -222,7 +282,7 @@ object BackupRepository {
                         )
                     } else TileStyle(),
                     clickable = obj.optBoolean("clickable", true),
-                    config = obj.optString("config").takeIf { it.isNotEmpty() }
+                    config = config
                 )
             )
         }
@@ -265,9 +325,6 @@ object BackupRepository {
         val currentWallpaper = WallpaperRepository.getCurrentFile(context)
         if (currentWallpaper.isFile) files += currentWallpaper to "current_wallpaper"
 
-        File(context.filesDir, "wallpapers").listFiles()
-            ?.filter { it.isFile && it.name.startsWith("wallpaper_user_") }
-            ?.forEach { files += it to "wallpaper" }
         File(context.filesDir, "tile_images").listFiles()
             ?.filter { it.isFile }
             ?.forEach { files += it to "tile_image" }
@@ -284,18 +341,63 @@ object BackupRepository {
                 totalBytes += len
                 if (totalBytes > 128L * 1024 * 1024) return@mapNotNull null
                 val bytes = file.readBytes()
+                val compressedBytes = compressImageBytes(bytes)
                 BackupAsset(
                     id = UUID.randomUUID().toString(),
                     kind = kind,
-                    extension = file.extension.lowercase().takeIf { it in setOf("jpg", "jpeg", "png", "webp", "gif") }
-                        ?: "jpg",
-                    sha256 = sha256(bytes),
-                    bytes = bytes,
+                    extension = "jpg",
+                    sha256 = sha256(compressedBytes),
+                    bytes = compressedBytes,
                     source = file
                 )
             } catch (_: Exception) {
                 null
             }
+        }
+    }
+
+    private fun compressImageBytes(bytes: ByteArray, maxDim: Int = 1024, quality: Int = 80): ByteArray {
+        return try {
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+            val w = options.outWidth
+            val h = options.outHeight
+            if (w <= 0 || h <= 0) return bytes
+
+            var sampleSize = 1
+            var scaleW = w
+            var scaleH = h
+            while (scaleW > maxDim || scaleH > maxDim) {
+                scaleW /= 2
+                scaleH /= 2
+                sampleSize *= 2
+            }
+
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+            }
+            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions) ?: return bytes
+
+            val finalBitmap = if (bitmap.width > maxDim || bitmap.height > maxDim) {
+                val ratio = minOf(maxDim.toFloat() / bitmap.width, maxDim.toFloat() / bitmap.height)
+                val fw = (bitmap.width * ratio).toInt().coerceAtLeast(1)
+                val fh = (bitmap.height * ratio).toInt().coerceAtLeast(1)
+                Bitmap.createScaledBitmap(bitmap, fw, fh, true).also {
+                    if (it != bitmap) bitmap.recycle()
+                }
+            } else {
+                bitmap
+            }
+
+            val stream = ByteArrayOutputStream()
+            finalBitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream)
+            if (finalBitmap != bitmap) finalBitmap.recycle()
+            bitmap.recycle()
+            stream.toByteArray()
+        } catch (_: Exception) {
+            bytes
         }
     }
 
@@ -331,20 +433,32 @@ object BackupRepository {
         return result
     }
 
-    private fun targetForAsset(context: Context, asset: BackupAsset): File = when (asset.kind) {
-        "current_wallpaper" -> WallpaperRepository.getCurrentFile(context)
-        "wallpaper" -> File(
-            File(context.filesDir, "wallpapers"),
-            "wallpaper_user_restore_${asset.id}.${asset.extension}"
-        )
-        "space_icon" -> File(
-            File(context.filesDir, "space_icons"),
-            "space_restore_${asset.id}.${asset.extension}"
-        )
-        else -> File(
-            File(context.filesDir, "tile_images"),
-            "tile_restore_${asset.id}.${asset.extension}"
-        )
+    private fun targetForAsset(context: Context, asset: BackupAsset): File {
+        val dir = when (asset.kind) {
+            "current_wallpaper" -> return WallpaperRepository.getCurrentFile(context)
+            "wallpaper" -> File(context.filesDir, "wallpapers")
+            "space_icon" -> File(context.filesDir, "space_icons")
+            else -> File(context.filesDir, "tile_images")
+        }
+        if (!dir.exists()) dir.mkdirs()
+
+        // Дедупликация: если файл с таким же хешем уже существует, переиспользовать его
+        val existingFile = dir.listFiles()?.firstOrNull { file ->
+            file.isFile && try {
+                sha256(file.readBytes()) == asset.sha256
+            } catch (_: Exception) { false }
+        }
+
+        if (existingFile != null) {
+            return existingFile
+        }
+
+        val prefix = when (asset.kind) {
+            "wallpaper" -> "wallpaper_user_restore_"
+            "space_icon" -> "space_restore_"
+            else -> "tile_restore_"
+        }
+        return File(dir, "$prefix${asset.id}.${asset.extension}")
     }
 
     private fun restoreAssets(
@@ -369,10 +483,9 @@ object BackupRepository {
                         error("Cannot create image directory")
                     }
                 }
-                if (destination != current && destination.exists()) {
-                    error("Restore image already exists")
+                if (destination != current && !destination.exists()) {
+                    addedFiles += destination
                 }
-                if (destination != current) addedFiles += destination
                 destination.outputStream().use { it.write(asset.bytes) }
             }
             return AssetRestoreTransaction(addedFiles, current, previous)
@@ -542,6 +655,7 @@ object BackupRepository {
     }
 
     private fun parseLayouts(
+        context: Context,
         layouts: JSONObject,
         spaces: List<SpaceRepository.SpaceMeta>
     ): Map<String, List<Tile>> {
@@ -573,7 +687,7 @@ object BackupRepository {
                     validateTileStyle(style, "contentScale", 0.5..2.0)
                 }
             }
-            deserializeTiles(array)
+            deserializeTiles(context, array)
         }
     }
 
@@ -617,7 +731,17 @@ object BackupRepository {
         when (value) {
             is JSONObject -> replaceAssetReferences(value, references)
             is JSONArray -> replaceAssetReferences(value, references)
-            is String -> references[value] ?: value
+            is String -> {
+                var res = references[value] ?: value
+                if (res == value) {
+                    for ((path, ref) in references) {
+                        if (res.contains(path)) {
+                            res = res.replace(path, ref)
+                        }
+                    }
+                }
+                res
+            }
             else -> value
         }
 

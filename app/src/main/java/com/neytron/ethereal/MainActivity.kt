@@ -35,7 +35,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.LifecycleEventEffect
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
@@ -85,7 +89,6 @@ import com.neytron.ethereal.ui.theme.LocalWallpaperPath
 import com.neytron.ethereal.ui.theme.LocalWallpaperScaleMode
 import com.neytron.ethereal.ui.theme.fontFamilyFor
 import com.neytron.ethereal.ui.theme.paletteById
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -409,21 +412,50 @@ fun EtherealApp() {
         }
     }
 
+    var isExporting by remember { mutableStateOf(false) }
+    var isImporting by remember { mutableStateOf(false) }
+
+    var exportSettingsOption by remember { mutableStateOf(true) }
+    var exportSpacesOption by remember { mutableStateOf(true) }
+    var exportWallpapersOption by remember { mutableStateOf(true) }
+
+    var importSettingsOption by remember { mutableStateOf(true) }
+    var importSpacesOption by remember { mutableStateOf(true) }
+    var importWallpapersOption by remember { mutableStateOf(true) }
+
+    val coroutineScope = rememberCoroutineScope()
+
     val exportBackupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         if (uri != null) {
-            try {
-                val jsonStr = BackupRepository.exportToJson(context)
-                val output = context.contentResolver.openOutputStream(uri)
-                    ?: error("Cannot open backup output")
-                output.use { outputStream ->
-                    outputStream.write(jsonStr.toByteArray())
+            isExporting = true
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    val jsonStr = BackupRepository.exportToJson(
+                        context,
+                        includeSettings = exportSettingsOption,
+                        includeSpacesAndLayouts = exportSpacesOption,
+                        includeWallpapersAndAssets = exportWallpapersOption
+                    )
+                    val output = context.contentResolver.openOutputStream(uri)
+                        ?: error("Cannot open backup output")
+                    output.use { outputStream ->
+                        outputStream.write(jsonStr.toByteArray())
+                    }
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, backupExportSuccessMessage, Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, backupExportErrorMessage, Toast.LENGTH_LONG).show()
+                    }
+                } finally {
+                    withContext(Dispatchers.Main) {
+                        isExporting = false
+                    }
                 }
-                Toast.makeText(context, backupExportSuccessMessage, Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Toast.makeText(context, backupExportErrorMessage, Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -432,26 +464,43 @@ fun EtherealApp() {
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            try {
-                val jsonStr = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    inputStream.bufferedReader().use { it.readText() }
-                }
-                val success = !jsonStr.isNullOrBlank() &&
-                        BackupRepository.importFromJson(context, jsonStr)
-                if (success) {
-                    Toast.makeText(context, backupImportSuccessMessage, Toast.LENGTH_LONG).show()
-                    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                    if (intent != null) {
-                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                        context.startActivity(intent)
-                        (context as? Activity)?.finish()
+            isImporting = true
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    val jsonStr = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        inputStream.bufferedReader().use { it.readText() }
                     }
-                } else {
-                    Toast.makeText(context, backupImportErrorMessage, Toast.LENGTH_LONG).show()
+                    val success = !jsonStr.isNullOrBlank() &&
+                            BackupRepository.importFromJson(
+                                context,
+                                jsonStr,
+                                includeSettings = importSettingsOption,
+                                includeSpacesAndLayouts = importSpacesOption,
+                                includeWallpapersAndAssets = importWallpapersOption
+                            )
+                    withContext(Dispatchers.Main) {
+                        if (success) {
+                            Toast.makeText(context, backupImportSuccessMessage, Toast.LENGTH_LONG).show()
+                            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                            if (intent != null) {
+                                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.startActivity(intent)
+                                (context as? Activity)?.finish()
+                            }
+                        } else {
+                            Toast.makeText(context, backupImportErrorMessage, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, backupImportErrorMessage, Toast.LENGTH_LONG).show()
+                    }
+                } finally {
+                    withContext(Dispatchers.Main) {
+                        isImporting = false
+                    }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Toast.makeText(context, backupImportErrorMessage, Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -930,8 +979,20 @@ fun EtherealApp() {
                         updateChecking = updateChecking,
                         onCheckForUpdates = handleCheckForUpdates,
                         onOpenUpdateOverlay = { showUpdateOverlay = true },
-                        onExportBackup = { exportBackupLauncher.launch("ethereal_backup.json") },
-                        onImportBackup = { importBackupLauncher.launch(arrayOf("application/json", "*/*")) },
+                        onExportBackup = { incSettings, incSpaces, incWallpapers ->
+                            exportSettingsOption = incSettings
+                            exportSpacesOption = incSpaces
+                            exportWallpapersOption = incWallpapers
+                            exportBackupLauncher.launch("ethereal_backup.json")
+                        },
+                        onImportBackup = { incSettings, incSpaces, incWallpapers ->
+                            importSettingsOption = incSettings
+                            importSpacesOption = incSpaces
+                            importWallpapersOption = incWallpapers
+                            importBackupLauncher.launch(arrayOf("application/json", "*/*"))
+                        },
+                        isExporting = isExporting,
+                        isImporting = isImporting,
 
                         modifier = Modifier
                             .fillMaxSize()

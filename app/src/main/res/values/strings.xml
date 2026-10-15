@@ -254,7 +254,8 @@
 
     <!-- Final scene -->
     <string name="onboarding_final_subtitle">System is set up and ready to go</string>
-    <string name="onboarding_final_button">Start</string>
+    <string name="onboarding_final_button">Hold</string>
+    <string name="onboarding_press_and_hold">Press and hold</string>
 
     <!-- Audio -->
     <string name="onboarding_audio_missing">Onboarding audio not found</string>
@@ -272,6 +273,26 @@
     <string name="day_wed">Wed</string>
     <string name="day_thu">Thu</string>
     <string name="day_fri">Fri</string>
+
+    <string name="settings_updates_and_data">Updates &amp; Data</string>
+    <string name="updates_and_data_title">Updates &amp; Data Center</string>
+    <string name="data_section_title">Data &amp; Backup</string>
+    <string name="data_export_button">Export JSON</string>
+    <string name="data_import_button">Import JSON</string>
+    <string name="data_loading_title">Loading...</string>
+    <string name="data_exporting">Exporting data...</string>
+    <string name="data_importing">Importing data...</string>
+    <string name="updates_section_title">App Updates</string>
+    <string name="update_download_in_app">Download in-app</string>
+    <string name="update_download_manual">Download from site (Manual)</string>
+    <string name="update_downloading_progress">Downloading update: %d%%</string>
+
+    <string name="export_options_title">Export Options</string>
+    <string name="import_options_title">Import Options</string>
+    <string name="option_settings">App Settings</string>
+    <string name="option_spaces_layouts">Spaces &amp; Tile Layouts</string>
+    <string name="option_wallpapers_assets">Wallpapers &amp; Image Assets</string>
+    <string name="continue_button">Continue</string>
     <string name="day_sat">Sat</string>
     <string name="day_sun">Sun</string>
 

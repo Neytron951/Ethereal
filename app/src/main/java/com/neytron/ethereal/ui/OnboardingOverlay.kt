@@ -313,15 +313,6 @@ private fun isRoleAvailable(context: Context): Boolean {
     }
 }
 
-private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
-    return try {
-        val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-        pm?.isIgnoringBatteryOptimizations(context.packageName) == true
-    } catch (_: Exception) {
-        false
-    }
-}
-
 // === МАСТЕР НАСТРОЙКИ ===
 @Composable
 private fun OnboardingWizard(
@@ -342,7 +333,6 @@ private fun OnboardingWizard(
     var currentStep by rememberSaveable { mutableIntStateOf(1) }
 
     var isLauncherDefault by remember { mutableStateOf(isDefaultLauncher(context)) }
-    var isBatteryUnrestricted by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
     var roleAvailable by remember { mutableStateOf(isRoleAvailable(context)) }
 
     val roleLauncher = rememberLauncherForActivityResult(
@@ -356,7 +346,6 @@ private fun OnboardingWizard(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isLauncherDefault = isDefaultLauncher(context)
-                isBatteryUnrestricted = isIgnoringBatteryOptimizations(context)
                 roleAvailable = isRoleAvailable(context)
             }
         }
@@ -369,23 +358,15 @@ private fun OnboardingWizard(
     val taskLauncherSubtitle = stringResource(R.string.onboarding_task_launcher_subtitle)
     val taskLauncherButton = stringResource(R.string.onboarding_task_launcher_button)
 
-    val taskBatteryTitle = stringResource(R.string.onboarding_task_battery_title)
-    val taskBatterySubtitle = stringResource(R.string.onboarding_task_battery_subtitle)
-    val taskBatteryButton = stringResource(R.string.onboarding_task_battery_button)
-
     val taskDoneTitle = stringResource(R.string.onboarding_task_done_title)
     val taskDoneSubtitle = stringResource(R.string.onboarding_task_done_subtitle)
 
     val tasks = remember(
         isLauncherDefault,
-        isBatteryUnrestricted,
         roleAvailable,
         taskLauncherTitle,
         taskLauncherSubtitle,
         taskLauncherButton,
-        taskBatteryTitle,
-        taskBatterySubtitle,
-        taskBatteryButton,
         taskDoneTitle,
         taskDoneSubtitle
     ) {
@@ -414,20 +395,6 @@ private fun OnboardingWizard(
                 )
             }
 
-            if (!isBatteryUnrestricted) {
-                add(
-                    OnboardingTask(
-                        title = taskBatteryTitle,
-                        subtitle = taskBatterySubtitle,
-                        buttonText = taskBatteryButton,
-                        status = OnboardingTaskStatus.NOT_DONE,
-                        onAction = {
-                            openBatterySettings(context)
-                        }
-                    )
-                )
-            }
-
             if (isEmpty()) {
                 add(
                     OnboardingTask(
@@ -442,7 +409,7 @@ private fun OnboardingWizard(
         }
     }
 
-    val allTasksDone = isLauncherDefault && isBatteryUnrestricted
+    val allTasksDone = isLauncherDefault
 
     Surface(
         modifier = Modifier
@@ -723,23 +690,6 @@ private fun TaskCard(
 }
 
 // === ОТКРЫТИЕ СИСТЕМНЫХ ЭКРАНОВ ===
-
-private fun openBatterySettings(context: Context) {
-    try {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", context.packageName, null)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
-    } catch (_: Exception) {
-        try {
-            val intent = Intent(Settings.ACTION_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-        } catch (_: Exception) {}
-    }
-}
 
 private fun openDefaultAppsSettings(context: Context) {
     try {
@@ -1023,6 +973,8 @@ private fun SeamlessExpandAndHoldScene(
 ) {
     val expandProgress = remember { Animatable(0f) }
     val slideUpProgress = remember { Animatable(0f) }
+    var showHint by remember { mutableStateOf(false) }
+    var isHoldingGlobal by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         expandProgress.animateTo(
@@ -1035,6 +987,13 @@ private fun SeamlessExpandAndHoldScene(
             targetValue = 1f,
             animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing)
         )
+    }
+
+    LaunchedEffect(Unit) {
+        delay(5000L)
+        if (!isHoldingGlobal) {
+            showHint = true
+        }
     }
 
     val tExpand = expandProgress.value
@@ -1103,8 +1062,29 @@ private fun SeamlessExpandAndHoldScene(
 
                 HoldToStartButton(
                     palette = palette,
-                    onComplete = onComplete
+                    onComplete = onComplete,
+                    onHoldingChanged = { holding ->
+                        isHoldingGlobal = holding
+                        if (holding) showHint = false
+                    },
+                    onTap = {
+                        showHint = true
+                    }
                 )
+
+                AnimatedVisibility(
+                    visible = showHint,
+                    enter = fadeIn(animationSpec = tween(500)),
+                    exit = fadeOut(animationSpec = tween(300))
+                ) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Text(
+                        text = stringResource(R.string.onboarding_press_and_hold),
+                        color = palette.textSecondary.copy(alpha = 0.8f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
@@ -1113,7 +1093,9 @@ private fun SeamlessExpandAndHoldScene(
 @Composable
 private fun HoldToStartButton(
     palette: EtherealPalette,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    onHoldingChanged: (Boolean) -> Unit = {},
+    onTap: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -1122,6 +1104,7 @@ private fun HoldToStartButton(
     var holdProgress by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(isHolding) {
+        onHoldingChanged(isHolding)
         if (isHolding) {
             val startTime = System.currentTimeMillis()
             val totalDurationMs = 1800f
@@ -1189,6 +1172,7 @@ private fun HoldToStartButton(
             }
             .pointerInput(Unit) {
                 detectTapGestures(
+                    onTap = { onTap() },
                     onPress = {
                         isHolding = true
                         tryAwaitRelease()

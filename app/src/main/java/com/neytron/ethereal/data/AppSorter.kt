@@ -1,16 +1,14 @@
 package com.neytron.ethereal.data
 
-import android.content.Context
-
 object AppSorter {
 
     private const val HOUR_MS = 60L * 60L * 1000L
     private const val DAY_MS = 24L * HOUR_MS
 
     fun sortByScore(
-        context: Context,
         apps: List<AppInfo>,
-        query: String = ""
+        query: String = "",
+        statsMap: Map<String, Pair<Int, Long>> = emptyMap()
     ): List<AppInfo> {
         val now = System.currentTimeMillis()
 
@@ -20,8 +18,9 @@ object AppSorter {
 
         // 2) Считаем score для каждого
         val scored = filtered.map { app ->
-            val count = SettingsRepository.getLaunchCount(context, app.packageName)
-            val last = SettingsRepository.getLastLaunch(context, app.packageName)
+            val stats = statsMap[app.packageName] ?: (0 to 0L)
+            val count = stats.first
+            val last = stats.second
 
             val recencyBonus = when {
                 last == 0L -> 0.0

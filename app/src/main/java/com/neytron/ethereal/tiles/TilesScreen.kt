@@ -325,29 +325,8 @@ fun TilesScreen(
         }
     }
 
-    val spectrumPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        val pending = pendingSpectrumPreset
-        pendingSpectrumPreset = null
-        if (granted && pending != null) {
-            handlePresetClick(pending)
-        } else if (!granted) {
-            scope.launch { snackbarHostState.showSnackbar(audioPermissionDeniedMsg) }
-        }
-    }
-
     val handlePresetSelection: (TilePreset) -> Unit = { preset ->
-        if (
-            preset.type == TileType.EQUALIZER &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
-            android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) {
-            pendingSpectrumPreset = preset
-            showSpectrumPermissionExplanation = true
-        } else {
-            handlePresetClick(preset)
-        }
+        handlePresetClick(preset)
     }
 
     LaunchedEffect(handlePresetClick) {
@@ -858,37 +837,6 @@ fun TilesScreen(
                     }
 
                     onShowCreateSpaceDialogChange(false)
-                }
-            )
-        }
-
-        if (showSpectrumPermissionExplanation) {
-            AlertDialog(
-                onDismissRequest = {
-                    showSpectrumPermissionExplanation = false
-                    pendingSpectrumPreset = null
-                },
-                title = { androidx.compose.material3.Text(stringResource(R.string.audio_spectrum_permission_title)) },
-                text = { androidx.compose.material3.Text(stringResource(R.string.audio_spectrum_permission_rationale)) },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showSpectrumPermissionExplanation = false
-                            spectrumPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        }
-                    ) {
-                        androidx.compose.material3.Text(stringResource(R.string.continue_label))
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            showSpectrumPermissionExplanation = false
-                            pendingSpectrumPreset = null
-                        }
-                    ) {
-                        androidx.compose.material3.Text(stringResource(R.string.cancel))
-                    }
                 }
             )
         }

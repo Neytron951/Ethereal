@@ -45,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -63,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import com.neytron.ethereal.R
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.data.AppSorter
+import com.neytron.ethereal.data.SettingsRepository
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.LocalAppearance
 import com.neytron.ethereal.ui.theme.LocalESearchConfig
@@ -148,13 +150,37 @@ fun ESearchOverlay(
         }
     }
 
-    contextApp?.let { app ->
-        BackHandler { contextApp = null }
-        AnimatedVisibility(
-            visible = true,
-            enter = fadeIn(animationSpec = tween(200)) + scaleIn(initialScale = 0.9f, animationSpec = spring(stiffness = Spring.StiffnessMedium)),
-            exit = fadeOut(animationSpec = tween(150)) + scaleOut(targetScale = 0.95f, animationSpec = tween(150))
-        ) {
+    val isContextVisible = contextApp != null
+    var displayedContextApp by remember { mutableStateOf<AppInfo?>(null) }
+    LaunchedEffect(contextApp) {
+        if (contextApp != null) {
+            displayedContextApp = contextApp
+        }
+    }
+
+    AnimatedVisibility(
+        visible = isContextVisible,
+        enter = fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                slideInVertically(
+                    initialOffsetY = { it / 8 },
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioMediumBouncy)
+                ) +
+                scaleIn(
+                    initialScale = 0.90f,
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                ),
+        exit = fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                slideOutVertically(
+                    targetOffsetY = { it / 8 },
+                    animationSpec = tween(180, easing = FastOutSlowInEasing)
+                ) +
+                scaleOut(
+                    targetScale = 0.93f,
+                    animationSpec = tween(180, easing = FastOutSlowInEasing)
+                )
+    ) {
+        displayedContextApp?.let { app ->
+            BackHandler { contextApp = null }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -305,10 +331,20 @@ private fun ESearchPanel(
     val listState = rememberLazyListState()
 
     // Множество пакетов, которые уже хотя бы раз отобразились в рамках текущей сессии ESearch
-    val shownPackages = remember { mutableStateSetOf<String>() }
+    val shownPackages = remember { mutableSetOf<String>() }
 
-    val filtered = remember(query, apps) {
-        AppSorter.sortByScore(context, apps, query)
+    // Кэш иконок (очищается при изменении темы или набора иконок)
+    val iconCache = remember(themedIcons, palette.id) { mutableMapOf<String, ImageBitmap?>() }
+
+    // Снимок статистики запусков для устранения чтения SharedPreferences при каждом вводе символа
+    val statsMap = remember(apps) {
+        apps.associate { app ->
+            app.packageName to (SettingsRepository.getLaunchCount(context, app.packageName) to SettingsRepository.getLastLaunch(context, app.packageName))
+        }
+    }
+
+    val filtered = remember(query, apps, statsMap) {
+        AppSorter.sortByScore(apps, query, statsMap)
     }
 
     LaunchedEffect(rouletteMode) {
@@ -441,13 +477,15 @@ private fun ESearchPanel(
                         items(filtered.size, key = { filtered[it].packageName }) { index ->
                             val app = filtered[index]
                             ESearchItem(
-                                modifier = Modifier.animateItem(),
+                                modifier = Modifier,
                                 app = app,
                                 index = index,
+                                visibleItems = visibleItems,
                                 selected = index == selectedIndex,
                                 palette = palette,
                                 themedIcons = themedIcons,
                                 alreadyShown = app.packageName in shownPackages,
+                                iconCache = iconCache,
                                 onShown = { pkg -> shownPackages.add(pkg) },
                                 onLongClick = { onAppLongClick(app) },
                                 onClick = { onAppClick(app) }
@@ -465,25 +503,28 @@ private fun ESearchItem(
     modifier: Modifier = Modifier,
     app: AppInfo,
     index: Int,
+    visibleItems: Int,
     selected: Boolean,
     palette: EtherealPalette,
     themedIcons: Boolean,
     alreadyShown: Boolean,
+    iconCache: MutableMap<String, ImageBitmap?>,
     onShown: (String) -> Unit,
     onLongClick: () -> Unit,
     onClick: () -> Unit
 ) {
-    // === Каскадная анимация появления ===
-    var appeared by remember(app.packageName) { mutableStateOf(alreadyShown) }
+    // === Каскадная анимация появления (только для начальных видимых элементов) ===
+    var appeared by remember(app.packageName) { mutableStateOf(alreadyShown || index >= visibleItems) }
 
-    LaunchedEffect(app.packageName, alreadyShown) {
-        if (!alreadyShown && !appeared) {
-            val delayMs = (index.coerceAtMost(10)) * 35L
+    LaunchedEffect(app.packageName, alreadyShown, index) {
+        if (!alreadyShown && index < visibleItems && !appeared) {
+            val delayMs = index * 35L
             if (delayMs > 0) delay(delayMs)
             appeared = true
             onShown(app.packageName)
-        } else if (alreadyShown && !appeared) {
+        } else if (!appeared) {
             appeared = true
+            onShown(app.packageName)
         }
     }
 
@@ -493,19 +534,19 @@ private fun ESearchItem(
     )
 
     val alpha by animateFloatAsState(
-        targetValue = if (appeared || alreadyShown) 1f else 0f,
+        targetValue = if (appeared || alreadyShown || index >= visibleItems) 1f else 0f,
         animationSpec = animationSpec,
         label = "alpha"
     )
 
     val translationY by animateFloatAsState(
-        targetValue = if (appeared || alreadyShown) 0f else 16f,
+        targetValue = if (appeared || alreadyShown || index >= visibleItems) 0f else 16f,
         animationSpec = animationSpec,
         label = "translationY"
     )
 
     val scale by animateFloatAsState(
-        targetValue = if (appeared || alreadyShown) 1f else 0.95f,
+        targetValue = if (appeared || alreadyShown || index >= visibleItems) 1f else 0.95f,
         animationSpec = animationSpec,
         label = "scale"
     )
@@ -542,11 +583,13 @@ private fun ESearchItem(
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val bmp = remember(app.packageName, app.icon, themedIcons, palette.id) {
-            if (themedIcons) {
-                renderThemedIcon(app.icon, palette).asImageBitmap()
-            } else {
-                app.icon.toImageBitmap()
+        val bmp = remember(app.packageName, themedIcons, palette.id) {
+            iconCache.getOrPut(app.packageName) {
+                if (themedIcons) {
+                    renderThemedIcon(app.icon, palette).asImageBitmap()
+                } else {
+                    app.icon.toImageBitmap()
+                }
             }
         }
         if (bmp != null) {

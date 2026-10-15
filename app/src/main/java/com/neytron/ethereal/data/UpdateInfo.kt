@@ -19,6 +19,9 @@ data class UpdateInfo(
     /** Ссылка на страницу релиза (html_url) — открывается в браузере */
     val htmlUrl: String,
 
+    /** Прямая ссылка на APK файл в релизе (asset browser_download_url) */
+    val apkUrl: String,
+
     /** Дата публикации релиза (ISO 8601 из GitHub) */
     val publishedAt: String,
 

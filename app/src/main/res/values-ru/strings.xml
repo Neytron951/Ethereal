@@ -254,7 +254,8 @@
 
     <!-- Final scene -->
     <string name="onboarding_final_subtitle">Система настроена и готова к работе</string>
-    <string name="onboarding_final_button">Начать</string>
+    <string name="onboarding_final_button">Удерживать</string>
+    <string name="onboarding_press_and_hold">Нажмите и удерживайте</string>
 
     <!-- Audio -->
     <string name="onboarding_audio_missing">Онбординг-аудио не найдено</string>
@@ -272,6 +273,26 @@
     <string name="day_wed">Ср</string>
     <string name="day_thu">Чт</string>
     <string name="day_fri">Пт</string>
+
+    <string name="settings_updates_and_data">Обновления и данные</string>
+    <string name="updates_and_data_title">Центр обновлений и данных</string>
+    <string name="data_section_title">Данные и бэкапы</string>
+    <string name="data_export_button">Экспорт JSON</string>
+    <string name="data_import_button">Импорт JSON</string>
+    <string name="data_loading_title">Загрузка...</string>
+    <string name="data_exporting">Экспорт данных...</string>
+    <string name="data_importing">Импорт данных...</string>
+    <string name="updates_section_title">Обновления приложения</string>
+    <string name="update_download_in_app">Скачать в приложении</string>
+    <string name="update_download_manual">Скачать с сайта (Вручную)</string>
+    <string name="update_downloading_progress">Загрузка обновления: %d%%</string>
+
+    <string name="export_options_title">Параметры экспорта</string>
+    <string name="import_options_title">Параметры импорта</string>
+    <string name="option_settings">Настройки лаунчера</string>
+    <string name="option_spaces_layouts">Пространства и сетки тайлов</string>
+    <string name="option_wallpapers_assets">Обои и медиа-файлы</string>
+    <string name="continue_button">Продолжить</string>
     <string name="day_sat">Сб</string>
     <string name="day_sun">Вс</string>
 

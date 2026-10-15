@@ -35,6 +35,7 @@ object AppRepository {
                     null
                 }
             }
+            .distinctBy { it.packageName }
 
         // ============================================================
         // ЗАКОНСЕРВИРОВАНО: виртуальные приложения (Ethereal Phone и др.)
