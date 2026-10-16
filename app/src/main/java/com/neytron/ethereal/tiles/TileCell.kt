@@ -219,7 +219,8 @@ fun TileCell(
 
             TileType.EQUALIZER -> AudioSpectrumTileContent(
                 palette = palette,
-                contentScale = contentScale
+                contentScale = contentScale,
+                config = AudioSpectrumConfig.fromJson(tile.config)
             )
 
             TileType.APP -> {

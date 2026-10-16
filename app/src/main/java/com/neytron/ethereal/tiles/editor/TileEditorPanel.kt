@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.sp
 import com.neytron.ethereal.R
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.tiles.AppLauncherConfig
+import com.neytron.ethereal.tiles.AudioSpectrumConfig
+import com.neytron.ethereal.tiles.AudioSpectrumStyle
 import com.neytron.ethereal.tiles.SpaceConfig
 import com.neytron.ethereal.tiles.Tile
 import com.neytron.ethereal.tiles.TilePreset
@@ -410,6 +412,15 @@ private fun TileSettingsMode(
             tile = tile,
             onConfigChange = onConfigChange,
             onPickImage = onPickImage
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    if (tile.type == TileType.EQUALIZER) {
+        AudioSpectrumSettings(
+            palette = palette,
+            tile = tile,
+            onConfigChange = onConfigChange
         )
         Spacer(modifier = Modifier.height(12.dp))
     }
@@ -947,6 +958,76 @@ private fun TileCustomImageSettings(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AudioSpectrumSettings(
+    palette: EtherealPalette,
+    tile: Tile,
+    onConfigChange: (String?) -> Unit
+) {
+    val config = remember(tile.config) { AudioSpectrumConfig.fromJson(tile.config) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(palette.surfaceVariant.copy(alpha = 0.4f))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.audio_spectrum_style_title),
+            color = palette.textPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+
+        val styles = listOf(
+            AudioSpectrumStyle.BARS to stringResource(R.string.audio_spectrum_style_bars),
+            AudioSpectrumStyle.WAVEFORM to stringResource(R.string.audio_spectrum_style_waveform),
+            AudioSpectrumStyle.VECTORSCOPE to stringResource(R.string.audio_spectrum_style_vectorscope),
+            AudioSpectrumStyle.CURVE to stringResource(R.string.audio_spectrum_style_curve)
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            styles.forEach { (styleOption, label) ->
+                val selected = config.style == styleOption
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selected) palette.primary.copy(alpha = 0.18f) else palette.surfaceVariant.copy(alpha = 0.3f))
+                        .border(
+                            width = if (selected) 1.dp else 0.dp,
+                            color = if (selected) palette.primary else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .clickable {
+                            val newConfig = config.copy(style = styleOption)
+                            onConfigChange(newConfig.toJson())
+                        }
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (selected) palette.primary else palette.textPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                        )
+                        if (selected) {
+                            Text("✓", color = palette.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }

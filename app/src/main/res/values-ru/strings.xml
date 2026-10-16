@@ -99,6 +99,11 @@
     <string name="audio_spectrum_permission_required">Нужно разрешение на аудио</string>
     <string name="audio_spectrum_permission_denied">Разрешение на аудио не предоставлено</string>
     <string name="audio_spectrum_unavailable">Аудиоспектр недоступен</string>
+    <string name="audio_spectrum_style_title">Стиль визуализатора</string>
+    <string name="audio_spectrum_style_bars">Столбики (Классика)</string>
+    <string name="audio_spectrum_style_waveform">Осциллограф (Волна)</string>
+    <string name="audio_spectrum_style_vectorscope">Векторскоп (Лиссажу)</string>
+    <string name="audio_spectrum_style_curve">Спектральная кривая</string>
 
     <!-- Widget Picker -->
     <string name="widget_picker_title">Выбор виджета</string>

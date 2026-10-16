@@ -99,6 +99,11 @@
     <string name="audio_spectrum_permission_required">Audio permission required</string>
     <string name="audio_spectrum_permission_denied">Audio permission was not granted</string>
     <string name="audio_spectrum_unavailable">Audio spectrum unavailable</string>
+    <string name="audio_spectrum_style_title">Visualizer Style</string>
+    <string name="audio_spectrum_style_bars">Bars (Classic)</string>
+    <string name="audio_spectrum_style_waveform">Oscilloscope (Waveform)</string>
+    <string name="audio_spectrum_style_vectorscope">Vectorscope (Lissajous)</string>
+    <string name="audio_spectrum_style_curve">Spectral Curve</string>
 
     <!-- Widget Picker -->
     <string name="widget_picker_title">Choose widget</string>
