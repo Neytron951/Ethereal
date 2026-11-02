@@ -1,5 +1,7 @@
 package com.neytron.ethereal.ui.theme
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -14,21 +16,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import java.io.File
-import kotlin.math.roundToInt
 
 data class AppearanceState(
     val opacity: Float = 0.95f,
@@ -40,6 +41,7 @@ data class AppearanceState(
 val LocalAppearance = compositionLocalOf { AppearanceState() }
 val LocalWallpaperPath = compositionLocalOf { null as String? }
 val LocalWallpaperScaleMode = compositionLocalOf { "CROP" }
+val LocalWallpaperContainerCoordinates = compositionLocalOf { null as LayoutCoordinates? }
 
 @Composable
 fun FrostedGlassBox(
@@ -52,8 +54,15 @@ fun FrostedGlassBox(
 ) {
     val wallpaperPath = LocalWallpaperPath.current
     val wallpaperScaleMode = LocalWallpaperScaleMode.current
+    val wallpaperContainerCoords = LocalWallpaperContainerCoordinates.current
     val imageFile = remember(wallpaperPath) { wallpaperPath?.let { File(it) } }
     var layoutCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
+    val blurAlpha by animateFloatAsState(
+        targetValue = if (blur > 0f) 1f else 0f,
+        animationSpec = tween(durationMillis = 200),
+        label = "blurFadeIn"
+    )
 
     val contentScaleMode = when (wallpaperScaleMode) {
         "FIT" -> ContentScale.Fit
@@ -70,31 +79,36 @@ fun FrostedGlassBox(
             .clip(shape),
         contentAlignment = Alignment.Center
     ) {
-        if (blur > 0f && layoutCoordinates != null) {
-            val rootCoordinates = layoutCoordinates?.findRootCoordinates()
-            if (rootCoordinates != null && rootCoordinates.size.width > 0 && rootCoordinates.size.height > 0) {
-                val rootSize = rootCoordinates.size
-                val positionInRoot = layoutCoordinates!!.positionInRoot()
+        if (blur > 0f && layoutCoordinates != null && wallpaperContainerCoords != null) {
+            val containerSize = wallpaperContainerCoords.size
+            if (containerSize.width > 0 && containerSize.height > 0) {
+                val localOffset = try {
+                    wallpaperContainerCoords.localPositionOf(layoutCoordinates!!, Offset.Zero)
+                } catch (_: Exception) {
+                    Offset.Zero
+                }
 
                 Box(
                     modifier = Modifier
                         .matchParentSize()
                         .clip(shape)
+                        .graphicsLayer(alpha = blurAlpha)
                 ) {
                     Box(
                         modifier = Modifier
-                            .layout { measurable, constraints ->
+                            .graphicsLayer(
+                                translationX = -localOffset.x,
+                                translationY = -localOffset.y
+                            )
+                            .blur(blur.dp)
+                            .layout { measurable, _ ->
                                 val placeable = measurable.measure(
-                                    Constraints.fixed(rootSize.width, rootSize.height)
+                                    Constraints.fixed(containerSize.width, containerSize.height)
                                 )
-                                layout(constraints.maxWidth, constraints.maxHeight) {
-                                    placeable.placeWithLayer(
-                                        x = (-positionInRoot.x).roundToInt(),
-                                        y = (-positionInRoot.y).roundToInt()
-                                    )
+                                layout(containerSize.width, containerSize.height) {
+                                    placeable.placeRelative(0, 0)
                                 }
                             }
-                            .blur(blur.dp)
                     ) {
                         if (imageFile != null && imageFile.exists()) {
                             AsyncImage(

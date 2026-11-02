@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.neytron.ethereal.tiles.SpaceRepository
 import com.neytron.ethereal.tiles.Tile
+import com.neytron.ethereal.tiles.TileBorderStyle
 import com.neytron.ethereal.tiles.TileLayoutRepository
 import com.neytron.ethereal.tiles.TileStyle
 import com.neytron.ethereal.tiles.TileType
@@ -230,6 +231,9 @@ object BackupRepository {
                     put("bgOpacity", tile.style.backgroundOpacity)
                     put("bgBlur", tile.style.backgroundBlur)
                     put("contentScale", tile.style.contentScale)
+                    put("borderWidth", tile.style.borderWidth)
+                    put("borderOpacity", tile.style.borderOpacity)
+                    put("borderStyle", tile.style.borderStyle.name)
                     if (tile.style.themedIcon != null) {
                         put("themedIcon", tile.style.themedIcon)
                     }
@@ -274,10 +278,19 @@ object BackupRepository {
                     payload = obj.optString("payload").takeIf { it.isNotEmpty() },
                     locked = obj.optBoolean("locked", false),
                     style = if (styleObj != null) {
+                        val borderStyleStr = styleObj.optString("borderStyle", TileBorderStyle.NONE.name)
+                        val bStyle = try {
+                            TileBorderStyle.valueOf(borderStyleStr)
+                        } catch (_: Exception) {
+                            TileBorderStyle.NONE
+                        }
                         TileStyle(
                             backgroundOpacity = styleObj.optDouble("bgOpacity", 0.55).toFloat(),
                             backgroundBlur = styleObj.optDouble("bgBlur", 0.0).toFloat(),
                             contentScale = styleObj.optDouble("contentScale", 1.0).toFloat(),
+                            borderWidth = styleObj.optDouble("borderWidth", 0.0).toFloat(),
+                            borderOpacity = styleObj.optDouble("borderOpacity", 0.3).toFloat(),
+                            borderStyle = bStyle,
                             themedIcon = if (styleObj.has("themedIcon")) styleObj.optBoolean("themedIcon") else null
                         )
                     } else TileStyle(),

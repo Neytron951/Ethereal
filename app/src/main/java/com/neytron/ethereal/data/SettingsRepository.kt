@@ -1,6 +1,7 @@
 package com.neytron.ethereal.data
 
 import android.content.Context
+import com.neytron.ethereal.tiles.TileBorderStyle
 
 object SettingsRepository {
 
@@ -256,6 +257,30 @@ object SettingsRepository {
         prefs(context).getBoolean(KEY_ESEARCH_AUTO_KEYBOARD, true)
     fun setESearchAutoKeyboard(context: Context, value: Boolean) {
         prefs(context).edit().putBoolean(KEY_ESEARCH_AUTO_KEYBOARD, value).apply()
+    }
+
+    private const val KEY_ESEARCH_BORDER_STYLE = "esearch_border_style"
+    private const val KEY_ESEARCH_BORDER_WIDTH = "esearch_border_width"
+    private const val KEY_ESEARCH_BORDER_OPACITY = "esearch_border_opacity"
+
+    fun getESearchBorderStyle(context: Context): TileBorderStyle {
+        val name = prefs(context).getString(KEY_ESEARCH_BORDER_STYLE, TileBorderStyle.NONE.name) ?: TileBorderStyle.NONE.name
+        return try { TileBorderStyle.valueOf(name) } catch (_: Exception) { TileBorderStyle.NONE }
+    }
+    fun setESearchBorderStyle(context: Context, style: TileBorderStyle) {
+        prefs(context).edit().putString(KEY_ESEARCH_BORDER_STYLE, style.name).apply()
+    }
+
+    fun getESearchBorderWidth(context: Context): Float =
+        prefs(context).getFloat(KEY_ESEARCH_BORDER_WIDTH, 0f)
+    fun setESearchBorderWidth(context: Context, value: Float) {
+        prefs(context).edit().putFloat(KEY_ESEARCH_BORDER_WIDTH, value.coerceIn(0f, 4f)).apply()
+    }
+
+    fun getESearchBorderOpacity(context: Context): Float =
+        prefs(context).getFloat(KEY_ESEARCH_BORDER_OPACITY, 0.3f)
+    fun setESearchBorderOpacity(context: Context, value: Float) {
+        prefs(context).edit().putFloat(KEY_ESEARCH_BORDER_OPACITY, value.coerceIn(0f, 1f)).apply()
     }
 
     // ============================================================

@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import com.neytron.ethereal.BuildConfig
 import com.neytron.ethereal.R
+import com.neytron.ethereal.tiles.TileBorderStyle
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.data.IconPackInfo
 import com.neytron.ethereal.data.UpdateInfo
@@ -118,12 +119,18 @@ fun SettingsScreen(
     esearchWidth: Float,
     esearchVisibleItems: Int,
     esearchAutoKeyboard: Boolean = true,
+    esearchBorderStyle: TileBorderStyle,
+    esearchBorderWidth: Float,
+    esearchBorderOpacity: Float,
     onESearchUseOverrideChange: (Boolean) -> Unit,
     onESearchOpacityChange: (Float) -> Unit,
     onESearchBlurChange: (Float) -> Unit,
     onESearchWidthChange: (Float) -> Unit,
     onESearchVisibleItemsChange: (Int) -> Unit,
     onESearchAutoKeyboardChange: (Boolean) -> Unit = {},
+    onESearchBorderStyleChange: (TileBorderStyle) -> Unit,
+    onESearchBorderWidthChange: (Float) -> Unit,
+    onESearchBorderOpacityChange: (Float) -> Unit,
     dockIconSize: Float,
     dockBottomPadding: Float,
     dockUseOverride: Boolean,
@@ -272,12 +279,18 @@ fun SettingsScreen(
                             width = esearchWidth,
                             visibleItems = esearchVisibleItems,
                             autoKeyboard = esearchAutoKeyboard,
+                            borderStyle = esearchBorderStyle,
+                            borderWidth = esearchBorderWidth,
+                            borderOpacity = esearchBorderOpacity,
                             onUseOverrideChange = onESearchUseOverrideChange,
                             onOpacityChange = onESearchOpacityChange,
                             onBlurChange = onESearchBlurChange,
                             onWidthChange = onESearchWidthChange,
                             onVisibleItemsChange = onESearchVisibleItemsChange,
-                            onAutoKeyboardChange = onESearchAutoKeyboardChange
+                            onAutoKeyboardChange = onESearchAutoKeyboardChange,
+                            onBorderStyleChange = onESearchBorderStyleChange,
+                            onBorderWidthChange = onESearchBorderWidthChange,
+                            onBorderOpacityChange = onESearchBorderOpacityChange
                         )
                         SettingsTab.DOCK -> DockTab(
                             apps = apps,
@@ -653,12 +666,18 @@ private fun ESearchTab(
     width: Float,
     visibleItems: Int,
     autoKeyboard: Boolean,
+    borderStyle: TileBorderStyle,
+    borderWidth: Float,
+    borderOpacity: Float,
     onUseOverrideChange: (Boolean) -> Unit,
     onOpacityChange: (Float) -> Unit,
     onBlurChange: (Float) -> Unit,
     onWidthChange: (Float) -> Unit,
     onVisibleItemsChange: (Int) -> Unit,
-    onAutoKeyboardChange: (Boolean) -> Unit
+    onAutoKeyboardChange: (Boolean) -> Unit,
+    onBorderStyleChange: (TileBorderStyle) -> Unit,
+    onBorderWidthChange: (Float) -> Unit,
+    onBorderOpacityChange: (Float) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -711,6 +730,51 @@ private fun ESearchTab(
                     onValueChange = onBlurChange,
                     format = { "${it.toInt()} dp" }
                 )
+            }
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(palette.surfaceVariant.copy(alpha = 0.4f))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.editor_border_title),
+                        color = palette.textPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val borderPresets = listOf(
+                        TileBorderStyle.NONE to stringResource(R.string.editor_border_none),
+                        TileBorderStyle.OUTLINE to stringResource(R.string.editor_border_outline),
+                        TileBorderStyle.LIQUID_GLASS to stringResource(R.string.editor_border_liquid_glass),
+                        TileBorderStyle.ACCENT to stringResource(R.string.editor_border_accent)
+                    )
+                    borderPresets.forEach { (styleOption, label) ->
+                        val sel = borderStyle == styleOption
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (sel) palette.primary.copy(alpha = 0.18f) else palette.surfaceVariant.copy(alpha = 0.3f))
+                                .clickable {
+                                    onBorderStyleChange(styleOption)
+                                    onBorderWidthChange(if (styleOption == TileBorderStyle.NONE) 0f else 1.5f)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (sel) palette.primary else palette.textPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
             }
         }
         item {

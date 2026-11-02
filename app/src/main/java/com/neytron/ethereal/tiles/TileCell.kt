@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,10 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -37,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import android.media.MediaPlayer
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -48,7 +53,9 @@ import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.tiles.editor.TileEditorState
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.FrostedGlassBox
+import com.neytron.ethereal.utils.DeviceTiltProvider
 import com.neytron.ethereal.utils.renderThemedIcon
+import com.neytron.ethereal.utils.tileBorder
 import com.neytron.ethereal.utils.toImageBitmap
 import com.neytron.ethereal.weather.WeatherCodeMapper
 import com.neytron.ethereal.weather.WeatherData
@@ -164,7 +171,7 @@ fun TileCell(
                     isTargetCell -> Modifier.border(2.dp, palette.primary, shape)
                     isSelected -> Modifier.border(2.dp, palette.primary, shape)
                     isEditing -> Modifier.border(1.dp, palette.outline.copy(alpha = 0.3f), shape)
-                    else -> Modifier
+                    else -> Modifier.tileBorder(tile.style, palette, shape)
                 }
             )
             .clickable(

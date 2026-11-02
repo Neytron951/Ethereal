@@ -28,12 +28,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import com.neytron.ethereal.ui.theme.LocalWallpaperContainerCoordinates
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -67,7 +70,10 @@ import com.neytron.ethereal.data.WallpaperRepository
 import com.neytron.ethereal.tiles.Tile
 import com.neytron.ethereal.tiles.TileLayoutRepository
 import com.neytron.ethereal.tiles.TilesScreen
+import com.neytron.ethereal.tiles.TileType
+import com.neytron.ethereal.tiles.AppLauncherConfig
 import com.neytron.ethereal.tiles.TilePreset
+import com.neytron.ethereal.tiles.editor.MultiAppsPickerDialog
 import com.neytron.ethereal.tiles.editor.defaultPresets
 import com.neytron.ethereal.tiles.editor.rememberTileEditorState
 import com.neytron.ethereal.ui.DockBar
@@ -89,10 +95,12 @@ import com.neytron.ethereal.ui.theme.LocalWallpaperPath
 import com.neytron.ethereal.ui.theme.LocalWallpaperScaleMode
 import com.neytron.ethereal.ui.theme.fontFamilyFor
 import com.neytron.ethereal.ui.theme.paletteById
+import com.neytron.ethereal.utils.DeviceTiltProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.neytron.ethereal.widgets.WidgetHostManager
+import java.util.UUID
 
 class MainActivity : ComponentActivity() {
 
@@ -174,6 +182,9 @@ fun EtherealApp() {
     var esearchWidth by remember { mutableStateOf(SettingsRepository.getESearchWidth(context)) }
     var esearchVisibleItems by remember { mutableStateOf(SettingsRepository.getESearchVisibleItems(context)) }
     var esearchAutoKeyboard by remember { mutableStateOf(SettingsRepository.getESearchAutoKeyboard(context)) }
+    var esearchBorderStyle by remember { mutableStateOf(SettingsRepository.getESearchBorderStyle(context)) }
+    var esearchBorderWidth by remember { mutableStateOf(SettingsRepository.getESearchBorderWidth(context)) }
+    var esearchBorderOpacity by remember { mutableStateOf(SettingsRepository.getESearchBorderOpacity(context)) }
 
     var tileSize by remember { mutableStateOf(SettingsRepository.getTileSize(context)) }
     var tileSpacing by remember { mutableStateOf(SettingsRepository.getTileSpacing(context)) }
@@ -195,6 +206,7 @@ fun EtherealApp() {
     var wallpaperList by remember { mutableStateOf<List<File>>(emptyList()) }
     var currentWallpaperPath by remember { mutableStateOf<String?>(null) }
     var wallpaperScaleMode by remember { mutableStateOf(SettingsRepository.getWallpaperScaleMode(context)) }
+    var wallpaperContainerCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     var dockIconSize by remember { mutableStateOf(SettingsRepository.getDockIconSize(context)) }
     var dockBottomPadding by remember { mutableStateOf(SettingsRepository.getDockBottomPadding(context)) }
@@ -234,6 +246,7 @@ fun EtherealApp() {
 
     // === Проверка обновлений при старте (из кэша, без сети) ===
     LaunchedEffect(Unit) {
+        DeviceTiltProvider.register(context)
         val cached = withContext(Dispatchers.IO) {
             UpdateRepository.getUpdateInfo(
                 context = context,
@@ -242,6 +255,12 @@ fun EtherealApp() {
             )
         }
         updateInfo = cached
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            DeviceTiltProvider.unregister()
+        }
     }
 
     // === Перезагрузка приложений при смене пакета иконок ===
@@ -538,7 +557,10 @@ fun EtherealApp() {
         visibleItems = esearchVisibleItems,
         placeholder = esearchPlaceholder,
         themedIcons = dockThemedIcons,
-        autoShowKeyboard = esearchAutoKeyboard
+        autoShowKeyboard = esearchAutoKeyboard,
+        borderWidth = esearchBorderWidth,
+        borderOpacity = esearchBorderOpacity,
+        borderStyle = esearchBorderStyle
     )
 
     val dockConfig = DockConfig(
@@ -594,6 +616,7 @@ fun EtherealApp() {
 
     val showPresetsInDock = tileEditorState.editing.value && tileEditorState.selectedTile.value == null
     val isTileSelected = tileEditorState.selectedTile.value != null
+    var showMultiAppsPickerInDock by remember { mutableStateOf(false) }
 
     // === DockBar виден, когда: ===
     // - не выбрана плитка (иначе показываем TileEditorPanel с настройками),
@@ -632,6 +655,7 @@ fun EtherealApp() {
         LocalDockConfig provides dockConfig,
         LocalWallpaperPath provides currentWallpaperPath,
         LocalWallpaperScaleMode provides wallpaperScaleMode,
+        LocalWallpaperContainerCoordinates provides wallpaperContainerCoordinates,
         LocalDensity provides Density(
             density = density.density,
             fontScale = density.fontScale * appearance.fontScale
@@ -642,6 +666,9 @@ fun EtherealApp() {
                 modifier = Modifier
                     .fillMaxSize()
                     .background(palette.background)
+                    .onGloballyPositioned { coordinates ->
+                        wallpaperContainerCoordinates = coordinates
+                    }
             ) {
                 if (currentWallpaperPath != null) {
                     val contentScaleMode = when (wallpaperScaleMode) {
@@ -737,37 +764,79 @@ fun EtherealApp() {
                         onCreateSpaceClick = {
                             showCreateSpaceDialog = true
                         },
+                        onMultiAppsClick = {
+                            showMultiAppsPickerInDock = true
+                        },
                         introFlyIn = isIntroRoulette,
                         modifier = Modifier
                             .padding(bottom = dockBottomPadding.dp)
                     )
                 }
-            }
 
-            ESearchOverlay(
-                visible = searchVisible,
-                apps = apps,
-                palette = palette,
-                onAppClick = { app ->
-                    SettingsRepository.recordLaunch(context, app.packageName)
-                    AppRepository.launchApp(context, app.packageName)
-                    searchVisible = false
-                    isIntroRoulette = false
-                    isIntroActive = false
-                },
-                onDismiss = {
-                    searchVisible = false
-                    isIntroRoulette = false
-                    isIntroActive = false
-                },
-                rouletteMode = isIntroRoulette,
-                onRouletteComplete = {
-                    searchVisible = false
-                    isIntroActive = false
-                    isIntroRoulette = false
-                    isTilesRevealing = true
+                if (showMultiAppsPickerInDock) {
+                    MultiAppsPickerDialog(
+                        palette = palette,
+                        installedApps = apps,
+                        onBatchConfigReady = { chosenApps, batchConfig ->
+                            showMultiAppsPickerInDock = false
+                            val currentSpaceId = screenStack.current
+                            val currentTiles = TileLayoutRepository.getTiles(context, currentSpaceId).toMutableList()
+                            val columns = SettingsRepository.getTileColumns(context)
+                            chosenApps.forEach { app ->
+                                val best = TileLayoutRepository.findBestSpotOrShrink(
+                                    tiles = currentTiles,
+                                    columns = columns,
+                                    rows = 12,
+                                    initialW = batchConfig.w,
+                                    initialH = batchConfig.h
+                                )
+                                if (best != null) {
+                                    val (finalW, finalH, spot) = best
+                                    val newTile = Tile(
+                                        id = UUID.randomUUID().toString(),
+                                        x = spot.first,
+                                        y = spot.second,
+                                        w = finalW,
+                                        h = finalH,
+                                        type = TileType.APP_LAUNCHER,
+                                        style = batchConfig.style,
+                                        config = AppLauncherConfig(packageName = app.packageName, showLabel = batchConfig.showLabel).toJson()
+                                    )
+                                    currentTiles.add(newTile)
+                                }
+                            }
+                            TileLayoutRepository.setTiles(context, currentSpaceId, currentTiles)
+                            tiles = currentTiles
+                        },
+                        onDismiss = { showMultiAppsPickerInDock = false }
+                    )
                 }
-            )
+
+                ESearchOverlay(
+                    visible = searchVisible,
+                    apps = apps,
+                    palette = palette,
+                    onAppClick = { app ->
+                        SettingsRepository.recordLaunch(context, app.packageName)
+                        AppRepository.launchApp(context, app.packageName)
+                        searchVisible = false
+                        isIntroRoulette = false
+                        isIntroActive = false
+                    },
+                    onDismiss = {
+                        searchVisible = false
+                        isIntroRoulette = false
+                        isIntroActive = false
+                    },
+                    rouletteMode = isIntroRoulette,
+                    onRouletteComplete = {
+                        searchVisible = false
+                        isIntroActive = false
+                        isIntroRoulette = false
+                        isTilesRevealing = true
+                    }
+                )
+            }
 
             AnimatedVisibility(
                 visible = settingsVisible,
@@ -855,6 +924,9 @@ fun EtherealApp() {
                         esearchWidth = esearchWidth,
                         esearchVisibleItems = esearchVisibleItems,
                         esearchAutoKeyboard = esearchAutoKeyboard,
+                        esearchBorderStyle = esearchBorderStyle,
+                        esearchBorderWidth = esearchBorderWidth,
+                        esearchBorderOpacity = esearchBorderOpacity,
                         onESearchUseOverrideChange = { v ->
                             esearchUseOverride = v
                             SettingsRepository.setESearchUseOverride(context, v)
@@ -878,6 +950,18 @@ fun EtherealApp() {
                         onESearchAutoKeyboardChange = { v ->
                             esearchAutoKeyboard = v
                             SettingsRepository.setESearchAutoKeyboard(context, v)
+                        },
+                        onESearchBorderStyleChange = { v ->
+                            esearchBorderStyle = v
+                            SettingsRepository.setESearchBorderStyle(context, v)
+                        },
+                        onESearchBorderWidthChange = { v ->
+                            esearchBorderWidth = v
+                            SettingsRepository.setESearchBorderWidth(context, v)
+                        },
+                        onESearchBorderOpacityChange = { v ->
+                            esearchBorderOpacity = v
+                            SettingsRepository.setESearchBorderOpacity(context, v)
                         },
 
                         dockIconSize = dockIconSize,

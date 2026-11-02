@@ -76,10 +76,19 @@ object TileLayoutRepository {
                         payload = obj.optString("payload").takeIf { it.isNotEmpty() },
                         locked = obj.optBoolean("locked", false),
                         style = if (styleObj != null) {
+                            val borderStyleStr = styleObj.optString("borderStyle", TileBorderStyle.NONE.name)
+                            val bStyle = try {
+                                TileBorderStyle.valueOf(borderStyleStr)
+                            } catch (_: Exception) {
+                                TileBorderStyle.NONE
+                            }
                             TileStyle(
                                 backgroundOpacity = styleObj.optDouble("bgOpacity", 0.55).toFloat(),
                                 backgroundBlur = styleObj.optDouble("bgBlur", 0.0).toFloat(),
                                 contentScale = styleObj.optDouble("contentScale", 1.0).toFloat(),
+                                borderWidth = styleObj.optDouble("borderWidth", 0.0).toFloat(),
+                                borderOpacity = styleObj.optDouble("borderOpacity", 0.3).toFloat(),
+                                borderStyle = bStyle,
                                 themedIcon = if (styleObj.has("themedIcon")) styleObj.optBoolean("themedIcon") else null
                             )
                         } else TileStyle(),
@@ -105,6 +114,9 @@ object TileLayoutRepository {
                 put("bgOpacity", tile.style.backgroundOpacity.toDouble())
                 put("bgBlur", tile.style.backgroundBlur.toDouble())
                 put("contentScale", tile.style.contentScale.toDouble())
+                put("borderWidth", tile.style.borderWidth.toDouble())
+                put("borderOpacity", tile.style.borderOpacity.toDouble())
+                put("borderStyle", tile.style.borderStyle.name)
                 if (tile.style.themedIcon != null) {
                     put("themedIcon", tile.style.themedIcon)
                 }

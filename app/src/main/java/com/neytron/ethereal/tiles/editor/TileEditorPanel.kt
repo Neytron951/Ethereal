@@ -46,6 +46,7 @@ import com.neytron.ethereal.tiles.SpaceConfig
 import com.neytron.ethereal.tiles.Tile
 import com.neytron.ethereal.tiles.TilePreset
 import com.neytron.ethereal.tiles.TileStyle
+import com.neytron.ethereal.tiles.TileBorderStyle
 import com.neytron.ethereal.tiles.TileType
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.utils.toImageBitmap
@@ -54,6 +55,7 @@ import com.neytron.ethereal.weather.LocationProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 @Composable
 fun TileEditorPanel(
@@ -70,8 +72,23 @@ fun TileEditorPanel(
     onConfigChange: (Tile, String?) -> Unit,
     onPickImage: (Tile) -> Unit,
     onDeselect: () -> Unit,
+    onBatchCreateAppTiles: (List<AppInfo>, MultiAppsBatchConfig) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
+    var showMultiAppsPicker by remember { mutableStateOf(false) }
+
+    if (showMultiAppsPicker) {
+        MultiAppsPickerDialog(
+            palette = palette,
+            installedApps = installedApps,
+            onBatchConfigReady = { chosenApps, batchConfig ->
+                showMultiAppsPicker = false
+                onBatchCreateAppTiles(chosenApps, batchConfig)
+            },
+            onDismiss = { showMultiAppsPicker = false }
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -91,7 +108,8 @@ fun TileEditorPanel(
                 presets = presets,
                 onPresetClick = onPresetClick,
                 onSystemWidgetClick = onSystemWidgetClick,
-                onCreateSpaceClick = onCreateSpaceClick
+                onCreateSpaceClick = onCreateSpaceClick,
+                onMultiAppsClick = { showMultiAppsPicker = true }
             )
         } else {
             TileSettingsMode(
@@ -119,7 +137,8 @@ private fun PresetsMode(
     presets: List<TilePreset>,
     onPresetClick: (TilePreset) -> Unit,
     onSystemWidgetClick: () -> Unit,
-    onCreateSpaceClick: () -> Unit
+    onCreateSpaceClick: () -> Unit,
+    onMultiAppsClick: () -> Unit
 ) {
     Text(
         text = stringResource(R.string.tile_add_widget),
@@ -143,6 +162,11 @@ private fun PresetsMode(
         SpaceChip(
             palette = palette,
             onClick = onCreateSpaceClick
+        )
+
+        MultiAppsChip(
+            palette = palette,
+            onClick = onMultiAppsClick
         )
 
         presets.forEach { preset ->
@@ -221,6 +245,43 @@ private fun SpaceChip(
             color = palette.primary,
             fontSize = 10.sp,
             fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun MultiAppsChip(
+    palette: EtherealPalette,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .requiredSize(width = 72.dp, height = 72.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(palette.primary.copy(alpha = 0.15f))
+            .border(
+                width = 1.dp,
+                color = palette.primary.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.apps_24dp),
+            contentDescription = stringResource(R.string.tile_multi_apps),
+            colorFilter = ColorFilter.tint(palette.primary),
+            modifier = Modifier.size(26.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.tile_multi_apps),
+            color = palette.primary,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -450,6 +511,14 @@ private fun TileSettingsMode(
         palette = palette,
         onValueChange = { v -> onStyleChange(tile.style.copy(contentScale = v)) },
         format = { "${(it * 100).toInt()}%" }
+    )
+
+    Spacer(modifier = Modifier.height(10.dp))
+
+    TileBorderSettings(
+        palette = palette,
+        tile = tile,
+        onStyleChange = onStyleChange
     )
 
     Spacer(modifier = Modifier.height(12.dp))
@@ -1030,6 +1099,110 @@ private fun AudioSpectrumSettings(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TileBorderSettings(
+    palette: EtherealPalette,
+    tile: Tile,
+    onStyleChange: (TileStyle) -> Unit
+) {
+    val currentStyle = tile.style.borderStyle
+    val currentWidth = tile.style.borderWidth
+    val currentOpacity = tile.style.borderOpacity
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(palette.surfaceVariant.copy(alpha = 0.4f))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.editor_border_title),
+            color = palette.textPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        val borderPresets = listOf(
+            TileBorderStyle.NONE to stringResource(R.string.editor_border_none),
+            TileBorderStyle.OUTLINE to stringResource(R.string.editor_border_outline),
+            TileBorderStyle.LIQUID_GLASS to stringResource(R.string.editor_border_liquid_glass),
+            TileBorderStyle.ACCENT to stringResource(R.string.editor_border_accent),
+            TileBorderStyle.CUSTOM to stringResource(R.string.editor_border_custom)
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            borderPresets.forEach { (styleOption, label) ->
+                val selected = currentStyle == styleOption
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selected) palette.primary.copy(alpha = 0.18f) else palette.surfaceVariant.copy(alpha = 0.3f))
+                        .border(
+                            width = if (selected) 1.dp else 0.dp,
+                            color = if (selected) palette.primary else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .clickable {
+                            val newWidth = when (styleOption) {
+                                TileBorderStyle.NONE -> 0f
+                                TileBorderStyle.OUTLINE -> 1f
+                                TileBorderStyle.LIQUID_GLASS -> 1.5f
+                                TileBorderStyle.ACCENT -> 1.5f
+                                TileBorderStyle.CUSTOM -> if (currentWidth > 0f) currentWidth else 1.5f
+                            }
+                            onStyleChange(tile.style.copy(borderStyle = styleOption, borderWidth = newWidth))
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (selected) palette.primary else palette.textPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                        )
+                        if (selected) {
+                            Text("✓", color = palette.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (currentStyle == TileBorderStyle.CUSTOM || currentStyle != TileBorderStyle.NONE) {
+            Spacer(modifier = Modifier.height(10.dp))
+            StyleSlider(
+                label = stringResource(R.string.editor_border_width),
+                value = if (currentWidth > 0f) currentWidth else 1.5f,
+                range = 0.5f..4.0f,
+                palette = palette,
+                onValueChange = { v ->
+                    onStyleChange(tile.style.copy(borderWidth = v, borderStyle = if (currentStyle == TileBorderStyle.NONE) TileBorderStyle.CUSTOM else currentStyle))
+                },
+                format = { String.format(Locale.US, "%.1f dp", it) }
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            StyleSlider(
+                label = stringResource(R.string.editor_border_opacity),
+                value = currentOpacity,
+                range = 0.1f..1.0f,
+                palette = palette,
+                onValueChange = { v ->
+                    onStyleChange(tile.style.copy(borderOpacity = v))
+                },
+                format = { "${(it * 100).toInt()}%" }
+            )
         }
     }
 }

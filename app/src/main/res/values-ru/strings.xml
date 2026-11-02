@@ -298,6 +298,16 @@
     <string name="option_spaces_layouts">Пространства и сетки тайлов</string>
     <string name="option_wallpapers_assets">Обои и медиа-файлы</string>
     <string name="continue_button">Продолжить</string>
+
+    <string name="tile_multi_apps">Несколько приложений</string>
+    <string name="editor_border_title">Рамка плитки</string>
+    <string name="editor_border_none">Без рамки</string>
+    <string name="editor_border_outline">Контур</string>
+    <string name="editor_border_liquid_glass">Жидкое стекло</string>
+    <string name="editor_border_accent">Акцент</string>
+    <string name="editor_border_custom">Свой стиль</string>
+    <string name="editor_border_width">Толщина рамки</string>
+    <string name="editor_border_opacity">Прозрачность рамки</string>
     <string name="day_sat">Сб</string>
     <string name="day_sun">Вс</string>
 

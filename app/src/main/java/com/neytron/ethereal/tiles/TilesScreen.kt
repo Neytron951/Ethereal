@@ -59,6 +59,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.UUID
 import kotlin.math.roundToInt
 
 @Composable
@@ -744,7 +745,35 @@ fun TilesScreen(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )
                 },
-                onDeselect = { editorState.select(null) }
+                onDeselect = { editorState.select(null) },
+                onBatchCreateAppTiles = { chosenApps, batchConfig ->
+                    val mutableTiles = tiles.toMutableList()
+                    chosenApps.forEach { app ->
+                        val best = TileLayoutRepository.findBestSpotOrShrink(
+                            tiles = mutableTiles,
+                            columns = autoColumns,
+                            rows = autoRows,
+                            initialW = batchConfig.w,
+                            initialH = batchConfig.h
+                        )
+                        if (best != null) {
+                            val (finalW, finalH, spot) = best
+                            val newTile = Tile(
+                                id = UUID.randomUUID().toString(),
+                                x = spot.first,
+                                y = spot.second,
+                                w = finalW,
+                                h = finalH,
+                                type = TileType.APP_LAUNCHER,
+                                style = batchConfig.style,
+                                config = AppLauncherConfig(packageName = app.packageName, showLabel = batchConfig.showLabel).toJson()
+                            )
+                            mutableTiles.add(newTile)
+                        }
+                    }
+                    TileLayoutRepository.setTiles(context, currentSpaceId, mutableTiles)
+                    onTilesChange(mutableTiles)
+                }
             )
         }
 

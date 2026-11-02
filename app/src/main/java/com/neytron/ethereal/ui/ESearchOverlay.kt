@@ -65,11 +65,13 @@ import com.neytron.ethereal.R
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.data.AppSorter
 import com.neytron.ethereal.data.SettingsRepository
+import com.neytron.ethereal.tiles.TileStyle
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.LocalAppearance
 import com.neytron.ethereal.ui.theme.LocalESearchConfig
 import com.neytron.ethereal.ui.theme.FrostedGlassBox
 import com.neytron.ethereal.utils.renderThemedIcon
+import com.neytron.ethereal.utils.tileBorder
 import com.neytron.ethereal.utils.toImageBitmap
 import kotlinx.coroutines.delay
 
@@ -405,7 +407,16 @@ private fun ESearchPanel(
             blur = blur,
             opacity = opacity,
             backgroundColor = palette.background,
-            shape = RoundedCornerShape(20.dp)
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.tileBorder(
+                tileStyle = TileStyle(
+                    borderWidth = config.borderWidth,
+                    borderOpacity = config.borderOpacity,
+                    borderStyle = config.borderStyle
+                ),
+                palette = palette,
+                shape = RoundedCornerShape(20.dp)
+            )
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Box(

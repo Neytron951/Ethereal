@@ -1,10 +1,23 @@
 package com.neytron.ethereal.tiles
 
+import org.json.JSONObject
+
+enum class TileBorderStyle {
+    NONE,
+    OUTLINE,
+    LIQUID_GLASS,
+    ACCENT,
+    CUSTOM
+}
+
 data class TileStyle(
     val backgroundOpacity: Float = 0.55f,
     val backgroundBlur: Float = 0f,
     val contentScale: Float = 1.0f,
-    val themedIcon: Boolean? = null
+    val themedIcon: Boolean? = null,
+    val borderWidth: Float = 0f,
+    val borderOpacity: Float = 0.3f,
+    val borderStyle: TileBorderStyle = TileBorderStyle.NONE
 )
 
 data class Tile(
@@ -69,7 +82,7 @@ data class AppLauncherConfig(
         fun fromJson(json: String?): AppLauncherConfig {
             if (json.isNullOrBlank()) return AppLauncherConfig()
             return try {
-                val obj = org.json.JSONObject(json)
+                val obj = JSONObject(json)
                 AppLauncherConfig(
                     packageName = obj.optString("packageName", "").takeIf { it.isNotEmpty() },
                     imageUri = obj.optString("imageUri", "").takeIf { it.isNotEmpty() },

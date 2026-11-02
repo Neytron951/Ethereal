@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -70,6 +71,7 @@ fun DockBar(
     onPresetClick: (TilePreset) -> Unit = {},
     onSystemWidgetClick: () -> Unit = {},
     onCreateSpaceClick: () -> Unit = {},
+    onMultiAppsClick: () -> Unit = {},
     introFlyIn: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -159,7 +161,8 @@ fun DockBar(
                         palette = palette,
                         onPresetClick = onPresetClick,
                         onSystemWidgetClick = onSystemWidgetClick,
-                        onCreateSpaceClick = onCreateSpaceClick
+                        onCreateSpaceClick = onCreateSpaceClick,
+                        onMultiAppsClick = onMultiAppsClick
                     )
                 } else {
                     AppsRow(
@@ -264,7 +267,8 @@ private fun PresetsRow(
     palette: EtherealPalette,
     onPresetClick: (TilePreset) -> Unit,
     onSystemWidgetClick: () -> Unit,
-    onCreateSpaceClick: () -> Unit
+    onCreateSpaceClick: () -> Unit,
+    onMultiAppsClick: () -> Unit
 ) {
     // Каскадная анимация появления каждого элемента
     var revealed by remember { mutableStateOf(false) }
@@ -302,9 +306,17 @@ private fun PresetsRow(
                 )
             }
 
-            // Элементы 2..N: Пресеты
+            // Элемент 2: Multi-Apps
+            CascadeItem(revealed, 2) {
+                MultiAppsChip(
+                    palette = palette,
+                    onClick = onMultiAppsClick
+                )
+            }
+
+            // Элементы 3..N: Пресеты
             presets.forEachIndexed { index, preset ->
-                CascadeItem(revealed, index + 2) {
+                CascadeItem(revealed, index + 3) {
                     PresetChip(
                         preset = preset,
                         palette = palette,
@@ -416,6 +428,43 @@ private fun SpaceChip(
             color = palette.primary,
             fontSize = 10.sp,
             fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun MultiAppsChip(
+    palette: EtherealPalette,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .requiredSize(width = 72.dp, height = 72.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(palette.primary.copy(alpha = 0.15f))
+            .border(
+                width = 1.dp,
+                color = palette.primary.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.apps_24dp),
+            contentDescription = stringResource(R.string.tile_multi_apps),
+            colorFilter = ColorFilter.tint(palette.primary),
+            modifier = Modifier.size(26.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.tile_multi_apps),
+            color = palette.primary,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
