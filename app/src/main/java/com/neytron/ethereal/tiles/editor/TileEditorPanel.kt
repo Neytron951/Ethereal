@@ -148,33 +148,37 @@ private fun PresetsMode(
     )
     Spacer(modifier = Modifier.height(12.dp))
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
     ) {
-        SystemWidgetChip(
-            palette = palette,
-            onClick = onSystemWidgetClick
-        )
-
-        SpaceChip(
-            palette = palette,
-            onClick = onCreateSpaceClick
-        )
-
-        MultiAppsChip(
-            palette = palette,
-            onClick = onMultiAppsClick
-        )
-
-        presets.forEach { preset ->
-            PresetChip(
-                preset = preset,
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SystemWidgetChip(
                 palette = palette,
-                onClick = { onPresetClick(preset) }
+                onClick = onSystemWidgetClick
             )
+
+            SpaceChip(
+                palette = palette,
+                onClick = onCreateSpaceClick
+            )
+
+            MultiAppsChip(
+                palette = palette,
+                onClick = onMultiAppsClick
+            )
+
+            presets.forEach { preset ->
+                PresetChip(
+                    preset = preset,
+                    palette = palette,
+                    onClick = { onPresetClick(preset) }
+                )
+            }
         }
     }
 }
@@ -1132,8 +1136,8 @@ private fun TileBorderSettings(
             TileBorderStyle.NONE to stringResource(R.string.editor_border_none),
             TileBorderStyle.OUTLINE to stringResource(R.string.editor_border_outline),
             TileBorderStyle.LIQUID_GLASS to stringResource(R.string.editor_border_liquid_glass),
-            TileBorderStyle.ACCENT to stringResource(R.string.editor_border_accent),
-            TileBorderStyle.CUSTOM to stringResource(R.string.editor_border_custom)
+            TileBorderStyle.LIQUID_GLASS_SENSORS to stringResource(R.string.editor_border_liquid_glass_sensors),
+            TileBorderStyle.ACCENT to stringResource(R.string.editor_border_accent)
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1154,8 +1158,8 @@ private fun TileBorderSettings(
                                 TileBorderStyle.NONE -> 0f
                                 TileBorderStyle.OUTLINE -> 1f
                                 TileBorderStyle.LIQUID_GLASS -> 1.5f
+                                TileBorderStyle.LIQUID_GLASS_SENSORS -> 1.5f
                                 TileBorderStyle.ACCENT -> 1.5f
-                                TileBorderStyle.CUSTOM -> if (currentWidth > 0f) currentWidth else 1.5f
                             }
                             onStyleChange(tile.style.copy(borderStyle = styleOption, borderWidth = newWidth))
                         }
@@ -1180,7 +1184,7 @@ private fun TileBorderSettings(
             }
         }
 
-        if (currentStyle == TileBorderStyle.CUSTOM || currentStyle != TileBorderStyle.NONE) {
+        if (currentStyle != TileBorderStyle.NONE) {
             Spacer(modifier = Modifier.height(10.dp))
             StyleSlider(
                 label = stringResource(R.string.editor_border_width),
@@ -1188,7 +1192,7 @@ private fun TileBorderSettings(
                 range = 0.5f..4.0f,
                 palette = palette,
                 onValueChange = { v ->
-                    onStyleChange(tile.style.copy(borderWidth = v, borderStyle = if (currentStyle == TileBorderStyle.NONE) TileBorderStyle.CUSTOM else currentStyle))
+                    onStyleChange(tile.style.copy(borderWidth = v))
                 },
                 format = { String.format(Locale.US, "%.1f dp", it) }
             )

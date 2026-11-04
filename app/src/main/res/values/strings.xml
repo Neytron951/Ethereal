@@ -304,8 +304,8 @@
     <string name="editor_border_none">None</string>
     <string name="editor_border_outline">Subtle Outline</string>
     <string name="editor_border_liquid_glass">Liquid Glass</string>
+    <string name="editor_border_liquid_glass_sensors">Liquid Glass with Sensors</string>
     <string name="editor_border_accent">Accent Glow</string>
-    <string name="editor_border_custom">Custom</string>
     <string name="editor_border_width">Border Width</string>
     <string name="editor_border_opacity">Border Opacity</string>
     <string name="day_sat">Sat</string>

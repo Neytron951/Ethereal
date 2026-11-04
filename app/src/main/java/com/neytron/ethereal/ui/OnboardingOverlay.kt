@@ -60,6 +60,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.neytron.ethereal.R
+import com.neytron.ethereal.call.SoundWavePair
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.ui.theme.AllPalettes
 import com.neytron.ethereal.ui.theme.EtherealFont
@@ -102,6 +103,8 @@ fun OnboardingOverlay(
         }
     }
 
+    var isHolding by remember { mutableStateOf(false) }
+
     AnimatedVisibility(
         visible = visible && !isFinishing,
         enter = fadeIn(animationSpec = tween(400)),
@@ -112,6 +115,13 @@ fun OnboardingOverlay(
             contentAlignment = Alignment.Center
         ) {
             EtherealBackgroundAnimation(palette = palette)
+
+            SoundWavePair(
+                palette = palette,
+                active = true,
+                ringing = false,
+                holding = isHolding
+            )
 
             when (currentPhase) {
                 OnboardingPhase.WIZARD -> {
@@ -131,7 +141,11 @@ fun OnboardingOverlay(
                 OnboardingPhase.EXPAND_AND_HOLD -> {
                     SeamlessExpandAndHoldScene(
                         palette = palette,
-                        onComplete = handleComplete
+                        fontFamilyName = fontFamilyName,
+                        onComplete = handleComplete,
+                        onHoldingChanged = { holding ->
+                            isHolding = holding
+                        }
                     )
                 }
             }
@@ -969,12 +983,22 @@ private fun StepDock(
 @Composable
 private fun SeamlessExpandAndHoldScene(
     palette: EtherealPalette,
-    onComplete: () -> Unit
+    fontFamilyName: String,
+    onComplete: () -> Unit,
+    onHoldingChanged: (Boolean) -> Unit
 ) {
     val expandProgress = remember { Animatable(0f) }
     val slideUpProgress = remember { Animatable(0f) }
     var showHint by remember { mutableStateOf(false) }
     var isHoldingGlobal by remember { mutableStateOf(false) }
+
+    val ownFontFamily = remember(fontFamilyName) {
+        try {
+            fontFamilyFor(EtherealFont.valueOf(fontFamilyName))
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     LaunchedEffect(Unit) {
         expandProgress.animateTo(
@@ -1004,44 +1028,32 @@ private fun SeamlessExpandAndHoldScene(
     val titleOffsetY = (-75 * tSlide).dp
     val contentAlpha = tSlide
 
+    val scale = 0.75f + 0.25f * tExpand
+    val alpha = tExpand.coerceIn(0f, 1f)
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.offset(y = titleOffsetY)
+        Box(
+            modifier = Modifier
+                .offset(y = titleOffsetY)
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    alpha = alpha
+                ),
+            contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "E",
+                text = "Ethereal",
                 color = mainColor,
-                fontSize = 46.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Box(
-                modifier = Modifier
-                    .width((145 * tExpand).dp)
-                    .clipToBounds(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "therea",
-                    color = mainColor.copy(alpha = (tExpand * 1.6f - 0.2f).coerceIn(0f, 1f)),
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                    maxLines = 1,
-                    softWrap = false
-                )
-            }
-
-            Text(
-                text = "l",
-                color = mainColor,
-                fontSize = 46.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 44.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = ownFontFamily,
+                letterSpacing = 1.5.sp,
+                maxLines = 1,
+                softWrap = false
             )
         }
 
@@ -1065,6 +1077,7 @@ private fun SeamlessExpandAndHoldScene(
                     onComplete = onComplete,
                     onHoldingChanged = { holding ->
                         isHoldingGlobal = holding
+                        onHoldingChanged(holding)
                         if (holding) showHint = false
                     },
                     onTap = {

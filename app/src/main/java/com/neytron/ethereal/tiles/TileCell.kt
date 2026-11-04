@@ -26,10 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -151,6 +149,14 @@ fun TileCell(
     }
 
     val contentScale = tile.style.contentScale
+    val tilt = if (
+        tile.style.borderStyle == TileBorderStyle.LIQUID_GLASS ||
+        tile.style.borderStyle == TileBorderStyle.LIQUID_GLASS_SENSORS
+    ) {
+        DeviceTiltProvider.tilt.collectAsState().value
+    } else {
+        Pair(0f, 0f)
+    }
 
     FrostedGlassBox(
         blur = tile.style.backgroundBlur,
@@ -171,7 +177,7 @@ fun TileCell(
                     isTargetCell -> Modifier.border(2.dp, palette.primary, shape)
                     isSelected -> Modifier.border(2.dp, palette.primary, shape)
                     isEditing -> Modifier.border(1.dp, palette.outline.copy(alpha = 0.3f), shape)
-                    else -> Modifier.tileBorder(tile.style, palette, shape)
+                    else -> Modifier.tileBorder(tile.style, palette, shape, tilt)
                 }
             )
             .clickable(
@@ -307,6 +313,7 @@ fun TileCell(
                 )
             }
         }
+
     }
 }
 

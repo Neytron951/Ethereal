@@ -47,14 +47,69 @@ object TileLayoutRepository {
      * Root: если ключ пуст → defaultTiles() (совместимость со старыми установками).
      * Пространство: если ключ пуст → emptyList() (новое пустое пространство).
      */
-    fun getTiles(context: Context, spaceId: String): List<Tile> {
-        val key = keyFor(spaceId)
+    fun getTiles(context: Context, spaceId: String, isLandscape: Boolean): List<Tile> {
+        val baseKey = keyFor(spaceId)
+        val key = if (isLandscape) baseKey + "_landscape" else baseKey
         val raw = prefs(context).getString(key, null)
 
+        val portraitTiles = if (isLandscape) getTilesImpl(context, baseKey, spaceId) else emptyList()
+
+        if ((raw == null || raw == "[]") && isLandscape && portraitTiles.isNotEmpty()) {
+            val columns = getColumns(context).coerceAtLeast(4)
+            val reflowed = reflowTilesLeftToRight(portraitTiles, columns)
+            setTilesImpl(context, key, reflowed)
+            return reflowed
+        }
+
+        val landscapeTiles = getTilesImpl(context, key, spaceId)
+
+        if (isLandscape && portraitTiles.isNotEmpty()) {
+            val portraitMap = portraitTiles.associateBy { it.id }
+            var mutated = false
+            val syncedTiles = landscapeTiles.map { landTile ->
+                val portTile = portraitMap[landTile.id]
+                if (portTile != null && (landTile.style != portTile.style || landTile.config != portTile.config || landTile.payload != portTile.payload)) {
+                    mutated = true
+                    landTile.copy(style = portTile.style, config = portTile.config, payload = portTile.payload)
+                } else {
+                    landTile
+                }
+            }.toMutableList()
+
+            val landscapeIds = syncedTiles.mapTo(HashSet()) { it.id }
+            val missingFromPortrait = portraitTiles.filter { it.id !in landscapeIds }
+            if (missingFromPortrait.isNotEmpty()) {
+                val columns = getColumns(context).coerceAtLeast(4)
+                missingFromPortrait.forEach { portTile ->
+                    val spot = findClosestFreeSpot(syncedTiles, columns, 20, portTile.w, portTile.h, 0, 0)
+                    syncedTiles.add(portTile.copy(x = spot.first, y = spot.second))
+                }
+                mutated = true
+            }
+
+            if (mutated) {
+                setTilesImpl(context, key, syncedTiles)
+                return syncedTiles
+            }
+        }
+
+        return landscapeTiles
+    }
+
+    fun setTiles(context: Context, spaceId: String, tiles: List<Tile>, isLandscape: Boolean) {
+        val baseKey = keyFor(spaceId)
+        val key = if (isLandscape) baseKey + "_landscape" else baseKey
+        setTilesImpl(context, key, tiles)
+    }
+
+    fun getTiles(context: Context, spaceId: String): List<Tile> = getTiles(context, spaceId, isLandscape = false)
+    fun setTiles(context: Context, spaceId: String, tiles: List<Tile>) = setTiles(context, spaceId, tiles, isLandscape = false)
+
+    private fun getTilesImpl(context: Context, key: String, spaceId: String): List<Tile> {
+        val raw = prefs(context).getString(key, null)
         if (raw == null) {
             return if (spaceId == ScreenStack.ROOT_ID) defaultTiles() else emptyList()
         }
-
         return try {
             val arr = JSONArray(raw)
             val list = mutableListOf<Tile>()
@@ -86,7 +141,8 @@ object TileLayoutRepository {
                                 backgroundOpacity = styleObj.optDouble("bgOpacity", 0.55).toFloat(),
                                 backgroundBlur = styleObj.optDouble("bgBlur", 0.0).toFloat(),
                                 contentScale = styleObj.optDouble("contentScale", 1.0).toFloat(),
-                                borderWidth = styleObj.optDouble("borderWidth", 0.0).toFloat(),
+                                borderWidth = if (borderStyleStr == "CUSTOM") 0f
+                                    else styleObj.optDouble("borderWidth", 0.0).toFloat(),
                                 borderOpacity = styleObj.optDouble("borderOpacity", 0.3).toFloat(),
                                 borderStyle = bStyle,
                                 themedIcon = if (styleObj.has("themedIcon")) styleObj.optBoolean("themedIcon") else null
@@ -106,8 +162,7 @@ object TileLayoutRepository {
         }
     }
 
-    fun setTiles(context: Context, spaceId: String, tiles: List<Tile>) {
-        val key = keyFor(spaceId)
+    private fun setTilesImpl(context: Context, key: String, tiles: List<Tile>) {
         val arr = JSONArray()
         tiles.forEach { tile ->
             val styleObj = JSONObject().apply {
@@ -137,6 +192,30 @@ object TileLayoutRepository {
             arr.put(obj)
         }
         prefs(context).edit().putString(key, arr.toString()).apply()
+    }
+
+    fun reflowTilesLeftToRight(tiles: List<Tile>, columns: Int): List<Tile> {
+        val sorted = tiles.sortedWith(compareBy({ it.y }, { it.x }))
+        val result = mutableListOf<Tile>()
+        var currentX = 0
+        var currentY = 0
+
+        for (tile in sorted) {
+            val w = tile.w.coerceAtMost(columns)
+
+            if (currentX + w > columns) {
+                currentX = 0
+                currentY++
+            }
+
+            result.add(tile.copy(x = currentX, y = currentY))
+            currentX += w
+            if (currentX >= columns) {
+                currentX = 0
+                currentY++
+            }
+        }
+        return result
     }
 
     /**
@@ -385,7 +464,8 @@ object TileLayoutRepository {
         tiles: List<Tile>,
         preset: TilePreset,
         columns: Int,
-        rows: Int
+        rows: Int,
+        isLandscape: Boolean = false
     ): List<Tile>? {
         val spot = findFreeSpot(tiles, columns, rows, preset.w, preset.h)
             ?: return null
@@ -404,7 +484,7 @@ object TileLayoutRepository {
         )
 
         val updated = tiles + newTile
-        setTiles(context, spaceId, updated)
+        setTiles(context, spaceId, updated, isLandscape)
         return updated
     }
 
@@ -414,14 +494,15 @@ object TileLayoutRepository {
         tiles: List<Tile>,
         newTile: Tile,
         columns: Int,
-        rows: Int
+        rows: Int,
+        isLandscape: Boolean = false
     ): List<Tile>? {
         val spot = findFreeSpot(tiles, columns, rows, newTile.w, newTile.h)
             ?: return null
 
         val placed = newTile.copy(x = spot.first, y = spot.second)
         val updated = tiles + placed
-        setTiles(context, spaceId, updated)
+        setTiles(context, spaceId, updated, isLandscape)
         return updated
     }
 
@@ -429,13 +510,21 @@ object TileLayoutRepository {
         context: Context,
         spaceId: String,
         tiles: List<Tile>,
-        tileId: String
+        tileId: String,
+        isLandscape: Boolean = false
     ): List<Tile>? {
         val target = tiles.firstOrNull { it.id == tileId } ?: return null
         if (target.locked) return null
 
         val updated = tiles.filterNot { it.id == tileId }
-        setTiles(context, spaceId, updated)
+        setTiles(context, spaceId, updated, isLandscape)
+
+        val oppositeKey = if (isLandscape) keyFor(spaceId) else keyFor(spaceId) + "_landscape"
+        val oppositeTiles = getTilesImpl(context, oppositeKey, spaceId)
+        if (oppositeTiles.any { it.id == tileId }) {
+            setTilesImpl(context, oppositeKey, oppositeTiles.filterNot { it.id == tileId })
+        }
+
         return updated
     }
 
@@ -447,7 +536,8 @@ object TileLayoutRepository {
         newW: Int,
         newH: Int,
         columns: Int,
-        rows: Int
+        rows: Int,
+        isLandscape: Boolean = false
     ): List<Tile>? {
         val target = tiles.firstOrNull { it.id == tileId } ?: return null
 
@@ -461,7 +551,7 @@ object TileLayoutRepository {
         val updated = tiles.map { tile ->
             if (tile.id == tileId) tile.copy(w = w, h = h) else tile
         }
-        setTiles(context, spaceId, updated)
+        setTiles(context, spaceId, updated, isLandscape)
         return updated
     }
 
@@ -470,13 +560,21 @@ object TileLayoutRepository {
         spaceId: String,
         tiles: List<Tile>,
         tileId: String,
-        newStyle: TileStyle
+        newStyle: TileStyle,
+        isLandscape: Boolean = false
     ): List<Tile>? {
         val target = tiles.firstOrNull { it.id == tileId } ?: return null
         val updated = tiles.map { tile ->
             if (tile.id == tileId) tile.copy(style = newStyle) else tile
         }
-        setTiles(context, spaceId, updated)
+        setTiles(context, spaceId, updated, isLandscape)
+
+        val oppositeKey = if (isLandscape) keyFor(spaceId) else keyFor(spaceId) + "_landscape"
+        val oppositeTiles = getTilesImpl(context, oppositeKey, spaceId)
+        if (oppositeTiles.any { it.id == tileId }) {
+            setTilesImpl(context, oppositeKey, oppositeTiles.map { if (it.id == tileId) it.copy(style = newStyle) else it })
+        }
+
         return updated
     }
 
@@ -485,13 +583,21 @@ object TileLayoutRepository {
         spaceId: String,
         tiles: List<Tile>,
         tileId: String,
-        newConfig: String?
+        newConfig: String?,
+        isLandscape: Boolean = false
     ): List<Tile>? {
         val target = tiles.firstOrNull { it.id == tileId } ?: return null
         val updated = tiles.map { tile ->
             if (tile.id == tileId) tile.copy(config = newConfig) else tile
         }
-        setTiles(context, spaceId, updated)
+        setTiles(context, spaceId, updated, isLandscape)
+
+        val oppositeKey = if (isLandscape) keyFor(spaceId) else keyFor(spaceId) + "_landscape"
+        val oppositeTiles = getTilesImpl(context, oppositeKey, spaceId)
+        if (oppositeTiles.any { it.id == tileId }) {
+            setTilesImpl(context, oppositeKey, oppositeTiles.map { if (it.id == tileId) it.copy(config = newConfig) else it })
+        }
+
         return updated
     }
 }

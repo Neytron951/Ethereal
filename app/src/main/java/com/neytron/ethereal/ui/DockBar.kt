@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -82,7 +84,10 @@ fun DockBar(
 
     val effectiveOpacity = config.opacityOverride ?: appearance.opacity
     val effectiveBlur = config.blurOverride ?: appearance.blur
-    val iconSize = config.iconSizeDp.dp
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val baseIconSize = config.iconSizeDp.dp
+    val iconSize = if (isLandscape) (baseIconSize * 0.75f).coerceAtLeast(24.dp) else baseIconSize
     val itemCount = if (showPresets) presets.size else apps.size
     val spacing = if (itemCount >= 5) 6.dp else 8.dp
     val horizontalPadding = if (itemCount >= 5) 12.dp else 16.dp
@@ -270,6 +275,13 @@ private fun PresetsRow(
     onCreateSpaceClick: () -> Unit,
     onMultiAppsClick: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val chipSize = if (isLandscape) 56.dp else 72.dp
+    val chipIconSize = if (isLandscape) 22.dp else 28.dp
+    val chipFontSize = if (isLandscape) 8.sp else 10.sp
+    val plusFontSize = if (isLandscape) 22.sp else 30.sp
+
     // Каскадная анимация появления каждого элемента
     var revealed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -283,17 +295,22 @@ private fun PresetsRow(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(scrollState)
+            .horizontalScroll(scrollState),
+        contentAlignment = Alignment.Center
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Элемент 0: System widget
             CascadeItem(revealed, 0) {
                 SystemWidgetChip(
                     palette = palette,
+                    chipSize = chipSize,
+                    iconSize = chipIconSize,
+                    fontSize = chipFontSize,
+                    plusFontSize = plusFontSize,
                     onClick = onSystemWidgetClick
                 )
             }
@@ -302,6 +319,9 @@ private fun PresetsRow(
             CascadeItem(revealed, 1) {
                 SpaceChip(
                     palette = palette,
+                    chipSize = chipSize,
+                    iconSize = chipIconSize,
+                    fontSize = chipFontSize,
                     onClick = onCreateSpaceClick
                 )
             }
@@ -310,6 +330,9 @@ private fun PresetsRow(
             CascadeItem(revealed, 2) {
                 MultiAppsChip(
                     palette = palette,
+                    chipSize = chipSize,
+                    iconSize = chipIconSize,
+                    fontSize = chipFontSize,
                     onClick = onMultiAppsClick
                 )
             }
@@ -320,6 +343,9 @@ private fun PresetsRow(
                     PresetChip(
                         preset = preset,
                         palette = palette,
+                        chipSize = chipSize,
+                        iconSize = chipIconSize,
+                        fontSize = chipFontSize,
                         onClick = { onPresetClick(preset) }
                     )
                 }
@@ -365,11 +391,15 @@ private fun CascadeItem(
 @Composable
 private fun SystemWidgetChip(
     palette: EtherealPalette,
+    chipSize: Dp,
+    iconSize: Dp,
+    fontSize: TextUnit,
+    plusFontSize: TextUnit,
     onClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
-            .requiredSize(width = 72.dp, height = 72.dp)
+            .requiredSize(width = chipSize, height = chipSize)
             .clip(RoundedCornerShape(14.dp))
             .background(palette.primary.copy(alpha = 0.15f))
             .border(
@@ -383,7 +413,7 @@ private fun SystemWidgetChip(
     ) {
         Text(
             text = "+",
-            fontSize = 30.sp,
+            fontSize = plusFontSize,
             color = palette.primary,
             fontWeight = FontWeight.Light
         )
@@ -391,7 +421,7 @@ private fun SystemWidgetChip(
         Text(
             text = stringResource(R.string.system),
             color = palette.primary,
-            fontSize = 10.sp,
+            fontSize = fontSize,
             fontWeight = FontWeight.Medium
         )
     }
@@ -400,11 +430,14 @@ private fun SystemWidgetChip(
 @Composable
 private fun SpaceChip(
     palette: EtherealPalette,
+    chipSize: Dp,
+    iconSize: Dp,
+    fontSize: TextUnit,
     onClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
-            .requiredSize(width = 72.dp, height = 72.dp)
+            .requiredSize(width = chipSize, height = chipSize)
             .clip(RoundedCornerShape(14.dp))
             .background(palette.primary.copy(alpha = 0.15f))
             .border(
@@ -420,13 +453,13 @@ private fun SpaceChip(
             painter = painterResource(id = R.drawable.screen_24dp),
             contentDescription = stringResource(R.string.space),
             colorFilter = ColorFilter.tint(palette.primary),
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(iconSize)
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = stringResource(R.string.space),
             color = palette.primary,
-            fontSize = 10.sp,
+            fontSize = fontSize,
             fontWeight = FontWeight.Medium
         )
     }
@@ -435,11 +468,14 @@ private fun SpaceChip(
 @Composable
 private fun MultiAppsChip(
     palette: EtherealPalette,
+    chipSize: Dp,
+    iconSize: Dp,
+    fontSize: TextUnit,
     onClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
-            .requiredSize(width = 72.dp, height = 72.dp)
+            .requiredSize(width = chipSize, height = chipSize)
             .clip(RoundedCornerShape(14.dp))
             .background(palette.primary.copy(alpha = 0.15f))
             .border(
@@ -455,13 +491,13 @@ private fun MultiAppsChip(
             painter = painterResource(id = R.drawable.apps_24dp),
             contentDescription = stringResource(R.string.tile_multi_apps),
             colorFilter = ColorFilter.tint(palette.primary),
-            modifier = Modifier.size(26.dp)
+            modifier = Modifier.size(iconSize)
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = stringResource(R.string.tile_multi_apps),
             color = palette.primary,
-            fontSize = 9.sp,
+            fontSize = fontSize,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -473,6 +509,9 @@ private fun MultiAppsChip(
 private fun PresetChip(
     preset: TilePreset,
     palette: EtherealPalette,
+    chipSize: Dp,
+    iconSize: Dp,
+    fontSize: TextUnit,
     onClick: () -> Unit
 ) {
     val iconRes: Int? = when (preset.id) {
@@ -493,7 +532,7 @@ private fun PresetChip(
 
     Column(
         modifier = Modifier
-            .requiredSize(width = 72.dp, height = 72.dp)
+            .requiredSize(width = chipSize, height = chipSize)
             .clip(RoundedCornerShape(14.dp))
             .background(palette.surfaceVariant.copy(alpha = 0.6f))
             .clickable(onClick = onClick),
@@ -505,12 +544,12 @@ private fun PresetChip(
                 painter = painterResource(id = iconRes),
                 contentDescription = localizedLabel,
                 colorFilter = ColorFilter.tint(palette.textPrimary),
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(iconSize)
             )
         } else {
             Text(
                 text = localizedLabel.take(1),
-                fontSize = 24.sp,
+                fontSize = 20.sp,
                 color = palette.textPrimary,
                 fontWeight = FontWeight.Medium
             )
@@ -519,7 +558,7 @@ private fun PresetChip(
         Text(
             text = localizedLabel,
             color = palette.textSecondary,
-            fontSize = 10.sp,
+            fontSize = fontSize,
             fontWeight = FontWeight.Medium
         )
     }

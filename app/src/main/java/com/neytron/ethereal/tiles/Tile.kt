@@ -6,8 +6,8 @@ enum class TileBorderStyle {
     NONE,
     OUTLINE,
     LIQUID_GLASS,
+    LIQUID_GLASS_SENSORS,
     ACCENT,
-    CUSTOM
 }
 
 data class TileStyle(

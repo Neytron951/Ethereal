@@ -288,7 +288,8 @@ object BackupRepository {
                             backgroundOpacity = styleObj.optDouble("bgOpacity", 0.55).toFloat(),
                             backgroundBlur = styleObj.optDouble("bgBlur", 0.0).toFloat(),
                             contentScale = styleObj.optDouble("contentScale", 1.0).toFloat(),
-                            borderWidth = styleObj.optDouble("borderWidth", 0.0).toFloat(),
+                            borderWidth = if (borderStyleStr == "CUSTOM") 0f
+                                else styleObj.optDouble("borderWidth", 0.0).toFloat(),
                             borderOpacity = styleObj.optDouble("borderOpacity", 0.3).toFloat(),
                             borderStyle = bStyle,
                             themedIcon = if (styleObj.has("themedIcon")) styleObj.optBoolean("themedIcon") else null

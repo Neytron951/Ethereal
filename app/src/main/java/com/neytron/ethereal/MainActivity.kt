@@ -32,6 +32,7 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
@@ -246,7 +247,6 @@ fun EtherealApp() {
 
     // === Проверка обновлений при старте (из кэша, без сети) ===
     LaunchedEffect(Unit) {
-        DeviceTiltProvider.register(context)
         val cached = withContext(Dispatchers.IO) {
             UpdateRepository.getUpdateInfo(
                 context = context,
@@ -255,6 +255,14 @@ fun EtherealApp() {
             )
         }
         updateInfo = cached
+    }
+
+    LifecycleEventEffect(event = Lifecycle.Event.ON_RESUME) {
+        DeviceTiltProvider.register(context)
+    }
+
+    LifecycleEventEffect(event = Lifecycle.Event.ON_PAUSE) {
+        DeviceTiltProvider.unregister()
     }
 
     DisposableEffect(Unit) {
@@ -404,14 +412,17 @@ fun EtherealApp() {
     }
 
     // === Загрузка tiles при смене пространства ===
-    LaunchedEffect(currentSpaceId) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+
+    LaunchedEffect(currentSpaceId, isLandscape) {
         tiles = emptyList()
 
         tileEditorState.exitEdit()
         tileEditorState.select(null)
 
         tiles = withContext(Dispatchers.IO) {
-            TileLayoutRepository.getTiles(context, currentSpaceId)
+            TileLayoutRepository.getTiles(context, currentSpaceId, isLandscape)
         }
         if (isSetupCompleted && !hasAnimatedStartup) {
             hasAnimatedStartup = true
@@ -708,6 +719,7 @@ fun EtherealApp() {
                     tiles = tiles,
                     onTilesChange = { newTiles ->
                         tiles = newTiles
+                        TileLayoutRepository.setTiles(context, currentSpaceId, newTiles, isLandscape)
                     },
                     openWidgetPickerRequest = openWidgetPickerRequest,
                     onWidgetPickerRequestHandled = {

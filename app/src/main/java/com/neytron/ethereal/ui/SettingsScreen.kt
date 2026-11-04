@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
@@ -182,57 +183,58 @@ fun SettingsScreen(
         drawerOpen = false
     }
 
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
         color = currentPalette.background.copy(alpha = appearance.opacity)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-
-            Column(
+        if (isLandscape) {
+            Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(currentPalette.surface.copy(alpha = 0.6f))
             ) {
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .width(200.dp)
+                        .fillMaxHeight()
+                        .background(currentPalette.background.copy(alpha = 0.98f))
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { drawerOpen = !drawerOpen },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "☰",
-                            color = currentPalette.textPrimary,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
+                    Text(
+                        text = "Ethereal",
+                        color = currentPalette.primary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
+                    )
+
+                    SettingsTab.values().forEach { tab ->
+                        SettingsMenuItem(
+                            text = stringResource(tab.labelRes),
+                            selected = selectedTab == tab,
+                            palette = currentPalette,
+                            onClick = { selectedTab = tab }
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Text(
-                        text = stringResource(selectedTab.labelRes),
-                        color = currentPalette.textPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
+                    SettingsMenuItem(
+                        text = stringResource(R.string.close),
+                        palette = currentPalette,
+                        onClick = onClose
                     )
                 }
 
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .fillMaxHeight()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
                     when (selectedTab) {
                         SettingsTab.WALLPAPER -> WallpaperTab(
@@ -335,60 +337,209 @@ fun SettingsScreen(
                     }
                 }
             }
+        } else {
+            Box(modifier = Modifier.fillMaxSize()) {
 
-            AnimatedVisibility(
-                visible = drawerOpen,
-                enter = fadeIn() + slideInHorizontally(initialOffsetX = { -it }),
-                exit = fadeOut() + slideOutHorizontally(targetOffsetX = { -it })
-            ) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.4f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { drawerOpen = false }
+                        .background(currentPalette.surface.copy(alpha = 0.6f))
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
-                            .width(200.dp)
-                            .fillMaxHeight()
-                            .background(currentPalette.background.copy(alpha = 0.98f))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { }
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Ethereal",
-                            color = currentPalette.primary,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp)
-                        )
-
-                        SettingsTab.values().forEach { tab ->
-                            SettingsMenuItem(
-                                text = stringResource(tab.labelRes),
-                                selected = selectedTab == tab,
-                                palette = currentPalette,
-                                onClick = {
-                                    selectedTab = tab
-                                    drawerOpen = false
-                                }
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { drawerOpen = !drawerOpen },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "☰",
+                                color = currentPalette.textPrimary,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
 
-                        Spacer(modifier = Modifier.weight(1f))
+                        Spacer(modifier = Modifier.width(12.dp))
 
-                        SettingsMenuItem(
-                            text = stringResource(R.string.close),
-                            palette = currentPalette,
-                            onClick = onClose
+                        Text(
+                            text = stringResource(selectedTab.labelRes),
+                            color = currentPalette.textPrimary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp)
+                    ) {
+                        when (selectedTab) {
+                            SettingsTab.WALLPAPER -> WallpaperTab(
+                                palette = currentPalette,
+                                wallpapers = wallpapers,
+                                currentPath = currentWallpaperPath,
+                                scaleMode = wallpaperScaleMode,
+                                onScaleModeChange = onWallpaperScaleModeChange,
+                                onPickWallpaper = onPickWallpaper,
+                                onApply = onApplyWallpaper,
+                                onApplyLockScreen = onApplyWallpaperLockScreen,
+                                onApplyEverywhere = onApplyWallpaperEverywhere,
+                                onDelete = onDeleteWallpaper
+                            )
+                            SettingsTab.APPEARANCE -> AppearanceTab(
+                                currentPalette = currentPalette,
+                                onPaletteChange = onPaletteChange,
+                                onOpacityChange = onOpacityChange,
+                                onBlurChange = onBlurChange,
+                                onFontScaleChange = onFontScaleChange,
+                                fontFamilyName = fontFamilyName,
+                                onFontFamilyChange = onFontFamilyChange,
+                                themedIcons = dockThemedIcons,
+                                onThemedIconsChange = onDockThemedIconsChange,
+                                iconPacks = iconPacks,
+                                selectedIconPack = selectedIconPack,
+                                onIconPackChange = onIconPackChange
+                            )
+                            SettingsTab.TILES -> TilesTab(
+                                palette = currentPalette,
+                                tileSize = tileSize,
+                                tileSpacing = tileSpacing,
+                                tileRadius = tileRadius,
+                                onTileSizeChange = onTileSizeChange,
+                                onTileSpacingChange = onTileSpacingChange,
+                                onTileRadiusChange = onTileRadiusChange,
+                                onResetTiles = onResetTiles
+                            )
+                            SettingsTab.ESEARCH -> ESearchTab(
+                                palette = currentPalette,
+                                useOverride = esearchUseOverride,
+                                opacity = esearchOpacity,
+                                blur = esearchBlur,
+                                width = esearchWidth,
+                                visibleItems = esearchVisibleItems,
+                                autoKeyboard = esearchAutoKeyboard,
+                                borderStyle = esearchBorderStyle,
+                                borderWidth = esearchBorderWidth,
+                                borderOpacity = esearchBorderOpacity,
+                                onUseOverrideChange = onESearchUseOverrideChange,
+                                onOpacityChange = onESearchOpacityChange,
+                                onBlurChange = onESearchBlurChange,
+                                onWidthChange = onESearchWidthChange,
+                                onVisibleItemsChange = onESearchVisibleItemsChange,
+                                onAutoKeyboardChange = onESearchAutoKeyboardChange,
+                                onBorderStyleChange = onESearchBorderStyleChange,
+                                onBorderWidthChange = onESearchBorderWidthChange,
+                                onBorderOpacityChange = onESearchBorderOpacityChange
+                            )
+                            SettingsTab.DOCK -> DockTab(
+                                apps = apps,
+                                currentPalette = currentPalette,
+                                draftDock = draftDock,
+                                onToggle = { pkg ->
+                                    draftDock = if (draftDock.contains(pkg)) draftDock - pkg
+                                    else draftDock + pkg
+                                    onDockChange(draftDock)
+                                },
+                                iconSize = dockIconSize,
+                                bottomPadding = dockBottomPadding,
+                                useOverride = dockUseOverride,
+                                opacity = dockOpacity,
+                                blur = dockBlur,
+                                scrollable = dockScrollable,
+                                iconShape = dockIconShape,
+                                showIconBackground = dockShowIconBackground,
+                                onIconSizeChange = onDockIconSizeChange,
+                                onBottomPaddingChange = onDockBottomPaddingChange,
+                                onUseOverrideChange = onDockUseOverrideChange,
+                                onOpacityChange = onDockOpacityChange,
+                                onBlurChange = onDockBlurChange,
+                                onScrollableChange = onDockScrollableChange,
+                                onIconShapeChange = onDockIconShapeChange,
+                                onShowIconBackgroundChange = onDockShowIconBackgroundChange
+                            )
+                            SettingsTab.ABOUT -> AboutTab(
+                                palette = currentPalette,
+                                onRestartOnboarding = onRestartOnboarding,
+                                analyticsEnabled = analyticsEnabled,
+                                onAnalyticsEnabledChange = onAnalyticsEnabledChange,
+                                updateInfo = updateInfo,
+                                updateChecking = updateChecking,
+                                onCheckForUpdates = onCheckForUpdates,
+                                onOpenUpdateOverlay = onOpenUpdateOverlay,
+                                onExportBackup = onExportBackup,
+                                onImportBackup = onImportBackup,
+                                isExporting = isExporting,
+                                isImporting = isImporting
+                            )
+                        }
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = drawerOpen,
+                    enter = fadeIn() + slideInHorizontally(initialOffsetX = { -it }),
+                    exit = fadeOut() + slideOutHorizontally(targetOffsetX = { -it })
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.4f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { drawerOpen = false }
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .width(200.dp)
+                                .fillMaxHeight()
+                                .background(currentPalette.background.copy(alpha = 0.98f))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { }
+                                .verticalScroll(rememberScrollState())
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Ethereal",
+                                color = currentPalette.primary,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp)
+                            )
+
+                            SettingsTab.values().forEach { tab ->
+                                SettingsMenuItem(
+                                    text = stringResource(tab.labelRes),
+                                    selected = selectedTab == tab,
+                                    palette = currentPalette,
+                                    onClick = {
+                                        selectedTab = tab
+                                        drawerOpen = false
+                                    }
+                                )
+                            }
+
+                            SettingsMenuItem(
+                                text = stringResource(R.string.close),
+                                palette = currentPalette,
+                                onClick = onClose
+                            )
+                        }
                     }
                 }
             }
@@ -750,6 +901,7 @@ private fun ESearchTab(
                         TileBorderStyle.NONE to stringResource(R.string.editor_border_none),
                         TileBorderStyle.OUTLINE to stringResource(R.string.editor_border_outline),
                         TileBorderStyle.LIQUID_GLASS to stringResource(R.string.editor_border_liquid_glass),
+                        TileBorderStyle.LIQUID_GLASS_SENSORS to stringResource(R.string.editor_border_liquid_glass_sensors),
                         TileBorderStyle.ACCENT to stringResource(R.string.editor_border_accent)
                     )
                     borderPresets.forEach { (styleOption, label) ->
@@ -773,6 +925,35 @@ private fun ESearchTab(
                             )
                         }
                         Spacer(modifier = Modifier.height(4.dp))
+                    }
+
+                    if (borderStyle != TileBorderStyle.NONE) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "${stringResource(R.string.editor_border_width)}: ${String.format("%.1f", borderWidth)} dp",
+                            color = palette.textPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Slider(
+                            value = borderWidth,
+                            onValueChange = onBorderWidthChange,
+                            valueRange = 0.5f..4f,
+                            colors = SliderDefaults.colors(thumbColor = palette.primary, activeTrackColor = palette.primary)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "${stringResource(R.string.editor_border_opacity)}: ${(borderOpacity * 100).toInt()}%",
+                            color = palette.textPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Slider(
+                            value = borderOpacity,
+                            onValueChange = onBorderOpacityChange,
+                            valueRange = 0f..1f,
+                            colors = SliderDefaults.colors(thumbColor = palette.primary, activeTrackColor = palette.primary)
+                        )
                     }
                 }
             }
@@ -2231,7 +2412,7 @@ private fun WallpaperTab(
 ) {
     var pendingFile by remember { mutableStateOf<java.io.File?>(null) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Text(
             text = stringResource(R.string.settings_wallpaper_title),
             color = palette.textPrimary,

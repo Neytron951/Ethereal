@@ -62,6 +62,7 @@ fun MultiAppsPickerDialog(
 
     var opacity by remember { mutableStateOf(0.55f) }
     var blur by remember { mutableStateOf(0f) }
+    var contentScale by remember { mutableStateOf(1.0f) }
     var borderStyle by remember { mutableStateOf(TileBorderStyle.NONE) }
     var borderWidth by remember { mutableStateOf(0f) }
     var borderOpacity by remember { mutableStateOf(0.3f) }
@@ -323,6 +324,25 @@ fun MultiAppsPickerDialog(
                                 )
                             }
 
+                            // Content / Icon Scale slider
+                            Column {
+                                Text(
+                                    text = "${stringResource(R.string.editor_content_scale)}: ${(contentScale * 100).toInt()}%",
+                                    color = palette.textPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Slider(
+                                    value = contentScale,
+                                    onValueChange = { contentScale = it },
+                                    valueRange = 0.5f..2.0f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = palette.primary,
+                                        activeTrackColor = palette.primary
+                                    )
+                                )
+                            }
+
                             // Border / Frame style
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
@@ -335,8 +355,8 @@ fun MultiAppsPickerDialog(
                                     TileBorderStyle.NONE to stringResource(R.string.editor_border_none),
                                     TileBorderStyle.OUTLINE to stringResource(R.string.editor_border_outline),
                                     TileBorderStyle.LIQUID_GLASS to stringResource(R.string.editor_border_liquid_glass),
-                                    TileBorderStyle.ACCENT to stringResource(R.string.editor_border_accent),
-                                    TileBorderStyle.CUSTOM to stringResource(R.string.editor_border_custom)
+                                    TileBorderStyle.LIQUID_GLASS_SENSORS to stringResource(R.string.editor_border_liquid_glass_sensors),
+                                    TileBorderStyle.ACCENT to stringResource(R.string.editor_border_accent)
                                 )
                                 borderPresets.forEach { (styleOption, label) ->
                                     val sel = borderStyle == styleOption
@@ -351,8 +371,8 @@ fun MultiAppsPickerDialog(
                                                     TileBorderStyle.NONE -> 0f
                                                     TileBorderStyle.OUTLINE -> 1f
                                                     TileBorderStyle.LIQUID_GLASS -> 1.5f
+                                                    TileBorderStyle.LIQUID_GLASS_SENSORS -> 1.5f
                                                     TileBorderStyle.ACCENT -> 1.5f
-                                                    TileBorderStyle.CUSTOM -> 1.5f
                                                 }
                                             }
                                             .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -364,6 +384,44 @@ fun MultiAppsPickerDialog(
                                             fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal
                                         )
                                     }
+                                }
+                            }
+
+                            if (borderStyle != TileBorderStyle.NONE) {
+                                Column {
+                                    Text(
+                                        text = "${stringResource(R.string.editor_border_width)}: ${String.format("%.1f", borderWidth)} dp",
+                                        color = palette.textPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Slider(
+                                        value = borderWidth,
+                                        onValueChange = { borderWidth = it },
+                                        valueRange = 0.5f..4f,
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = palette.primary,
+                                            activeTrackColor = palette.primary
+                                        )
+                                    )
+                                }
+
+                                Column {
+                                    Text(
+                                        text = "${stringResource(R.string.editor_border_opacity)}: ${(borderOpacity * 100).toInt()}%",
+                                        color = palette.textPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Slider(
+                                        value = borderOpacity,
+                                        onValueChange = { borderOpacity = it },
+                                        valueRange = 0f..1f,
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = palette.primary,
+                                            activeTrackColor = palette.primary
+                                        )
+                                    )
                                 }
                             }
 
@@ -405,6 +463,7 @@ fun MultiAppsPickerDialog(
                                             style = TileStyle(
                                                 backgroundOpacity = opacity,
                                                 backgroundBlur = blur,
+                                                contentScale = contentScale,
                                                 borderStyle = borderStyle,
                                                 borderWidth = borderWidth,
                                                 borderOpacity = borderOpacity

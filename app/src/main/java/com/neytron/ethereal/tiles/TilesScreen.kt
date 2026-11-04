@@ -7,6 +7,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.provider.AlarmClock
 import android.util.Log
@@ -26,6 +27,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.AlertDialog
@@ -107,10 +109,6 @@ fun TilesScreen(
     val widgetDeniedSystemMsg = stringResource(R.string.widget_denied_system)
     val audioPermissionDeniedMsg = stringResource(R.string.audio_spectrum_permission_denied)
 
-    val tileSize: Dp = tileSizeDp.dp
-    val spacing: Dp = spacingDp.dp
-    val radius: Dp = radiusDp.dp
-
     val edgePadding = 16.dp
     val topPadding = 72.dp
     val gapAboveDock = 16.dp
@@ -119,7 +117,20 @@ fun TilesScreen(
     val dockBottomPadding = dockBottomPaddingDp.dp
 
     val screenWidthDp = configuration.screenWidthDp.dp
+    val screenHeightDp = configuration.screenHeightDp.dp
     val availableWidth = screenWidthDp - edgePadding * 2
+    val availableHeight = screenHeightDp - topPadding - gapAboveDock - dockHeight - dockBottomPadding
+    val isLandscape = screenWidthDp > screenHeightDp
+
+    val initialColumns = remember(tileSizeDp, spacingDp, availableWidth) {
+        val ts = tileSizeDp
+        val sp = spacingDp
+        if (ts <= 0f) 1
+        else {
+            val n = ((availableWidth.value + sp) / (ts + sp)).toInt()
+            n.coerceIn(1, 12)
+        }
+    }
 
     val autoColumns = remember(tileSizeDp, spacingDp, availableWidth) {
         val ts = tileSizeDp
@@ -131,22 +142,39 @@ fun TilesScreen(
         }
     }
 
-    val screenHeightDp = configuration.screenHeightDp.dp
+    val maxTileRow = remember(tiles) { tiles.maxOfOrNull { it.y + it.h } ?: 4 }
 
     val autoRows = remember(
         tileSizeDp, spacingDp, screenHeightDp,
-        dockHeight, dockBottomPadding, topPadding, gapAboveDock
+        dockHeight, dockBottomPadding, topPadding, gapAboveDock, tiles, maxTileRow
     ) {
         val availableHeight =
             screenHeightDp - topPadding - gapAboveDock - dockHeight - dockBottomPadding
         val ts = tileSizeDp
         val sp = spacingDp
-        if (ts <= 0f || availableHeight.value <= 0f) 0
+        val screenRows = if (ts <= 0f || availableHeight.value <= 0f) 4
         else {
-            val n = ((availableHeight.value + sp) / (ts + sp)).toInt()
-            n.coerceAtLeast(0)
+            ((availableHeight.value + sp) / (ts + sp)).toInt()
         }
+        maxOf(screenRows, maxTileRow, 4)
     }
+
+    val effectiveTileSizeDp = remember(tileSizeDp, spacingDp, screenHeightDp, autoRows, availableWidth, availableHeight, initialColumns, tiles) {
+        val cols = autoColumns.coerceAtLeast(1)
+        val rows = autoRows.coerceAtLeast(1)
+
+        val totalSpacingX = spacingDp * (cols - 1)
+        val totalSpacingY = spacingDp * (rows - 1)
+
+        val sizeFromWidth = (availableWidth.value - totalSpacingX) / cols
+        val sizeFromHeight = if (availableHeight.value > 0f) (availableHeight.value - totalSpacingY) / rows else sizeFromWidth
+
+        minOf(sizeFromWidth, sizeFromHeight).coerceIn(24f, 160f)
+    }
+
+    val tileSize: Dp = effectiveTileSizeDp.dp
+    val spacing: Dp = spacingDp.dp
+    val radius: Dp = radiusDp.dp
 
     var pendingWidgetId by remember { mutableStateOf<Int?>(null) }
     var pendingBindWidgetId by remember { mutableStateOf<Int?>(null) }
@@ -226,7 +254,7 @@ fun TilesScreen(
             )
             if (normalized != tiles) {
                 onTilesChange(normalized)
-                TileLayoutRepository.setTiles(context, currentSpaceId, normalized)
+                TileLayoutRepository.setTiles(context, currentSpaceId, normalized, isLandscape)
             }
         }
     }
@@ -251,7 +279,8 @@ fun TilesScreen(
             spaceId = currentSpaceId,
             tiles = tiles,
             tileId = tile.id,
-            newConfig = newConfig
+            newConfig = newConfig,
+            isLandscape = isLandscape
         )
         if (updated != null) {
             onTilesChange(updated)
@@ -291,7 +320,7 @@ fun TilesScreen(
 
             val finalTiles = if (updated != null && updated != tiles) {
                 onTilesChange(updated)
-                TileLayoutRepository.setTiles(context, currentSpaceId, updated)
+                TileLayoutRepository.setTiles(context, currentSpaceId, updated, isLandscape)
                 updated
             } else {
                 tiles
@@ -315,7 +344,8 @@ fun TilesScreen(
             tiles = tiles,
             preset = preset,
             columns = autoColumns,
-            rows = autoRows
+            rows = autoRows,
+            isLandscape = isLandscape
         )
         if (updated != null) {
             onTilesChange(updated)
@@ -384,7 +414,8 @@ fun TilesScreen(
             context = context,
             spaceId = currentSpaceId,
             tiles = tiles,
-            tileId = tile.id
+            tileId = tile.id,
+            isLandscape = isLandscape
         )
         if (updated != null) {
             onTilesChange(updated)
@@ -406,7 +437,8 @@ fun TilesScreen(
                 newW = newW,
                 newH = newH,
                 columns = autoColumns,
-                rows = autoRows
+                rows = autoRows,
+                isLandscape = isLandscape
             )
             if (updated != null) {
                 onTilesChange(updated)
@@ -425,7 +457,8 @@ fun TilesScreen(
             spaceId = currentSpaceId,
             tiles = tiles,
             tileId = tile.id,
-            newStyle = newStyle
+            newStyle = newStyle,
+            isLandscape = isLandscape
         )
         if (updated != null) {
             onTilesChange(updated)
@@ -771,7 +804,7 @@ fun TilesScreen(
                             mutableTiles.add(newTile)
                         }
                     }
-                    TileLayoutRepository.setTiles(context, currentSpaceId, mutableTiles)
+                    TileLayoutRepository.setTiles(context, currentSpaceId, mutableTiles, isLandscape)
                     onTilesChange(mutableTiles)
                 }
             )
@@ -909,6 +942,31 @@ private fun addSystemWidgetToGrid(
     val updated = tiles + newTile
     TileLayoutRepository.setTiles(context, spaceId, updated)
     return updated
+}
+
+private fun reflowTilesLeftToRight(tiles: List<Tile>, columns: Int): List<Tile> {
+    val sorted = tiles.sortedWith(compareBy({ it.y }, { it.x }))
+    val result = mutableListOf<Tile>()
+    var currentX = 0
+    var currentY = 0
+
+    for (tile in sorted) {
+        val w = tile.w.coerceAtMost(columns)
+        val h = tile.h
+
+        if (currentX + w > columns) {
+            currentX = 0
+            currentY++
+        }
+
+        result.add(tile.copy(x = currentX, y = currentY))
+        currentX += w
+        if (currentX >= columns) {
+            currentX = 0
+            currentY++
+        }
+    }
+    return result
 }
 
 private fun copyImageToInternal(context: android.content.Context, uri: Uri): String? {

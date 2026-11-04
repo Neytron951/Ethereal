@@ -17,7 +17,8 @@ import com.neytron.ethereal.ui.theme.EtherealPalette
 fun Modifier.tileBorder(
     tileStyle: TileStyle,
     palette: EtherealPalette,
-    shape: RoundedCornerShape
+    shape: RoundedCornerShape,
+    tilt: Pair<Float, Float> = DeviceTiltProvider.tilt.value
 ): Modifier {
     val bWidth = tileStyle.borderWidth
     val bOpacity = tileStyle.borderOpacity
@@ -28,19 +29,37 @@ fun Modifier.tileBorder(
     val effectiveWidth = if (bWidth > 0f) bWidth.dp else 1.5.dp
 
     return when (bStyle) {
-        TileBorderStyle.LIQUID_GLASS -> {
-            val tilt = DeviceTiltProvider.tilt.value
+        TileBorderStyle.LIQUID_GLASS,
+        TileBorderStyle.LIQUID_GLASS_SENSORS -> {
             this.drawWithCache {
                 val outerWidth = size.width
                 val outerHeight = size.height
                 val bWidthPx = effectiveWidth.toPx()
                 val radiusPx = shape.topStart.toPx(size, this)
                 val cornerRadius = CornerRadius(radiusPx, radiusPx)
+                val tiltX = (tilt.first / 14f).coerceIn(-1f, 1f)
+                val tiltY = (tilt.second / 14f).coerceIn(-1f, 1f)
 
                 onDrawWithContent {
                     drawContent()
 
-                    // 1. Outer convex specular highlight (top-left light source reacting to tilt)
+                    val whiteStart = if (bStyle == TileBorderStyle.LIQUID_GLASS_SENSORS) {
+                        Offset(
+                            outerWidth * (0.15f + 0.7f * tiltX),
+                            outerHeight * (0.15f + 0.7f * tiltY)
+                        )
+                    } else {
+                        Offset(-tilt.first * 1.5f, -tilt.second * 1.5f)
+                    }
+                    val whiteEnd = if (bStyle == TileBorderStyle.LIQUID_GLASS_SENSORS) {
+                        Offset(
+                            outerWidth * (0.85f + 0.7f * tiltX),
+                            outerHeight * (0.85f + 0.7f * tiltY)
+                        )
+                    } else {
+                        Offset(outerWidth * 0.7f, outerHeight * 0.7f)
+                    }
+
                     drawRoundRect(
                         brush = Brush.linearGradient(
                             colors = listOf(
@@ -48,15 +67,14 @@ fun Modifier.tileBorder(
                                 Color.White.copy(alpha = (0.20f * bOpacity).coerceIn(0f, 1f)),
                                 Color.Transparent
                             ),
-                            start = Offset(-tilt.first * 1.5f, -tilt.second * 1.5f),
-                            end = Offset(outerWidth * 0.7f, outerHeight * 0.7f)
+                            start = whiteStart,
+                            end = whiteEnd
                         ),
                         size = size,
                         cornerRadius = cornerRadius,
                         style = Stroke(width = bWidthPx)
                     )
 
-                    // 2. Inner refraction bevel (bottom-right depth shadow)
                     drawRoundRect(
                         brush = Brush.linearGradient(
                             colors = listOf(
@@ -64,13 +82,31 @@ fun Modifier.tileBorder(
                                 Color.Black.copy(alpha = (0.4f * bOpacity).coerceIn(0f, 1f)),
                                 Color.White.copy(alpha = (0.3f * bOpacity).coerceIn(0f, 1f))
                             ),
-                            start = Offset(outerWidth * 0.3f, outerHeight * 0.3f),
-                            end = Offset(outerWidth + tilt.first * 1.5f, outerHeight + tilt.second * 1.5f)
+                            start = if (bStyle == TileBorderStyle.LIQUID_GLASS_SENSORS) {
+                                Offset(
+                                    outerWidth * (0.85f - 0.7f * tiltX),
+                                    outerHeight * (0.85f - 0.7f * tiltY)
+                                )
+                            } else {
+                                Offset(outerWidth * 0.3f, outerHeight * 0.3f)
+                            },
+                            end = if (bStyle == TileBorderStyle.LIQUID_GLASS_SENSORS) {
+                                Offset(
+                                    outerWidth * (0.15f - 0.7f * tiltX),
+                                    outerHeight * (0.15f - 0.7f * tiltY)
+                                )
+                            } else {
+                                Offset(
+                                    outerWidth + tilt.first * 1.5f,
+                                    outerHeight + tilt.second * 1.5f
+                                )
+                            }
                         ),
                         size = size,
                         cornerRadius = cornerRadius,
                         style = Stroke(width = bWidthPx * 0.7f)
                     )
+
                 }
             }
         }
@@ -78,9 +114,6 @@ fun Modifier.tileBorder(
             this.border(effectiveWidth, palette.outline.copy(alpha = bOpacity), shape)
         }
         TileBorderStyle.ACCENT -> {
-            this.border(effectiveWidth, palette.primary.copy(alpha = bOpacity), shape)
-        }
-        TileBorderStyle.CUSTOM -> {
             this.border(effectiveWidth, palette.primary.copy(alpha = bOpacity), shape)
         }
         TileBorderStyle.NONE -> {

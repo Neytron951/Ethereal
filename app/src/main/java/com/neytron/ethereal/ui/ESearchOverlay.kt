@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -70,6 +71,7 @@ import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.LocalAppearance
 import com.neytron.ethereal.ui.theme.LocalESearchConfig
 import com.neytron.ethereal.ui.theme.FrostedGlassBox
+import com.neytron.ethereal.utils.DeviceTiltProvider
 import com.neytron.ethereal.utils.renderThemedIcon
 import com.neytron.ethereal.utils.tileBorder
 import com.neytron.ethereal.utils.toImageBitmap
@@ -93,6 +95,10 @@ fun ESearchOverlay(
 
     val effectiveOpacity = config.opacityOverride ?: appearance.opacity
     val effectiveBlur = config.blurOverride ?: appearance.blur
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val effectiveWidthFraction = if (isLandscape) minOf(config.widthFraction, 0.45f) else config.widthFraction
+    val effectiveVisibleItems = if (isLandscape) minOf(config.visibleItems, 3) else config.visibleItems
 
     LaunchedEffect(visible) {
         if (visible) {
@@ -137,8 +143,8 @@ fun ESearchOverlay(
                 palette = palette,
                 opacity = effectiveOpacity,
                 blur = effectiveBlur,
-                widthFraction = config.widthFraction,
-                visibleItems = config.visibleItems,
+                widthFraction = effectiveWidthFraction,
+                visibleItems = effectiveVisibleItems,
                 placeholder = config.placeholder,
                 themedIcons = config.themedIcons,
                 rouletteMode = rouletteMode,
@@ -326,6 +332,7 @@ private fun ESearchPanel(
     val view = LocalView.current
     val haptic = LocalHapticFeedback.current
     val config = LocalESearchConfig.current
+    val tilt = DeviceTiltProvider.tilt.collectAsState().value
     val keyboardController = LocalSoftwareKeyboardController.current
     var query by remember { mutableStateOf("") }
     var selectedIndex by remember { mutableIntStateOf(0) }
@@ -415,7 +422,8 @@ private fun ESearchPanel(
                     borderStyle = config.borderStyle
                 ),
                 palette = palette,
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(20.dp),
+                tilt = tilt
             )
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {

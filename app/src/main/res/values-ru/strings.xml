@@ -304,8 +304,8 @@
     <string name="editor_border_none">Без рамки</string>
     <string name="editor_border_outline">Контур</string>
     <string name="editor_border_liquid_glass">Жидкое стекло</string>
+    <string name="editor_border_liquid_glass_sensors">Жидкое стекло с датчиками</string>
     <string name="editor_border_accent">Акцент</string>
-    <string name="editor_border_custom">Свой стиль</string>
     <string name="editor_border_width">Толщина рамки</string>
     <string name="editor_border_opacity">Прозрачность рамки</string>
     <string name="day_sat">Сб</string>
