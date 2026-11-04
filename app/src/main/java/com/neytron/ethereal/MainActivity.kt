@@ -82,6 +82,9 @@ import com.neytron.ethereal.ui.ESearchOverlay
 import com.neytron.ethereal.ui.OnboardingOverlay
 import com.neytron.ethereal.ui.SettingsScreen
 import com.neytron.ethereal.ui.UpdateOverlay
+import com.neytron.ethereal.ui.AppLaunchAnimation
+import com.neytron.ethereal.ui.AppLaunchAnimationRequest
+import com.neytron.ethereal.ui.createAppLaunchAnimationRequest
 import com.neytron.ethereal.ui.navigation.ScreenStack
 import com.neytron.ethereal.ui.theme.AppearanceState
 import com.neytron.ethereal.ui.theme.DockConfig
@@ -94,6 +97,8 @@ import com.neytron.ethereal.ui.theme.LocalDockConfig
 import com.neytron.ethereal.ui.theme.LocalESearchConfig
 import com.neytron.ethereal.ui.theme.LocalWallpaperPath
 import com.neytron.ethereal.ui.theme.LocalWallpaperScaleMode
+import com.neytron.ethereal.ui.theme.WallpaperPalette
+import com.neytron.ethereal.ui.theme.WallpaperPaletteProvider
 import com.neytron.ethereal.ui.theme.fontFamilyFor
 import com.neytron.ethereal.ui.theme.paletteById
 import com.neytron.ethereal.utils.DeviceTiltProvider
@@ -164,6 +169,7 @@ fun EtherealApp() {
     var iconPackPackage by remember { mutableStateOf(SettingsRepository.getIconPackPackage(context)) }
     var dockPackages by remember { mutableStateOf(SettingsRepository.getDockPackages(context)) }
     var paletteId by remember { mutableStateOf(SettingsRepository.getPaletteId(context)) }
+    var wallpaperPalette by remember { mutableStateOf(WallpaperPalette) }
     var opacity by remember { mutableStateOf(SettingsRepository.getOpacity(context)) }
     var blur by remember { mutableStateOf(SettingsRepository.getBlur(context)) }
     var fontScale by remember { mutableStateOf(SettingsRepository.getFontScale(context)) }
@@ -192,6 +198,7 @@ fun EtherealApp() {
     var tileRadius by remember { mutableStateOf(SettingsRepository.getTileRadius(context)) }
 
     var searchVisible by remember { mutableStateOf(false) }
+    var pendingAppLaunch by remember { mutableStateOf<AppLaunchAnimationRequest?>(null) }
     var isIntroRoulette by remember { mutableStateOf(false) }
     var isIntroActive by remember { mutableStateOf(false) }
     var isTilesRevealing by remember { mutableStateOf(false) }
@@ -245,6 +252,12 @@ fun EtherealApp() {
 
     val activity = context as? MainActivity
 
+    LaunchedEffect(Unit) {
+        wallpaperPalette = withContext(Dispatchers.IO) {
+            WallpaperPaletteProvider.load(context)
+        }
+    }
+
     // === Проверка обновлений при старте (из кэша, без сети) ===
     LaunchedEffect(Unit) {
         val cached = withContext(Dispatchers.IO) {
@@ -258,7 +271,14 @@ fun EtherealApp() {
     }
 
     LifecycleEventEffect(event = Lifecycle.Event.ON_RESUME) {
+        pendingAppLaunch = null
         DeviceTiltProvider.register(context)
+        appScope.launch(Dispatchers.IO) {
+            val latestPalette = WallpaperPaletteProvider.load(context)
+            withContext(Dispatchers.Main) {
+                wallpaperPalette = latestPalette
+            }
+        }
     }
 
     LifecycleEventEffect(event = Lifecycle.Event.ON_PAUSE) {
@@ -535,7 +555,7 @@ fun EtherealApp() {
         }
     }
 
-    val palette = paletteById(paletteId)
+    val palette = if (paletteId == WallpaperPalette.id) wallpaperPalette else paletteById(paletteId)
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -643,6 +663,39 @@ fun EtherealApp() {
 
     // === Ручная проверка обновлений (для кнопки в About) ===
     val updateScope = rememberCoroutineScope()
+    val launchApp: (String, android.graphics.Rect?, Boolean, Boolean, Boolean, Boolean, com.neytron.ethereal.tiles.TileStyle?, Float, Float) -> Unit = {
+        packageName, sourceBounds, showAccentHalo, showSourceIcon, closeSearchOnFinish, showIconBackground, tileStyle, iconContentScale, iconInsetDp ->
+        val app = apps.firstOrNull { it.packageName == packageName }
+        val animationRequest = if (app != null && sourceBounds != null) {
+            createAppLaunchAnimationRequest(
+                app = app,
+                sourceBounds = sourceBounds,
+                palette = palette,
+                themedIcons = dockThemedIcons,
+                iconShape = try {
+                    IconShape.valueOf(dockIconShape)
+                } catch (_: IllegalArgumentException) {
+                    IconShape.SQUIRCLE_TIGHT
+                },
+                showIconBackground = showIconBackground,
+                tileStyle = tileStyle,
+                tileRadiusDp = tileRadius,
+                iconContentScale = iconContentScale,
+                iconInsetDp = iconInsetDp,
+                showAccentHalo = showAccentHalo,
+                showSourceIcon = showSourceIcon,
+                closeSearchOnFinish = closeSearchOnFinish
+            )
+        } else {
+            null
+        }
+        if (animationRequest != null) {
+            pendingAppLaunch = animationRequest
+        } else {
+            AppRepository.launchApp(context, packageName)
+        }
+    }
+
     val handleCheckForUpdates: () -> Unit = {
         if (!updateChecking) {
             updateChecking = true
@@ -734,6 +787,9 @@ fun EtherealApp() {
                         searchVisible = true
                         AnalyticsHelper.logESearchOpened(context)
                     },
+                    onLaunchApp = { packageName, sourceBounds, tileStyle, iconContentScale ->
+                        launchApp(packageName, sourceBounds, true, true, false, false, tileStyle, iconContentScale, 0f)
+                    },
                     editorState = tileEditorState,
                     currentSpaceId = currentSpaceId,
                     onOpenSpace = { spaceId ->
@@ -761,9 +817,9 @@ fun EtherealApp() {
                     DockBar(
                         apps = dockApps,
                         palette = palette,
-                        onAppClick = { app ->
+                        onAppClick = { app, sourceBounds ->
                             SettingsRepository.recordLaunch(context, app.packageName)
-                            AppRepository.launchApp(context, app.packageName)
+                            launchApp(app.packageName, sourceBounds, true, true, false, dockShowIconBackground, null, 1f, 4f)
                         },
                         showPresets = showPresetsInDock,
                         presets = defaultPresets(),
@@ -828,10 +884,9 @@ fun EtherealApp() {
                     visible = searchVisible,
                     apps = apps,
                     palette = palette,
-                    onAppClick = { app ->
+                    onAppClick = { app, sourceBounds ->
                         SettingsRepository.recordLaunch(context, app.packageName)
-                        AppRepository.launchApp(context, app.packageName)
-                        searchVisible = false
+                        launchApp(app.packageName, sourceBounds, false, true, true, false, null, 1f, 0f)
                         isIntroRoulette = false
                         isIntroActive = false
                     },
@@ -846,6 +901,16 @@ fun EtherealApp() {
                         isIntroActive = false
                         isIntroRoulette = false
                         isTilesRevealing = true
+                    }
+                )
+
+                AppLaunchAnimation(
+                    request = pendingAppLaunch,
+                    onFinished = { request ->
+                        if (request.closeSearchOnFinish) {
+                            searchVisible = false
+                        }
+                        AppRepository.launchApp(context, request.app.packageName)
                     }
                 )
             }
@@ -911,8 +976,9 @@ fun EtherealApp() {
                             )
                         },
                         onApplyWallpaper = { file ->
-                            WallpaperRepository.applyAsCurrent(context, file)
+                            WallpaperRepository.applyToHomeScreen(context, file)
                             currentWallpaperPath = file.absolutePath
+                            wallpaperPalette = WallpaperPaletteProvider.load(context)
                             AnalyticsHelper.logWallpaperChanged(context)
                         },
                         onApplyWallpaperLockScreen = { file ->
@@ -921,6 +987,7 @@ fun EtherealApp() {
                         onApplyWallpaperEverywhere = { file ->
                             WallpaperRepository.applyEverywhere(context, file)
                             currentWallpaperPath = file.absolutePath
+                            wallpaperPalette = WallpaperPaletteProvider.load(context)
                             AnalyticsHelper.logWallpaperChanged(context)
                         },
                         onDeleteWallpaper = { file ->

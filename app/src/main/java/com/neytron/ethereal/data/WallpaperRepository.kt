@@ -102,15 +102,32 @@ object WallpaperRepository {
 
     fun applyToLockScreen(context: Context, file: File): Boolean {
         return try {
-            val input = file.inputStream()
             val wm = android.app.WallpaperManager.getInstance(context)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                wm.setStream(input, null, true, android.app.WallpaperManager.FLAG_LOCK)
-            } else {
-                // До Android 7 — только общие обои
-                wm.setStream(input)
+            file.inputStream().use { input ->
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    wm.setStream(input, null, true, android.app.WallpaperManager.FLAG_LOCK)
+                } else {
+                    wm.setStream(input)
+                }
             }
-            input.close()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    fun applyToHomeScreen(context: Context, file: File): Boolean {
+        applyAsCurrent(context, file)
+        return try {
+            val wm = android.app.WallpaperManager.getInstance(context)
+            file.inputStream().use { input ->
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    wm.setStream(input, null, true, android.app.WallpaperManager.FLAG_SYSTEM)
+                } else {
+                    wm.setStream(input)
+                }
+            }
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -120,7 +137,25 @@ object WallpaperRepository {
 
     fun applyEverywhere(context: Context, file: File): Boolean {
         applyAsCurrent(context, file)
-        return applyToLockScreen(context, file)
+        return try {
+            val wm = android.app.WallpaperManager.getInstance(context)
+            file.inputStream().use { input ->
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    wm.setStream(
+                        input,
+                        null,
+                        true,
+                        android.app.WallpaperManager.FLAG_SYSTEM or android.app.WallpaperManager.FLAG_LOCK
+                    )
+                } else {
+                    wm.setStream(input)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 
 

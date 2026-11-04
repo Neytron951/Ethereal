@@ -2716,7 +2716,11 @@ private fun ThemeDropdown(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = currentPalette.name,
+                    text = if (currentPalette.id == "wallpaper") {
+                        stringResource(R.string.settings_theme_wallpaper)
+                    } else {
+                        currentPalette.name
+                    },
                     color = currentPalette.textPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
@@ -2751,7 +2755,11 @@ private fun ThemeDropdown(
                                     PaletteDot(palette.textPrimary)
                                 }
                                 Text(
-                                    text = palette.name,
+                                    text = if (palette.id == "wallpaper") {
+                                        stringResource(R.string.settings_theme_wallpaper)
+                                    } else {
+                                        palette.name
+                                    },
                                     color = if (palette.id == currentPalette.id)
                                         currentPalette.primary
                                     else currentPalette.textPrimary,

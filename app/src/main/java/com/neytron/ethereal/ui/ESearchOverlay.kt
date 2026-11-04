@@ -2,6 +2,7 @@ package com.neytron.ethereal.ui
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
 import android.net.Uri
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
@@ -50,6 +51,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -73,6 +76,7 @@ import com.neytron.ethereal.ui.theme.LocalESearchConfig
 import com.neytron.ethereal.ui.theme.FrostedGlassBox
 import com.neytron.ethereal.utils.DeviceTiltProvider
 import com.neytron.ethereal.utils.renderThemedIcon
+import com.neytron.ethereal.utils.screenBounds
 import com.neytron.ethereal.utils.tileBorder
 import com.neytron.ethereal.utils.toImageBitmap
 import kotlinx.coroutines.delay
@@ -82,7 +86,7 @@ fun ESearchOverlay(
     visible: Boolean,
     apps: List<AppInfo>,
     palette: EtherealPalette,
-    onAppClick: (AppInfo) -> Unit,
+    onAppClick: (AppInfo, Rect?) -> Unit,
     onDismiss: () -> Unit,
     rouletteMode: Boolean = false,
     onRouletteComplete: () -> Unit = {}
@@ -150,9 +154,9 @@ fun ESearchOverlay(
                 rouletteMode = rouletteMode,
                 onRouletteComplete = onRouletteComplete,
                 onAppLongClick = { contextApp = it },
-                onAppClick = { app ->
+                onAppClick = { app, sourceBounds ->
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onAppClick(app)
+                    onAppClick(app, sourceBounds)
                 }
             )
         }
@@ -326,7 +330,7 @@ private fun ESearchPanel(
     rouletteMode: Boolean = false,
     onRouletteComplete: () -> Unit = {},
     onAppLongClick: (AppInfo) -> Unit,
-    onAppClick: (AppInfo) -> Unit
+    onAppClick: (AppInfo, Rect?) -> Unit
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -460,7 +464,7 @@ private fun ESearchPanel(
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                 keyboardActions = KeyboardActions(onDone = {
-                                    filtered.getOrNull(selectedIndex)?.let(onAppClick)
+                                    filtered.getOrNull(selectedIndex)?.let { onAppClick(it, null) }
                                 }),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -507,7 +511,7 @@ private fun ESearchPanel(
                                 iconCache = iconCache,
                                 onShown = { pkg -> shownPackages.add(pkg) },
                                 onLongClick = { onAppLongClick(app) },
-                                onClick = { onAppClick(app) }
+                                onClick = { bounds -> onAppClick(app, bounds) }
                             )
                         }
                     }
@@ -530,8 +534,10 @@ private fun ESearchItem(
     iconCache: MutableMap<String, ImageBitmap?>,
     onShown: (String) -> Unit,
     onLongClick: () -> Unit,
-    onClick: () -> Unit
+    onClick: (Rect?) -> Unit
 ) {
+    val rootView = LocalView.current
+    var launchCoordinates by remember(app.packageName) { mutableStateOf<LayoutCoordinates?>(null) }
     // === Каскадная анимация появления (только для начальных видимых элементов) ===
     var appeared by remember(app.packageName) { mutableStateOf(alreadyShown || index >= visibleItems) }
 
@@ -594,9 +600,10 @@ private fun ESearchItem(
                 scaleX = scale,
                 scaleY = scale
             )
+            .onGloballyPositioned { launchCoordinates = it }
             .background(bg)
             .combinedClickable(
-                onClick = onClick,
+                onClick = { onClick(launchCoordinates?.screenBounds(rootView)) },
                 onLongClick = onLongClick
             )
             .padding(horizontal = 20.dp, vertical = 12.dp),
@@ -617,6 +624,7 @@ private fun ESearchItem(
                 contentDescription = null,
                 modifier = Modifier
                     .size(28.dp)
+                    .onGloballyPositioned { launchCoordinates = it }
                     .clip(RoundedCornerShape(6.dp))
             )
         }

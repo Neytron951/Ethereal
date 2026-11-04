@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.neytron.ethereal.data.SettingsRepository
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.paletteById
+import com.neytron.ethereal.ui.theme.WallpaperPaletteProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -55,7 +56,10 @@ class CallActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             val paletteId = remember { SettingsRepository.getPaletteId(context) }
-            val palette = paletteById(paletteId)
+            val palette = remember(paletteId) {
+                if (paletteId == "wallpaper") WallpaperPaletteProvider.load(context)
+                else paletteById(paletteId)
+            }
 
             CallScreen(
                 palette = palette,

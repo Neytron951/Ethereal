@@ -1,5 +1,6 @@
 package com.neytron.ethereal.tiles
 
+import android.graphics.Rect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -41,7 +42,7 @@ fun TileGrid(
     incomingTiles: List<Tile> = emptyList(),
     isPop: Boolean = false,
     transitionProgress: Float = 1f,
-    onTileClick: (Tile) -> Unit = {},
+    onTileClick: (Tile, Rect?) -> Unit = { _, _ -> },
     onTileLongClick: (Tile) -> Unit = {},
     onDragStart: (Tile) -> Unit = {},
     onDrag: (Offset) -> Unit = {},
@@ -129,7 +130,7 @@ fun TileGrid(
                                     editorState = editorState,
                                     installedApps = installedApps,
                                     themedIcons = themedIcons,
-                                    onClick = {},
+                                    onClick = { },
                                     onLongClick = {},
                                     onDragStart = {},
                                     onDrag = {},
@@ -168,7 +169,7 @@ fun TileGrid(
                                     editorState = editorState,
                                     installedApps = installedApps,
                                     themedIcons = themedIcons,
-                                    onClick = {},
+                                    onClick = { },
                                     onLongClick = {},
                                     onDragStart = {},
                                     onDrag = {},
@@ -207,7 +208,7 @@ fun TileGrid(
                                     editorState = editorState,
                                     installedApps = installedApps,
                                     themedIcons = themedIcons,
-                                    onClick = {},
+                                    onClick = { },
                                     onLongClick = {},
                                     onDragStart = {},
                                     onDrag = {},
@@ -246,7 +247,7 @@ fun TileGrid(
                                     editorState = editorState,
                                     installedApps = installedApps,
                                     themedIcons = themedIcons,
-                                    onClick = {},
+                                    onClick = { },
                                     onLongClick = {},
                                     onDragStart = {},
                                     onDrag = {},
@@ -276,7 +277,7 @@ fun TileGrid(
                             isTargetCell = isTargetCell(tile, editorState),
                             introReveal = introReveal,
                             isIntroActive = isIntroActive,
-                            onClick = { onTileClick(tile) },
+                            onClick = { bounds -> onTileClick(tile, bounds) },
                             onLongClick = { onTileLongClick(tile) },
                             onDragStart = onDragStart,
                             onDrag = onDrag,

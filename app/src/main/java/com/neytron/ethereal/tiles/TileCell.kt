@@ -36,9 +36,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import android.media.MediaPlayer
+import android.graphics.Rect
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -52,6 +56,7 @@ import com.neytron.ethereal.tiles.editor.TileEditorState
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.FrostedGlassBox
 import com.neytron.ethereal.utils.DeviceTiltProvider
+import com.neytron.ethereal.utils.screenBounds
 import com.neytron.ethereal.utils.renderThemedIcon
 import com.neytron.ethereal.utils.tileBorder
 import com.neytron.ethereal.utils.toImageBitmap
@@ -76,7 +81,7 @@ fun TileCell(
     isTargetCell: Boolean = false,
     introReveal: Boolean = false,
     isIntroActive: Boolean = false,
-    onClick: () -> Unit,
+    onClick: (Rect?) -> Unit,
     onLongClick: () -> Unit,
     onDragStart: (Tile) -> Unit,
     onDrag: (Offset) -> Unit,
@@ -84,6 +89,8 @@ fun TileCell(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val rootView = LocalView.current
+    var launchCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     val widthDp = tileSize * tile.w + spacing * (tile.w - 1)
     val heightDp = tileSize * tile.h + spacing * (tile.h - 1)
@@ -182,8 +189,11 @@ fun TileCell(
             )
             .clickable(
                 enabled = isEditing || tile.clickable,
-                onClick = onClick
+                onClick = {
+                    onClick(launchCoordinates?.screenBounds(rootView))
+                }
             )
+            .onGloballyPositioned { launchCoordinates = it }
             .pointerInput(tile) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = { _ ->

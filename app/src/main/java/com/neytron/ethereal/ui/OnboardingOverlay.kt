@@ -784,7 +784,11 @@ private fun StepTheme(
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = p.name,
+                                text = if (p.id == "wallpaper") {
+                                    stringResource(R.string.settings_theme_wallpaper)
+                                } else {
+                                    p.name
+                                },
                                 color = if (isSelected) palette.primary else palette.textPrimary,
                                 fontSize = 15.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal

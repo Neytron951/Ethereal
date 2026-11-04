@@ -1,5 +1,6 @@
 package com.neytron.ethereal.tiles
 
+import android.graphics.Rect
 import android.Manifest
 import android.app.Activity
 import android.appwidget.AppWidgetManager
@@ -47,7 +48,6 @@ import androidx.core.content.ContextCompat
 import com.neytron.ethereal.R
 import com.neytron.ethereal.data.AnalyticsHelper
 import com.neytron.ethereal.data.AppInfo
-import com.neytron.ethereal.data.AppRepository
 import com.neytron.ethereal.tiles.editor.CreateSpaceDialog
 import com.neytron.ethereal.tiles.editor.TileEditorPanel
 import com.neytron.ethereal.tiles.editor.TileEditorState
@@ -83,6 +83,7 @@ fun TilesScreen(
     onWidgetPickerVisibilityChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onSwipeUp: () -> Unit,
+    onLaunchApp: (String, Rect?, TileStyle?, Float) -> Unit,
     editorState: TileEditorState,
     currentSpaceId: String,
     onOpenSpace: (String) -> Unit,
@@ -466,7 +467,7 @@ fun TilesScreen(
         }
     }
 
-    val handleTileClick: (Tile) -> Unit = { tile ->
+    val handleTileClick: (Tile, Rect?) -> Unit = { tile, sourceBounds ->
         if (tile.clickable) {
             when (tile.type) {
                 TileType.SETTINGS -> onOpenSettings()
@@ -496,14 +497,24 @@ fun TilesScreen(
                 TileType.APP_LAUNCHER -> {
                     val config = AppLauncherConfig.fromJson(tile.config)
                     config.packageName?.let { pkg ->
-                        AppRepository.launchApp(context, pkg)
+                        val iconScale = if (tile.w == 1 && tile.h == 1) {
+                            0.65f * tile.style.contentScale
+                        } else {
+                            0.45f * tile.style.contentScale
+                        }
+                        onLaunchApp(pkg, sourceBounds, tile.style, iconScale)
                     }
                 }
 
                 TileType.WIDGET -> {
                     val config = AppLauncherConfig.fromJson(tile.config)
                     if (config.packageName != null) {
-                        AppRepository.launchApp(context, config.packageName)
+                        val iconScale = if (tile.w == 1 && tile.h == 1) {
+                            0.65f * tile.style.contentScale
+                        } else {
+                            0.45f * tile.style.contentScale
+                        }
+                        onLaunchApp(config.packageName, sourceBounds, tile.style, iconScale)
                     } else {
                         when (tile.payload) {
                             "ethereal_clock" -> {
@@ -718,9 +729,9 @@ fun TilesScreen(
                 incomingTiles = incomingTilesState,
                 isPop = isPopState,
                 transitionProgress = transitionProgress,
-                onTileClick = { tile ->
+                onTileClick = { tile, sourceBounds ->
                     if (isEditing) editorState.select(tile)
-                    else handleTileClick(tile)
+                    else handleTileClick(tile, sourceBounds)
                 },
                 onTileLongClick = { },
                 onDragStart = { tile ->

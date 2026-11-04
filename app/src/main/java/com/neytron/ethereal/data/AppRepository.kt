@@ -1,6 +1,9 @@
 package com.neytron.ethereal.data
 
+import android.app.Activity
+import android.app.ActivityOptions
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 
 object AppRepository {
@@ -52,9 +55,16 @@ object AppRepository {
 
     fun launchApp(context: Context, packageName: String) {
         val intent = context.packageManager.getLaunchIntentForPackage(packageName)
-        intent?.let {
-            it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(it)
-        }
+        intent ?: return
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val options = ActivityOptions.makeCustomAnimation(context, 0, 0).toBundle()
+        context.startActivity(intent, options)
+        (context.findActivity())?.overridePendingTransition(0, 0)
+    }
+
+    private tailrec fun Context.findActivity(): Activity? = when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
     }
 }

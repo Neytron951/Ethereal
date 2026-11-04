@@ -37,6 +37,19 @@ val EtherealGreenPalette = EtherealPalette(
     textSecondary = Color(0xFF8FA38F)
 )
 
+val WallpaperPalette = EtherealPalette(
+    id = "wallpaper",
+    name = "Wallpaper",
+    background = Color(0xFF0A0F0A),
+    surface = Color(0xFF131A13),
+    surfaceVariant = Color(0xFF1C261C),
+    primary = Color(0xFFB8FF3D),
+    secondary = Color(0xFF7DDF64),
+    outline = Color(0xFF2A352A),
+    textPrimary = Color(0xFFE8F0E8),
+    textSecondary = Color(0xFF8FA38F)
+)
+
 val ObsidianPalette = EtherealPalette(
     id = "obsidian", name = "Obsidian",
     background = Color(0xFF0B0B0F),
@@ -392,6 +405,7 @@ val PaperPalette = EtherealPalette(
 val AllPalettes: List<EtherealPalette> = listOf(
     // Тёмные
     EtherealGreenPalette,
+    WallpaperPalette,
     ObsidianPalette,
     AmoledPalette,
     MonochromePalette,

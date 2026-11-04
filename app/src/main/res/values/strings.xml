@@ -117,6 +117,7 @@
     <string name="settings_appearance_section">Appearance</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_theme_subtitle">Launcher palette</string>
+    <string name="settings_theme_wallpaper">Wallpaper colors</string>
     <string name="settings_font">Font</string>
     <string name="settings_font_subtitle">Font family</string>
     <string name="settings_panel_opacity">Panel opacity</string>
@@ -182,7 +183,7 @@
     <string name="settings_wallpaper_add">+ Add from gallery</string>
     <string name="settings_wallpaper_empty">No saved wallpapers</string>
     <string name="settings_wallpaper_apply_title">Where to apply wallpaper?</string>
-    <string name="settings_wallpaper_apply_home">To home screen (Ethereal)</string>
+    <string name="settings_wallpaper_apply_home">To home screen</string>
     <string name="settings_wallpaper_apply_lock">To lock screen</string>
     <string name="settings_wallpaper_apply_everywhere">Everywhere</string>
     <string name="settings_wallpaper_active">Active</string>

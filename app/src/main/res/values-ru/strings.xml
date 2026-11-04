@@ -117,6 +117,7 @@
     <string name="settings_appearance_section">Оформление</string>
     <string name="settings_theme">Тема</string>
     <string name="settings_theme_subtitle">Палитра всего лаунчера</string>
+    <string name="settings_theme_wallpaper">Цвета обоев</string>
     <string name="settings_font">Шрифт</string>
     <string name="settings_font_subtitle">Семейство шрифта</string>
     <string name="settings_panel_opacity">Непрозрачность панелей</string>
@@ -182,7 +183,7 @@
     <string name="settings_wallpaper_add">+ Добавить из галереи</string>
     <string name="settings_wallpaper_empty">Нет сохранённых обоев</string>
     <string name="settings_wallpaper_apply_title">Куда установить обои?</string>
-    <string name="settings_wallpaper_apply_home">На рабочий стол (Ethereal)</string>
+    <string name="settings_wallpaper_apply_home">На рабочий стол</string>
     <string name="settings_wallpaper_apply_lock">На экран блокировки</string>
     <string name="settings_wallpaper_apply_everywhere">Везде</string>
     <string name="settings_wallpaper_active">Активно</string>

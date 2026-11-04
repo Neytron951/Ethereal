@@ -22,6 +22,7 @@ import com.neytron.ethereal.call.dialer.DialerTabs
 import com.neytron.ethereal.call.dialer.SearchIcon
 import com.neytron.ethereal.data.SettingsRepository
 import com.neytron.ethereal.ui.theme.paletteById
+import com.neytron.ethereal.ui.theme.WallpaperPaletteProvider
 
 /**
  * ЗАКОНСЕРВИРОВАНО.
@@ -44,7 +45,10 @@ class DialerActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             val paletteId = remember { SettingsRepository.getPaletteId(context) }
-            val palette = paletteById(paletteId)
+            val palette = remember(paletteId) {
+                if (paletteId == "wallpaper") WallpaperPaletteProvider.load(context)
+                else paletteById(paletteId)
+            }
 
             var currentTab by remember {
                 mutableStateOf(

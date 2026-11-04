@@ -1,5 +1,6 @@
 package com.neytron.ethereal.ui
 
+import android.graphics.Rect
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -38,6 +39,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +63,7 @@ import com.neytron.ethereal.ui.theme.LocalAppearance
 import com.neytron.ethereal.ui.theme.LocalDockConfig
 import com.neytron.ethereal.ui.theme.iconShapeFor
 import com.neytron.ethereal.utils.renderThemedIcon
+import com.neytron.ethereal.utils.screenBounds
 import com.neytron.ethereal.utils.toImageBitmap
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -67,7 +72,7 @@ import kotlin.math.roundToInt
 fun DockBar(
     apps: List<AppInfo>,
     palette: EtherealPalette,
-    onAppClick: (AppInfo) -> Unit,
+    onAppClick: (AppInfo, Rect?) -> Unit,
     showPresets: Boolean = false,
     presets: List<TilePreset> = emptyList(),
     onPresetClick: (TilePreset) -> Unit = {},
@@ -195,7 +200,7 @@ private fun AppsRow(
     spacing: Dp,
     config: com.neytron.ethereal.ui.theme.DockConfig,
     introFlyIn: Boolean = false,
-    onAppClick: (AppInfo) -> Unit,
+    onAppClick: (AppInfo, Rect?) -> Unit,
     onOrderChange: (List<AppInfo>) -> Unit,
     context: android.content.Context
 ) {
@@ -237,7 +242,7 @@ private fun AppsRow(
                     targetIndex = targetIndex,
                     dragOffsetX = dragOffsetX,
                     introFlyIn = introFlyIn,
-                    onClick = { onAppClick(app) },
+                    onClick = { bounds -> onAppClick(app, bounds) },
                     onDragStart = { i ->
                         draggingIndex = i
                         dragOffsetX = 0f
@@ -578,12 +583,14 @@ private fun DockItem(
     targetIndex: Int?,
     dragOffsetX: Float,
     introFlyIn: Boolean = false,
-    onClick: () -> Unit,
+    onClick: (Rect?) -> Unit,
     onDragStart: (Int) -> Unit,
     onDrag: (Float) -> Unit,
     onDragEnd: (Float) -> Unit
 ) {
     val isDragging = draggingIndex == index
+    val rootView = LocalView.current
+    var launchCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     var hasAppeared by remember(introFlyIn) { mutableStateOf(!introFlyIn) }
     LaunchedEffect(introFlyIn) {
@@ -653,6 +660,7 @@ private fun DockItem(
             .graphicsLayer(alpha = currentAlpha)
             .requiredSize(iconSize)
             .scale(currentScale)
+            .onGloballyPositioned { launchCoordinates = it }
             .pointerInput(app.packageName) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = { currentOnDragStart(currentIndex) },
@@ -664,7 +672,9 @@ private fun DockItem(
                     onDragCancel = { currentOnDragEnd(currentDragOffsetX) }
                 )
             }
-            .clickable(enabled = currentDraggingIndex == null) { onClick() },
+            .clickable(enabled = currentDraggingIndex == null) {
+                onClick(launchCoordinates?.screenBounds(rootView))
+            },
         contentAlignment = Alignment.Center
     ) {
         if (showBackground) {
