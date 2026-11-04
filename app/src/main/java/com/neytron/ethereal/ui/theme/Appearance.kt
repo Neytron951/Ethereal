@@ -9,9 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -24,12 +22,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import java.io.File
+import kotlin.math.roundToInt
 
 data class AppearanceState(
     val opacity: Float = 0.95f,
@@ -56,7 +54,6 @@ fun FrostedGlassBox(
     val wallpaperScaleMode = LocalWallpaperScaleMode.current
     val wallpaperContainerCoords = LocalWallpaperContainerCoordinates.current
     val imageFile = remember(wallpaperPath) { wallpaperPath?.let { File(it) } }
-    var layoutCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     val blurAlpha by animateFloatAsState(
         targetValue = if (blur > 0f) 1f else 0f,
@@ -72,22 +69,12 @@ fun FrostedGlassBox(
     }
 
     Box(
-        modifier = modifier
-            .onGloballyPositioned { coordinates ->
-                layoutCoordinates = coordinates
-            }
-            .clip(shape),
+        modifier = modifier.clip(shape),
         contentAlignment = Alignment.Center
     ) {
-        if (blur > 0f && layoutCoordinates != null && wallpaperContainerCoords != null) {
+        if (blur > 0f && wallpaperContainerCoords?.isAttached == true) {
             val containerSize = wallpaperContainerCoords.size
             if (containerSize.width > 0 && containerSize.height > 0) {
-                val localOffset = try {
-                    wallpaperContainerCoords.localPositionOf(layoutCoordinates!!, Offset.Zero)
-                } catch (_: Exception) {
-                    Offset.Zero
-                }
-
                 Box(
                     modifier = Modifier
                         .matchParentSize()
@@ -96,19 +83,26 @@ fun FrostedGlassBox(
                 ) {
                     Box(
                         modifier = Modifier
-                            .graphicsLayer(
-                                translationX = -localOffset.x,
-                                translationY = -localOffset.y
-                            )
-                            .blur(blur.dp)
-                            .layout { measurable, _ ->
+                            .layout { measurable, constraints ->
+                                val wallpaperSize = wallpaperContainerCoords.size
                                 val placeable = measurable.measure(
-                                    Constraints.fixed(containerSize.width, containerSize.height)
+                                    Constraints.fixed(wallpaperSize.width, wallpaperSize.height)
                                 )
-                                layout(containerSize.width, containerSize.height) {
-                                    placeable.placeRelative(0, 0)
+                                // Keep the viewport panel-sized so Compose does not center
+                                // an oversized child inside the panel's constraints.
+                                layout(constraints.maxWidth, constraints.maxHeight) {
+                                    val panelCoordinates = coordinates
+                                    if (panelCoordinates != null && wallpaperContainerCoords.isAttached) {
+                                        // Read coordinates during placement so moving the panel
+                                        // (including ESearch's entrance) updates the sampled region.
+                                        val offset = wallpaperContainerCoords.localPositionOf(
+                                            panelCoordinates, Offset.Zero
+                                        )
+                                        placeable.place((-offset.x).roundToInt(), (-offset.y).roundToInt())
+                                    }
                                 }
                             }
+                            .blur(blur.dp)
                     ) {
                         if (imageFile != null && imageFile.exists()) {
                             AsyncImage(
