@@ -539,20 +539,58 @@ object TileLayoutRepository {
         rows: Int,
         isLandscape: Boolean = false
     ): List<Tile>? {
-        val target = tiles.firstOrNull { it.id == tileId } ?: return null
-
         val w = newW.coerceAtLeast(1)
         val h = newH.coerceAtLeast(1)
-
-        if (target.x + w > columns) return null
-        if (target.y + h > rows) return null
-        if (!isAreaFree(tiles, target.x, target.y, w, h, ignoreId = tileId)) return null
-
-        val updated = tiles.map { tile ->
-            if (tile.id == tileId) tile.copy(w = w, h = h) else tile
-        }
+        val effectiveRows = maxOf(rows, 12)
+        val updated = previewResizeWithDisplacement(tiles, tileId, w, h, columns, effectiveRows)
+            ?: return null
         setTiles(context, spaceId, updated, isLandscape)
         return updated
+    }
+
+    fun previewResizeWithDisplacement(
+        tiles: List<Tile>,
+        tileId: String,
+        newW: Int,
+        newH: Int,
+        columns: Int,
+        rows: Int
+    ): List<Tile>? {
+        val target = tiles.firstOrNull { it.id == tileId } ?: return null
+        if (newW !in 1..columns || newH !in 1..rows) return null
+        if (target.x + newW > columns || target.y + newH > rows) return null
+
+        val resized = target.copy(w = newW, h = newH)
+        val displaced = tiles.filter { tile ->
+            if (tile.id == tileId) return@filter false
+            target.x < tile.x + tile.w &&
+                target.x + newW > tile.x &&
+                target.y < tile.y + tile.h &&
+                target.y + newH > tile.y
+        }.sortedWith(compareBy({ it.y }, { it.x }))
+        if (displaced.any { it.w > columns || it.h > rows }) return null
+
+        val displacedIds = displaced.mapTo(HashSet()) { it.id }
+        val result = tiles
+            .filter { it.id != tileId && it.id !in displacedIds }
+            .toMutableList()
+            .apply { add(resized) }
+
+        for (tile in displaced) {
+            val destination = (0..(rows - tile.h))
+                .flatMap { y -> (0..(columns - tile.w)).map { x -> x to y } }
+                .asSequence()
+                .filter { (x, y) -> isAreaFree(result, x, y, tile.w, tile.h) }
+                .minWithOrNull(
+                    compareBy<Pair<Int, Int>> { (x, y) ->
+                        kotlin.math.abs(x - tile.x) + kotlin.math.abs(y - tile.y)
+                    }.thenBy { it.second }.thenBy { it.first }
+                )
+                ?: return null
+            result.add(tile.copy(x = destination.first, y = destination.second))
+        }
+
+        return result
     }
 
     fun updateStyle(

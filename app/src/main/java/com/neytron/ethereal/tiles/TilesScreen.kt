@@ -74,6 +74,7 @@ fun TilesScreen(
     dockBottomPaddingDp: Float,
     installedApps: List<AppInfo>,
     themedIcons: Boolean,
+    showResizeIndicator: Boolean = false,
     isDockEnabled: Boolean,
     tiles: List<Tile>,
     onTilesChange: (List<Tile>) -> Unit,
@@ -143,7 +144,8 @@ fun TilesScreen(
         }
     }
 
-    val maxTileRow = remember(tiles) { tiles.maxOfOrNull { it.y + it.h } ?: 4 }
+    val activeTiles = editorState.resizePreviewTiles.value ?: tiles
+    val maxTileRow = remember(activeTiles) { activeTiles.maxOfOrNull { it.y + it.h } ?: 4 }
 
     val autoRows = remember(
         tileSizeDp, spacingDp, screenHeightDp,
@@ -299,42 +301,70 @@ fun TilesScreen(
     }
 
     val handleDrop: () -> Unit = {
-        val dragging = editorState.draggingTile.value
-        if (dragging == null) {
-            editorState.endDrag()
+        val resizingTile = editorState.resizingTile.value
+        if (resizingTile != null) {
+            val preview = editorState.resizePreviewTiles.value
+            if (preview != null && preview != tiles) {
+                onTilesChange(preview)
+                TileLayoutRepository.setTiles(context, currentSpaceId, preview, isLandscape)
+                if (editorState.selectedTile.value?.id == resizingTile.id) {
+                    editorState.select(preview.firstOrNull { it.id == resizingTile.id })
+                }
+            }
+            editorState.endResize()
         } else {
-            val offset = editorState.dragOffsetPx.value
-            val dCol = (offset.x / cellSizePx).roundToInt()
-            val dRow = (offset.y / cellSizePx).roundToInt()
-
-            val newX = (dragging.x + dCol).coerceIn(0, autoColumns - dragging.w)
-            val newY = (dragging.y + dRow).coerceIn(0, (autoRows - dragging.h).coerceAtLeast(0))
-
-            val updated = TileLayoutRepository.placeTileWithDisplacement(
-                tiles = tiles,
-                draggingId = dragging.id,
-                newX = newX,
-                newY = newY,
-                columns = autoColumns,
-                rows = autoRows
-            )
-
-            val finalTiles = if (updated != null && updated != tiles) {
-                onTilesChange(updated)
-                TileLayoutRepository.setTiles(context, currentSpaceId, updated, isLandscape)
-                updated
+            val dragging = editorState.draggingTile.value
+            if (dragging == null) {
+                editorState.endDrag()
             } else {
-                tiles
-            }
+                val offset = editorState.dragOffsetPx.value
+                val dCol = (offset.x / cellSizePx).roundToInt()
+                val dRow = (offset.y / cellSizePx).roundToInt()
 
-            if (selectedTile?.id == dragging.id) {
-                val updatedSelected = finalTiles.firstOrNull { it.id == dragging.id }
-                editorState.select(updatedSelected)
-            }
+                val newX = (dragging.x + dCol).coerceIn(0, autoColumns - dragging.w)
+                val newY = (dragging.y + dRow).coerceIn(0, (autoRows - dragging.h).coerceAtLeast(0))
 
-            editorState.dragOffsetPx.value = Offset.Zero
-            editorState.targetCell.value = null
-            editorState.draggingTile.value = null
+                val oldMap = tiles.associateBy { it.id }
+                val updated = TileLayoutRepository.placeTileWithDisplacement(
+                    tiles = tiles,
+                    draggingId = dragging.id,
+                    newX = newX,
+                    newY = newY,
+                    columns = autoColumns,
+                    rows = autoRows
+                )
+
+                val finalTiles = if (updated != null && updated != tiles) {
+                    val displaced = updated.filter { t ->
+                        t.id != dragging.id && oldMap[t.id]?.let { it.x != t.x || it.y != t.y } == true
+                    }.mapTo(mutableSetOf()) { it.id }
+                    editorState.displacedTileIds.value = displaced
+
+                    onTilesChange(updated)
+                    TileLayoutRepository.setTiles(context, currentSpaceId, updated, isLandscape)
+                    updated
+                } else {
+                    editorState.displacedTileIds.value = emptySet()
+                    tiles
+                }
+
+                val finalDragging = finalTiles.firstOrNull { it.id == dragging.id } ?: dragging
+                val deltaPx = Offset(
+                    (finalDragging.x - dragging.x) * cellSizePx,
+                    (finalDragging.y - dragging.y) * cellSizePx
+                )
+
+                scope.launch {
+                    editorState.animateDropToZero(deltaPx)
+                    editorState.endDrag()
+                }
+
+                editorState.targetCell.value = null
+                if (selectedTile?.id == dragging.id) {
+                    val updatedSelected = finalTiles.firstOrNull { it.id == dragging.id }
+                    editorState.select(updatedSelected)
+                }
+            }
         }
     }
 
@@ -449,6 +479,34 @@ fun TilesScreen(
                     snackbarHostState.showSnackbar(cannotResizeMsg)
                 }
             }
+        }
+    }
+
+    val handleResizeStart: (Tile) -> Unit = { tile ->
+        val latestTile = tiles.firstOrNull { it.id == tile.id } ?: tile
+        editorState.startResize(latestTile, tiles)
+    }
+
+    val handleResize: (Tile, Offset) -> Unit = { tile, offset ->
+        val latestTile = tiles.firstOrNull { it.id == tile.id } ?: tile
+        val base = editorState.resizingTile.value ?: latestTile
+        val maxWidth = (autoColumns - base.x).coerceAtLeast(1)
+        val maxHeight = (12 - base.y).coerceAtLeast(1)
+        val stepX = cellSizePx
+        val stepY = cellSizePx
+        val newW = (base.w + (offset.x / stepX).roundToInt()).coerceIn(1, maxWidth)
+        val newH = (base.h + (offset.y / stepY).roundToInt()).coerceIn(1, maxHeight)
+        val targetRows = maxOf(autoRows, base.y + newH, 12)
+        val preview = TileLayoutRepository.previewResizeWithDisplacement(
+            tiles = tiles,
+            tileId = base.id,
+            newW = newW,
+            newH = newH,
+            columns = autoColumns,
+            rows = targetRows
+        )
+        if (preview != null) {
+            editorState.resizePreviewTiles.value = preview
         }
     }
 
@@ -720,6 +778,7 @@ fun TilesScreen(
                 editorState = editorState,
                 installedApps = installedApps,
                 themedIcons = themedIcons,
+                showResizeIndicator = showResizeIndicator,
                 introReveal = introReveal,
                 isIntroActive = isIntroActive,
                 isTransitioning = isTransitioning,
@@ -755,6 +814,10 @@ fun TilesScreen(
                     }
                 },
                 onDragEnd = { handleDrop() },
+                onResizeStart = handleResizeStart,
+                onResize = handleResize,
+                onResizeEnd = { handleDrop() },
+                onDeleteTile = { handleDeleteTile(it) },
                 onEmptyTap = { }
             )
         }

@@ -50,6 +50,8 @@
     <string name="tile_action">Действие</string>
     <string name="tile_tile">Тайл</string>
     <string name="tile_space">Пространство</string>
+    <string name="tile_delete_tile">Удалить плитку</string>
+    <string name="tile_uninstall_app">Удалить приложение</string>
     <string name="tile_size_format">%1$d×%2$d</string>
     <string name="tile_size_locked_format">%1$d×%2$d • системный</string>
 
@@ -138,6 +140,8 @@
     <string name="settings_tile_spacing_subtitle">Промежуток между клетками</string>
     <string name="settings_tile_radius">Закругление</string>
     <string name="settings_tile_radius_subtitle">Радиус углов тайлов</string>
+    <string name="settings_resize_indicator">Индикатор изменения размера</string>
+    <string name="settings_resize_indicator_subtitle">Забавный факт: эта штука помогла разработке больше, чем Debug Mode.</string>
     <string name="settings_reset_tiles">Сбросить тайлы</string>
 
     <!-- Settings: ESearch -->

@@ -61,6 +61,7 @@ object SettingsRepository {
     private const val KEY_TILE_COLUMNS = "tile_columns"
     private const val KEY_TILE_SPACING = "tile_spacing"
     private const val KEY_TILE_RADIUS = "tile_radius"
+    private const val KEY_RESIZE_INDICATOR_ENABLED = "resize_indicator_enabled"
 
     private const val DEFAULT_TILE_SIZE = 64f
     private const val DEFAULT_TILE_COLUMNS = 4
@@ -309,6 +310,12 @@ object SettingsRepository {
         prefs(context).getFloat(KEY_TILE_RADIUS, DEFAULT_TILE_RADIUS)
     fun setTileRadius(context: Context, value: Float) {
         prefs(context).edit().putFloat(KEY_TILE_RADIUS, value.coerceIn(0f, 32f)).apply()
+    }
+
+    fun getResizeIndicatorEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_RESIZE_INDICATOR_ENABLED, false)
+    fun setResizeIndicatorEnabled(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_RESIZE_INDICATOR_ENABLED, value).apply()
     }
 
     fun getWallpaperScaleMode(context: Context): String =

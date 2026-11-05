@@ -156,9 +156,11 @@ fun SettingsScreen(
     tileSize: Float,
     tileSpacing: Float,
     tileRadius: Float,
+    resizeIndicatorEnabled: Boolean,
     onTileSizeChange: (Float) -> Unit,
     onTileSpacingChange: (Float) -> Unit,
     onTileRadiusChange: (Float) -> Unit,
+    onResizeIndicatorEnabledChange: (Boolean) -> Unit,
     onResetTiles: () -> Unit,
     analyticsEnabled: Boolean,
     onAnalyticsEnabledChange: (Boolean) -> Unit,
@@ -268,9 +270,11 @@ fun SettingsScreen(
                             tileSize = tileSize,
                             tileSpacing = tileSpacing,
                             tileRadius = tileRadius,
+                            resizeIndicatorEnabled = resizeIndicatorEnabled,
                             onTileSizeChange = onTileSizeChange,
                             onTileSpacingChange = onTileSpacingChange,
                             onTileRadiusChange = onTileRadiusChange,
+                            onResizeIndicatorEnabledChange = onResizeIndicatorEnabledChange,
                             onResetTiles = onResetTiles
                         )
                         SettingsTab.ESEARCH -> ESearchTab(
@@ -417,9 +421,11 @@ fun SettingsScreen(
                                 tileSize = tileSize,
                                 tileSpacing = tileSpacing,
                                 tileRadius = tileRadius,
+                                resizeIndicatorEnabled = resizeIndicatorEnabled,
                                 onTileSizeChange = onTileSizeChange,
                                 onTileSpacingChange = onTileSpacingChange,
                                 onTileRadiusChange = onTileRadiusChange,
+                                onResizeIndicatorEnabledChange = onResizeIndicatorEnabledChange,
                                 onResetTiles = onResetTiles
                             )
                             SettingsTab.ESEARCH -> ESearchTab(
@@ -733,9 +739,11 @@ private fun TilesTab(
     tileSize: Float,
     tileSpacing: Float,
     tileRadius: Float,
+    resizeIndicatorEnabled: Boolean,
     onTileSizeChange: (Float) -> Unit,
     onTileSpacingChange: (Float) -> Unit,
     onTileRadiusChange: (Float) -> Unit,
+    onResizeIndicatorEnabledChange: (Boolean) -> Unit,
     onResetTiles: () -> Unit
 ) {
     LazyColumn(
@@ -747,6 +755,15 @@ private fun TilesTab(
                 text = stringResource(R.string.settings_tiles_section),
                 color = palette.textSecondary,
                 fontSize = 12.sp
+            )
+        }
+        item {
+            SettingsToggle(
+                title = stringResource(R.string.settings_resize_indicator),
+                subtitle = stringResource(R.string.settings_resize_indicator_subtitle),
+                checked = resizeIndicatorEnabled,
+                palette = palette,
+                onCheckedChange = onResizeIndicatorEnabledChange
             )
         }
         item {

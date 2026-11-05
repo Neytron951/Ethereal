@@ -8,10 +8,14 @@ import kotlinx.coroutines.delay
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,12 +30,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -49,6 +54,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.ui.geometry.Size
 import coil.compose.AsyncImage
 import com.neytron.ethereal.R
 import com.neytron.ethereal.data.AppInfo
@@ -63,7 +72,10 @@ import com.neytron.ethereal.utils.toImageBitmap
 import com.neytron.ethereal.weather.WeatherCodeMapper
 import com.neytron.ethereal.weather.WeatherData
 import com.neytron.ethereal.weather.WeatherRepository
+import com.neytron.ethereal.widgets.EtherealAppWidgetHost
+import com.neytron.ethereal.widgets.WidgetHostView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.roundToInt
@@ -78,6 +90,7 @@ fun TileCell(
     editorState: TileEditorState,
     installedApps: List<AppInfo>,
     themedIcons: Boolean,
+    showResizeIndicator: Boolean = true,
     isTargetCell: Boolean = false,
     introReveal: Boolean = false,
     isIntroActive: Boolean = false,
@@ -86,11 +99,16 @@ fun TileCell(
     onDragStart: (Tile) -> Unit,
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit,
+    onResizeStart: (Tile) -> Unit = {},
+    onResize: (Tile, Offset) -> Unit = { _, _ -> },
+    onResizeEnd: () -> Unit = {},
+    onDeleteTile: (Tile) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val rootView = LocalView.current
     var launchCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var contextMenuExpanded by remember(tile.id) { mutableStateOf(false) }
 
     val widthDp = tileSize * tile.w + spacing * (tile.w - 1)
     val heightDp = tileSize * tile.h + spacing * (tile.h - 1)
@@ -101,6 +119,7 @@ fun TileCell(
     val isDragging = dragging?.id == tile.id
     val isEditing = editorState.editing.value
     val isSelected = editorState.selectedTile.value?.id == tile.id
+    val canResizeTile = !tile.locked || tile.type == TileType.SETTINGS
 
     val offsetX = if (isDragging) editorState.dragOffsetPx.value.x else 0f
     val offsetY = if (isDragging) editorState.dragOffsetPx.value.y else 0f
@@ -134,7 +153,17 @@ fun TileCell(
     val scale = (if (isDragging) 1.08f else 1f) * (if (isHiddenByIntro) 0.8f else (0.8f + 0.2f * revealProgress))
     val alpha = if (isHiddenByIntro) 0f else (if (isDragging) 0.9f else 1f) * revealProgress.coerceIn(0f, 1f)
 
+    val currentTile = rememberUpdatedState(tile)
     val currentEditorState = rememberUpdatedState(editorState)
+    val currentOnClick = rememberUpdatedState(onClick)
+    val currentOnLongClick = rememberUpdatedState(onLongClick)
+    val currentOnDragStart = rememberUpdatedState(onDragStart)
+    val currentOnDrag = rememberUpdatedState(onDrag)
+    val currentOnDragEnd = rememberUpdatedState(onDragEnd)
+    val currentOnResizeStart = rememberUpdatedState(onResizeStart)
+    val currentOnResize = rememberUpdatedState(onResize)
+    val currentOnResizeEnd = rememberUpdatedState(onResizeEnd)
+    val currentOnDeleteTile = rememberUpdatedState(onDeleteTile)
 
     val appearAlpha by animateFloatAsState(
         targetValue = 1f,
@@ -156,6 +185,13 @@ fun TileCell(
     }
 
     val contentScale = tile.style.contentScale
+    val appPackage = remember(tile.type, tile.config) {
+        if (tile.type == TileType.APP_LAUNCHER) {
+            AppLauncherConfig.fromJson(tile.config).packageName
+        } else {
+            null
+        }
+    }
     val tilt = if (
         tile.style.borderStyle == TileBorderStyle.LIQUID_GLASS ||
         tile.style.borderStyle == TileBorderStyle.LIQUID_GLASS_SENSORS
@@ -165,165 +201,345 @@ fun TileCell(
         Pair(0f, 0f)
     }
 
-    FrostedGlassBox(
-        blur = tile.style.backgroundBlur,
-        opacity = backgroundOpacity,
-        backgroundColor = backgroundColor,
-        shape = shape,
+    Box(
         modifier = modifier
             .size(width = widthDp, height = heightDp)
             .zIndex(if (isDragging) 10f else 0f)
             .offset {
                 IntOffset(offsetX.roundToInt(), offsetY.roundToInt())
             }
-            .graphicsLayer(alpha = appearAlpha)
-            .scale(scale)
-            .alpha(alpha)
-            .then(
-                when {
-                    isTargetCell -> Modifier.border(2.dp, palette.primary, shape)
-                    isSelected -> Modifier.border(2.dp, palette.primary, shape)
-                    isEditing -> Modifier.border(1.dp, palette.outline.copy(alpha = 0.3f), shape)
-                    else -> Modifier.tileBorder(tile.style, palette, shape, tilt)
-                }
-            )
-            .clickable(
-                enabled = isEditing || tile.clickable,
-                onClick = {
-                    onClick(launchCoordinates?.screenBounds(rootView))
-                }
-            )
             .onGloballyPositioned { launchCoordinates = it }
-            .pointerInput(tile) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = { _ ->
-                        if (!currentEditorState.value.editing.value) {
-                            currentEditorState.value.enterEdit()
-                        }
-                        onDragStart(tile)
-                    },
-                    onDrag = { change, amount ->
-                        change.consume()
-                        val current = currentEditorState.value.dragOffsetPx.value
-                        onDrag(Offset(current.x + amount.x, current.y + amount.y))
-                    },
-                    onDragEnd = { onDragEnd() },
-                    onDragCancel = { onDragEnd() }
-                )
-            }
     ) {
-        when (tile.type) {
-            TileType.EMPTY -> { }
-
-            TileType.SETTINGS -> {
-                val config = remember(tile.config) {
-                    AppLauncherConfig.fromJson(tile.config)
-                }
-                val imageFile = remember(config.imageUri) {
-                    config.imageUri?.let { File(it) }
-                }
-
-                if (imageFile != null && imageFile.exists()) {
-                    AsyncImage(
-                        model = imageFile,
-                        contentDescription = stringResource(R.string.settings),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(alpha = appearAlpha)
+                .scale(scale)
+                .alpha(alpha)
+        ) {
+            FrostedGlassBox(
+                blur = tile.style.backgroundBlur,
+                opacity = backgroundOpacity,
+                backgroundColor = backgroundColor,
+                shape = shape,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        when {
+                            isTargetCell -> Modifier.border(2.dp, palette.primary, shape)
+                            isSelected -> Modifier.border(2.dp, palette.primary, shape)
+                            tile.style.borderStyle != TileBorderStyle.NONE -> Modifier.tileBorder(tile.style, palette, shape, tilt)
+                            isEditing -> Modifier.border(1.dp, palette.outline.copy(alpha = 0.3f), shape)
+                            else -> Modifier.tileBorder(tile.style, palette, shape, tilt)
+                        }
                     )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.settings_24dp),
-                        contentDescription = stringResource(R.string.widget_icon_settings_description),
-                        colorFilter = ColorFilter.tint(palette.textPrimary),
-                        modifier = Modifier.size((tileSize.value * 0.5f * contentScale).dp)
-                    )
-                }
-            }
+                    .resizeCornerIndicator(isEditing, canResizeTile, palette, radius)
+            ) {
+                when (tile.type) {
+                    TileType.EMPTY -> { }
 
-            TileType.EQUALIZER -> AudioSpectrumTileContent(
-                palette = palette,
-                contentScale = contentScale,
-                config = AudioSpectrumConfig.fromJson(tile.config)
-            )
+                    TileType.SETTINGS -> {
+                        val config = remember(tile.config) {
+                            AppLauncherConfig.fromJson(tile.config)
+                        }
+                        val imageFile = remember(config.imageUri) {
+                            config.imageUri?.let { File(it) }
+                        }
 
-            TileType.APP -> {
-                Text(
-                    text = tile.payload?.take(1)?.uppercase() ?: "?",
-                    color = palette.textPrimary,
-                    fontSize = (tileSize.value * 0.35f * contentScale).sp
-                )
-            }
-
-            TileType.ACTION -> {
-                Text(
-                    text = tile.payload ?: "?",
-                    color = palette.textPrimary,
-                    fontSize = (tileSize.value * 0.25f * contentScale).sp
-                )
-            }
-
-            TileType.APP_LAUNCHER -> {
-                AppLauncherContent(
-                    tile = tile,
-                    tileSize = tileSize,
-                    palette = palette,
-                    contentScale = contentScale,
-                    installedApps = installedApps,
-                    themedIcons = themedIcons
-                )
-            }
-
-            TileType.WIDGET -> {
-                when (tile.payload) {
-                    "ethereal_clock" -> ClockTileContent(tileSize, palette, contentScale)
-                    "ethereal_weather" -> WeatherTileContent(
-                        context = context,
-                        tile = tile,
-                        tileSize = tileSize,
-                        palette = palette,
-                        contentScale = contentScale
-                    )
-                    "ethereal_search" -> SearchTileContent(tileSize, palette, contentScale)
-                    "appwidget" -> {
-                        val widgetId = com.neytron.ethereal.widgets
-                            .EtherealAppWidgetHost.decodeWidgetId(tile.config)
-                        if (widgetId != null) {
-                            com.neytron.ethereal.widgets.WidgetHostView(
-                                appWidgetId = widgetId,
-                                frozen = isEditing,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(4.dp)
+                        if (imageFile != null && imageFile.exists()) {
+                            AsyncImage(
+                                model = imageFile,
+                                contentDescription = stringResource(R.string.settings),
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
                             )
                         } else {
-                            Text(
-                                text = "?",
+                            Image(
+                                painter = painterResource(id = R.drawable.settings_24dp),
+                                contentDescription = stringResource(R.string.widget_icon_settings_description),
+                                colorFilter = ColorFilter.tint(palette.textPrimary),
+                                modifier = Modifier.size((tileSize.value * 0.5f * contentScale).dp)
+                            )
+                        }
+                    }
+
+                    TileType.EQUALIZER -> AudioSpectrumTileContent(
+                        palette = palette,
+                        contentScale = contentScale,
+                        config = AudioSpectrumConfig.fromJson(tile.config)
+                    )
+
+                    TileType.APP -> {
+                        Text(
+                            text = tile.payload?.take(1)?.uppercase() ?: "?",
+                            color = palette.textPrimary,
+                            fontSize = (tileSize.value * 0.35f * contentScale).sp
+                        )
+                    }
+
+                    TileType.ACTION -> {
+                        Text(
+                            text = tile.payload ?: "?",
+                            color = palette.textPrimary,
+                            fontSize = (tileSize.value * 0.25f * contentScale).sp
+                        )
+                    }
+
+                    TileType.APP_LAUNCHER -> {
+                        AppLauncherContent(
+                            tile = tile,
+                            tileSize = tileSize,
+                            palette = palette,
+                            contentScale = contentScale,
+                            installedApps = installedApps,
+                            themedIcons = themedIcons
+                        )
+                    }
+
+                    TileType.WIDGET -> {
+                        when (tile.payload) {
+                            "ethereal_clock" -> ClockTileContent(tileSize, palette, contentScale)
+                            "ethereal_weather" -> WeatherTileContent(
+                                context = context,
+                                tile = tile,
+                                tileSize = tileSize,
+                                palette = palette,
+                                contentScale = contentScale
+                            )
+                            "ethereal_search" -> SearchTileContent(tileSize, palette, contentScale)
+                            "appwidget" -> {
+                                val widgetId = EtherealAppWidgetHost.decodeWidgetId(tile.config)
+                                if (widgetId != null) {
+                                    WidgetHostView(
+                                        appWidgetId = widgetId,
+                                        frozen = isEditing,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(4.dp)
+                                    )
+                                } else {
+                                    Text(
+                                        text = "?",
+                                        color = palette.textSecondary,
+                                        fontSize = (tileSize.value * 0.3f * contentScale).sp
+                                    )
+                                }
+                            }
+                            else -> Text(
+                                text = "W",
                                 color = palette.textSecondary,
                                 fontSize = (tileSize.value * 0.3f * contentScale).sp
                             )
                         }
                     }
-                    else -> Text(
-                        text = "W",
-                        color = palette.textSecondary,
-                        fontSize = (tileSize.value * 0.3f * contentScale).sp
-                    )
-                }
-            }
 
-            TileType.SPACE -> {
-                val config = remember(tile.config) {
-                    SpaceConfig.fromJson(tile.config)
+                    TileType.SPACE -> {
+                        val config = remember(tile.config) {
+                            SpaceConfig.fromJson(tile.config)
+                        }
+                        SpaceTileContent(
+                            config = config,
+                            tileSize = tileSize,
+                            palette = palette,
+                            contentScale = contentScale
+                        )
+                    }
                 }
-                SpaceTileContent(
-                    config = config,
-                    tileSize = tileSize,
-                    palette = palette,
-                    contentScale = contentScale
-                )
             }
         }
 
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(tile.id, tile.clickable, isEditing) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+
+                        if (currentEditorState.value.resizingTile.value != null) return@awaitEachGesture
+
+                        val isEditingNow = currentEditorState.value.editing.value
+                        var dragStarted = false
+                        var totalDrag = Offset.Zero
+                        var isTap = false
+
+                        if (isEditingNow) {
+                            try {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id }
+                                    if (change == null || !change.pressed) {
+                                        if (!dragStarted) {
+                                            isTap = true
+                                        }
+                                        break
+                                    }
+                                    if (currentEditorState.value.resizingTile.value != null) {
+                                        break
+                                    }
+                                    val delta = change.position - change.previousPosition
+                                    if (delta != Offset.Zero) {
+                                        totalDrag += delta
+                                        if (!dragStarted && totalDrag.getDistance() > viewConfiguration.touchSlop) {
+                                            dragStarted = true
+                                            currentOnDragStart.value(currentTile.value)
+                                        }
+                                        if (dragStarted) {
+                                            currentOnDrag.value(totalDrag)
+                                            change.consume()
+                                        }
+                                    }
+                                }
+                                if (dragStarted) {
+                                    currentOnDragEnd.value()
+                                } else if (isTap) {
+                                    if (currentEditorState.value.resizingTile.value == null) {
+                                        currentOnClick.value(launchCoordinates?.screenBounds(rootView))
+                                    }
+                                }
+                            } catch (_: Exception) {
+                                if (dragStarted) currentOnDragEnd.value()
+                            }
+                        } else {
+                            var moved = false
+                            val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id }
+                                    if (change == null || !change.pressed) break
+                                    if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                                        moved = true
+                                        break
+                                    }
+                                }
+                                false
+                            } ?: true
+
+                            if (longPressed) {
+                                contextMenuExpanded = true
+                                currentOnLongClick.value()
+                                try {
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        val change = event.changes.firstOrNull { it.id == down.id }
+                                        if (change == null || !change.pressed) break
+                                        val delta = change.position - change.previousPosition
+                                        if (delta != Offset.Zero) {
+                                            totalDrag += delta
+                                            if (!dragStarted && totalDrag.getDistance() > viewConfiguration.touchSlop) {
+                                                dragStarted = true
+                                                contextMenuExpanded = false
+                                                if (!currentEditorState.value.editing.value) {
+                                                    currentEditorState.value.enterEdit()
+                                                }
+                                                currentOnDragStart.value(currentTile.value)
+                                            }
+                                            if (dragStarted) {
+                                                currentOnDrag.value(totalDrag)
+                                                change.consume()
+                                            }
+                                        }
+                                    }
+                                    if (dragStarted) {
+                                        currentOnDragEnd.value()
+                                    }
+                                } catch (_: Exception) {
+                                    if (dragStarted) currentOnDragEnd.value()
+                                }
+                            } else if (!moved && tile.clickable) {
+                                currentOnClick.value(launchCoordinates?.screenBounds(rootView))
+                            }
+                        }
+                    }
+                }
+        )
+
+        var resizeCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
+        if (isEditing && canResizeTile) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(topStart = 10.dp, bottomEnd = radius))
+                    .background(
+                        if (showResizeIndicator) Color(0xFFE53935).copy(alpha = 0.45f)
+                        else Color.Transparent
+                    )
+                    .border(
+                        1.dp,
+                        if (showResizeIndicator) Color(0xFFE53935).copy(alpha = 0.8f)
+                        else Color.Transparent,
+                        RoundedCornerShape(topStart = 10.dp, bottomEnd = radius)
+                    )
+                    .onGloballyPositioned { resizeCoordinates = it }
+                    .pointerInput(tile.id) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            down.consume()
+                            currentOnResizeStart.value(currentTile.value)
+                            val startRoot = resizeCoordinates?.localToRoot(down.position) ?: Offset.Zero
+                            try {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id }
+                                    if (change == null || !change.pressed) {
+                                        break
+                                    }
+                                    val currentRoot = resizeCoordinates?.localToRoot(change.position) ?: Offset.Zero
+                                    val totalDrag = currentRoot - startRoot
+                                    currentOnResize.value(currentTile.value, totalDrag)
+                                    change.consume()
+                                }
+                            } finally {
+                                currentOnResizeEnd.value()
+                            }
+                        }
+                    }
+            )
+        }
+
+        Box(Modifier.align(Alignment.TopEnd)) {
+            DropdownMenu(
+                expanded = contextMenuExpanded,
+                onDismissRequest = { contextMenuExpanded = false }
+            ) {
+                if (appPackage != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.esearch_app_info)) },
+                        onClick = {
+                            contextMenuExpanded = false
+                            context.startActivity(
+                                Intent(
+                                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    Uri.parse("package:$appPackage")
+                                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    )
+                }
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.tile_delete_tile)) },
+                    onClick = {
+                        contextMenuExpanded = false
+                        currentOnDeleteTile.value(tile)
+                    }
+                )
+                if (appPackage != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.tile_uninstall_app)) },
+                        onClick = {
+                            contextMenuExpanded = false
+                            context.startActivity(
+                                Intent(
+                                    Intent.ACTION_DELETE,
+                                    Uri.parse("package:$appPackage")
+                                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -512,4 +728,30 @@ private fun SearchTileContent(tileSize: Dp, palette: EtherealPalette, contentSca
             fontSize = (tileSize.value * 0.22f * contentScale).sp
         )
     }
+}
+
+private fun Modifier.resizeCornerIndicator(
+    isEditing: Boolean,
+    canResize: Boolean,
+    palette: EtherealPalette,
+    radius: Dp
+): Modifier = if (isEditing && canResize) {
+    this.drawWithCache {
+        val radiusPx = radius.toPx()
+        val strokeWidth = 3.dp.toPx()
+        onDrawWithContent {
+            drawContent()
+            drawArc(
+                color = palette.primary,
+                startAngle = 0f,
+                sweepAngle = 90f,
+                useCenter = false,
+                topLeft = Offset(size.width - radiusPx * 2f, size.height - radiusPx * 2f),
+                size = Size(radiusPx * 2f, radiusPx * 2f),
+                style = Stroke(width = strokeWidth)
+            )
+        }
+    }
+} else {
+    this
 }

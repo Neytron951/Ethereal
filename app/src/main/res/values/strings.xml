@@ -50,6 +50,8 @@
     <string name="tile_action">Action</string>
     <string name="tile_tile">Tile</string>
     <string name="tile_space">Space</string>
+    <string name="tile_delete_tile">Delete tile</string>
+    <string name="tile_uninstall_app">Uninstall app</string>
     <string name="tile_size_format">%1$d×%2$d</string>
     <string name="tile_size_locked_format">%1$d×%2$d • system</string>
 
@@ -138,6 +140,8 @@
     <string name="settings_tile_spacing_subtitle">Gap between cells</string>
     <string name="settings_tile_radius">Corner radius</string>
     <string name="settings_tile_radius_subtitle">Tile corner rounding</string>
+    <string name="settings_resize_indicator">Resize indicator</string>
+    <string name="settings_resize_indicator_subtitle">Fun fact: this thing helped development more than Debug Mode.</string>
     <string name="settings_reset_tiles">Reset tiles</string>
 
     <!-- Settings: ESearch -->

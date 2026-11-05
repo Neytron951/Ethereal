@@ -73,6 +73,7 @@ object BackupRepository {
                 put("tile_spacing", SettingsRepository.getTileSpacing(context))
                 put("tile_radius", SettingsRepository.getTileRadius(context))
                 put("tile_columns", SettingsRepository.getTileColumns(context))
+                put("resize_indicator_enabled", SettingsRepository.getResizeIndicatorEnabled(context))
 
                 put("wallpaper_scale_mode", SettingsRepository.getWallpaperScaleMode(context))
                 put("analytics_enabled", SettingsRepository.getAnalyticsEnabled(context))
@@ -558,7 +559,7 @@ object BackupRepository {
         val booleanKeys = listOf(
             "dock_use_override", "dock_scrollable", "dock_show_icon_bg",
             "dock_themed_icons", "esearch_use_override", "esearch_auto_keyboard",
-            "analytics_enabled"
+            "analytics_enabled", "resize_indicator_enabled"
         )
         booleanKeys.forEach { key ->
             if (settings.has(key)) require(settings.get(key) is Boolean) { "Invalid setting: $key" }
@@ -625,7 +626,8 @@ object BackupRepository {
             "dock_themed_icons" to "dock_themed_icons",
             "esearch_use_override" to "esearch_use_override",
             "esearch_auto_keyboard" to "esearch_auto_keyboard",
-            "analytics_enabled" to "analytics_enabled"
+            "analytics_enabled" to "analytics_enabled",
+            "resize_indicator_enabled" to "resize_indicator_enabled"
         )
         booleans.forEach { (source, target) ->
             if (settings.has(source)) editor.putBoolean(target, settings.getBoolean(source))

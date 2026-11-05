@@ -196,6 +196,7 @@ fun EtherealApp() {
     var tileSize by remember { mutableStateOf(SettingsRepository.getTileSize(context)) }
     var tileSpacing by remember { mutableStateOf(SettingsRepository.getTileSpacing(context)) }
     var tileRadius by remember { mutableStateOf(SettingsRepository.getTileRadius(context)) }
+    var resizeIndicatorEnabled by remember { mutableStateOf(SettingsRepository.getResizeIndicatorEnabled(context)) }
 
     var searchVisible by remember { mutableStateOf(false) }
     var pendingAppLaunch by remember { mutableStateOf<AppLaunchAnimationRequest?>(null) }
@@ -768,6 +769,7 @@ fun EtherealApp() {
                     dockBottomPaddingDp = dockBottomPadding,
                     installedApps = apps,
                     themedIcons = dockThemedIcons,
+                    showResizeIndicator = resizeIndicatorEnabled,
                     isDockEnabled = dockPackages.isNotEmpty(),
                     tiles = tiles,
                     onTilesChange = { newTiles ->
@@ -1105,6 +1107,7 @@ fun EtherealApp() {
                         tileSize = tileSize,
                         tileSpacing = tileSpacing,
                         tileRadius = tileRadius,
+                        resizeIndicatorEnabled = resizeIndicatorEnabled,
                         onTileSizeChange = { v ->
                             tileSize = v
                             SettingsRepository.setTileSize(context, v)
@@ -1120,6 +1123,10 @@ fun EtherealApp() {
                         onTileRadiusChange = { v ->
                             tileRadius = v
                             SettingsRepository.setTileRadius(context, v)
+                        },
+                        onResizeIndicatorEnabledChange = { v ->
+                            resizeIndicatorEnabled = v
+                            SettingsRepository.setResizeIndicatorEnabled(context, v)
                         },
                         onResetTiles = {
                             TileLayoutRepository.resetToDefault(context, currentSpaceId)

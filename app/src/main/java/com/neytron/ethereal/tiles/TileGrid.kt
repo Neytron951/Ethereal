@@ -1,11 +1,14 @@
 package com.neytron.ethereal.tiles
 
 import android.graphics.Rect
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -33,6 +36,7 @@ fun TileGrid(
     editorState: TileEditorState,
     installedApps: List<AppInfo>,
     themedIcons: Boolean,
+    showResizeIndicator: Boolean = false,
     introReveal: Boolean = false,
     isIntroActive: Boolean = false,
     isTransitioning: Boolean = false,
@@ -47,25 +51,33 @@ fun TileGrid(
     onDragStart: (Tile) -> Unit = {},
     onDrag: (Offset) -> Unit = {},
     onDragEnd: () -> Unit = {},
+    onResizeStart: (Tile) -> Unit = {},
+    onResize: (Tile, Offset) -> Unit = { _, _ -> },
+    onResizeEnd: () -> Unit = {},
+    onDeleteTile: (Tile) -> Unit = {},
     onEmptyTap: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isEditing = editorState.editing.value
-    val visibleTiles = tiles.filter { it.y < rows }
-    val displayIncomingTiles = if (isTransitioning) incomingTiles.filter { it.y < rows } else visibleTiles
+    val resizePreviewTiles = editorState.resizePreviewTiles.value
+    val displayedTiles = (resizePreviewTiles ?: tiles).filter { it.y < rows }
+    val displayIncomingTiles = if (isTransitioning) incomingTiles.filter { it.y < rows } else displayedTiles
     val cellSize = tileSize + spacing
     val totalWidth = cellSize * columns - spacing
     val totalHeight = cellSize * rows - spacing
 
-    val occupied: Array<BooleanArray> = remember(visibleTiles, columns, rows) {
+    val dragging = editorState.draggingTile.value
+    val occupied: Array<BooleanArray> = remember(displayedTiles, columns, rows, dragging) {
         Array(rows) { BooleanArray(columns) { false } }.also { mask ->
-            visibleTiles.forEach { tile ->
-                for (dy in 0 until tile.h) {
-                    for (dx in 0 until tile.w) {
-                        val y = tile.y + dy
-                        val x = tile.x + dx
-                        if (y in 0 until rows && x in 0 until columns) {
-                            mask[y][x] = true
+            displayedTiles.forEach { tile ->
+                if (dragging == null || tile.id != dragging.id) {
+                    for (dy in 0 until tile.h) {
+                        for (dx in 0 until tile.w) {
+                            val y = tile.y + dy
+                            val x = tile.x + dx
+                            if (y in 0 until rows && x in 0 until columns) {
+                                mask[y][x] = true
+                            }
                         }
                     }
                 }
@@ -103,6 +115,24 @@ fun TileGrid(
                 }
             }
 
+            // Тень (footprint) целевой позиции при перетаскивании
+            if (isEditing && dragging != null && editorState.targetCell.value != null) {
+                val target = editorState.targetCell.value!!
+                val targetX = cellSize * target.first
+                val targetY = cellSize * target.second
+                val targetW = cellSize * dragging.w - spacing
+                val targetH = cellSize * dragging.h - spacing
+
+                Box(
+                    modifier = Modifier
+                        .offset(x = targetX, y = targetY)
+                        .size(width = targetW, height = targetH)
+                        .clip(RoundedCornerShape(radius))
+                        .background(palette.primary.copy(alpha = 0.22f))
+                        .border(1.5.dp, palette.primary, RoundedCornerShape(radius))
+                )
+            }
+
             if (isTransitioning) {
                 if (isPop) {
                     // POP: Старые тайлы втягиваются в pivot
@@ -130,6 +160,7 @@ fun TileGrid(
                                     editorState = editorState,
                                     installedApps = installedApps,
                                     themedIcons = themedIcons,
+                                    showResizeIndicator = showResizeIndicator,
                                     onClick = { },
                                     onLongClick = {},
                                     onDragStart = {},
@@ -169,6 +200,7 @@ fun TileGrid(
                                     editorState = editorState,
                                     installedApps = installedApps,
                                     themedIcons = themedIcons,
+                                    showResizeIndicator = showResizeIndicator,
                                     onClick = { },
                                     onLongClick = {},
                                     onDragStart = {},
@@ -208,6 +240,7 @@ fun TileGrid(
                                     editorState = editorState,
                                     installedApps = installedApps,
                                     themedIcons = themedIcons,
+                                    showResizeIndicator = showResizeIndicator,
                                     onClick = { },
                                     onLongClick = {},
                                     onDragStart = {},
@@ -247,6 +280,7 @@ fun TileGrid(
                                     editorState = editorState,
                                     installedApps = installedApps,
                                     themedIcons = themedIcons,
+                                    showResizeIndicator = showResizeIndicator,
                                     onClick = { },
                                     onLongClick = {},
                                     onDragStart = {},
@@ -263,8 +297,30 @@ fun TileGrid(
                 }
             } else {
                 // Тайлы в обычном режиме
-                visibleTiles.forEach { tile ->
+                val displacedTileIds = editorState.displacedTileIds.value
+                displayedTiles.forEach { tile ->
+                    val originalTile = tiles.firstOrNull { it.id == tile.id }
+                    val movedByResize = resizePreviewTiles != null &&
+                        originalTile != null &&
+                        (originalTile.x != tile.x || originalTile.y != tile.y)
+                    val isDisplacedNeighbor = displacedTileIds.contains(tile.id)
+                    val animSpec = if (isDisplacedNeighbor) {
+                        tween<Dp>(durationMillis = 140)
+                    } else {
+                        tween<Dp>(durationMillis = 0)
+                    }
+
                     key(tile.id) {
+                        val tileX by animateDpAsState(
+                            targetValue = cellSize * tile.x,
+                            animationSpec = animSpec,
+                            label = "resizePreviewX"
+                        )
+                        val tileY by animateDpAsState(
+                            targetValue = cellSize * tile.y,
+                            animationSpec = animSpec,
+                            label = "resizePreviewY"
+                        )
                         TileCell(
                             tile = tile,
                             tileSize = tileSize,
@@ -274,7 +330,8 @@ fun TileGrid(
                             editorState = editorState,
                             installedApps = installedApps,
                             themedIcons = themedIcons,
-                            isTargetCell = isTargetCell(tile, editorState),
+                            showResizeIndicator = showResizeIndicator,
+                            isTargetCell = movedByResize || isTargetCell(tile, editorState),
                             introReveal = introReveal,
                             isIntroActive = isIntroActive,
                             onClick = { bounds -> onTileClick(tile, bounds) },
@@ -282,9 +339,13 @@ fun TileGrid(
                             onDragStart = onDragStart,
                             onDrag = onDrag,
                             onDragEnd = onDragEnd,
+                            onResizeStart = onResizeStart,
+                            onResize = onResize,
+                            onResizeEnd = onResizeEnd,
+                            onDeleteTile = onDeleteTile,
                             modifier = Modifier.offset(
-                                x = cellSize * tile.x,
-                                y = cellSize * tile.y
+                                x = tileX,
+                                y = tileY
                             )
                         )
                     }
