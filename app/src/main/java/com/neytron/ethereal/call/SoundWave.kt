@@ -27,27 +27,31 @@ fun SoundWave(
     holding: Boolean = false,
     mirrored: Boolean = false,
     seed: Int = 0,
+    audioSpectrum: List<Float>? = null,
+    audioGain: Float = 1f,
     modifier: Modifier = Modifier
 ) {
     // === Настройки физики ===
-    val pointCount = 26
+    val pointCount = if (audioSpectrum != null) 72 else 26
     val smoothness = 0.22f
     val headSmooth = 0.28f
     val noiseAmplitude = 0.10f
 
     val rng = remember(seed) { kotlin.random.Random(seed * 31 + 7) }
 
-    val phases = remember(seed) {
+    val phases = remember(seed, pointCount) {
         List(pointCount) { rng.nextFloat() * (2f * Math.PI.toFloat()) }
     }
-    val speeds = remember(seed) {
+    val speeds = remember(seed, pointCount) {
         List(pointCount) { 0.6f + rng.nextFloat() * 0.8f }
     }
 
     // positions = отклонение ВНУТРЬ, 0..1
-    val positions = remember(seed) {
+    val positions = remember(seed, pointCount) {
         MutableList(pointCount) { 0f }
     }
+    val currentAudioSpectrum by rememberUpdatedState(audioSpectrum)
+    val currentAudioGain by rememberUpdatedState(audioGain)
 
     // === Скорость анимации ===
     val tickMs = when {
@@ -58,7 +62,7 @@ fun SoundWave(
     }
 
     // === Драйвер анимации ===
-    LaunchedEffect(active, ringing, holding) {
+    LaunchedEffect(active, ringing, holding, pointCount) {
         val headRange = when {
             holding -> 0.10f
             ringing -> 0.95f
@@ -69,25 +73,44 @@ fun SoundWave(
         var time = 0f
 
         while (true) {
-            time += tickMs / 1000f
+            val spectrum = currentAudioSpectrum
+            val frameDelayMs = if (spectrum != null) 32L else tickMs
+            time += frameDelayMs / 1000f
+            if (spectrum != null && spectrum.isNotEmpty()) {
+                for (i in 0 until pointCount) {
+                    val bandPosition = i.toFloat() / (pointCount - 1) * (spectrum.size - 1)
+                    val lowerBand = bandPosition.toInt()
+                    val upperBand = (lowerBand + 1).coerceAtMost(spectrum.lastIndex)
+                    val fraction = bandPosition - lowerBand
+                    val localLevel = (
+                        spectrum[lowerBand] * (1f - fraction) +
+                            spectrum[upperBand] * fraction
+                    )
+                    val broadbandLevel = kotlin.math.sqrt(
+                        spectrum.sumOf { (it * it).toDouble() }.toFloat() / spectrum.size
+                    )
+                    val target = (
+                        localLevel * 0.85f + broadbandLevel * 0.15f
+                    ) * currentAudioGain
+                    val smoothing = if (holding) 0.76f else 0.48f
+                    positions[i] += (target.coerceIn(0f, 1f) - positions[i]) * smoothing
+                }
+            } else {
+                // Preserve the original free-floating animation outside audio-reactive scenes.
+                val head = positions[0]
+                val headTarget = rng.nextFloat() * headRange
+                positions[0] = head + (headTarget - head) * headSmooth
 
-            // 1) Голова
-            val head = positions[0]
-            val headTarget = rng.nextFloat() * headRange
-            positions[0] = head + (headTarget - head) * headSmooth
-
-            // 2) Остальные
-            for (i in 1 until pointCount) {
-                val prev = positions[i - 1]
-                val cur = positions[i]
-
-                val follow = cur + (prev - cur) * smoothness
-                val noise = sin(time * speeds[i] + phases[i]) * noiseAmplitude
-
-                positions[i] = (follow + noise).coerceIn(0f, 1f)
+                for (i in 1 until pointCount) {
+                    val prev = positions[i - 1]
+                    val cur = positions[i]
+                    val follow = cur + (prev - cur) * smoothness
+                    val noise = sin(time * speeds[i] + phases[i]) * noiseAmplitude
+                    positions[i] = (follow + noise).coerceIn(0f, 1f)
+                }
             }
 
-            delay(tickMs)
+            delay(frameDelayMs)
         }
     }
 
@@ -214,6 +237,8 @@ fun SoundWavePair(
     active: Boolean,
     ringing: Boolean,
     holding: Boolean,
+    audioSpectrum: List<Float>? = null,
+    audioGain: Float = 1f,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -224,11 +249,12 @@ fun SoundWavePair(
             holding = holding,
             mirrored = false,
             seed = 1,
+            audioSpectrum = audioSpectrum,
+            audioGain = audioGain,
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxHeight()
                 .width(56.dp)
-                .padding(vertical = 100.dp)
         )
 
         SoundWave(
@@ -238,11 +264,12 @@ fun SoundWavePair(
             holding = holding,
             mirrored = true,
             seed = 2,
+            audioSpectrum = audioSpectrum,
+            audioGain = audioGain,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
                 .width(56.dp)
-                .padding(vertical = 100.dp)
         )
     }
 }

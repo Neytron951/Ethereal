@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -209,6 +210,105 @@ fun TileCell(
                 IntOffset(offsetX.roundToInt(), offsetY.roundToInt())
             }
             .onGloballyPositioned { launchCoordinates = it }
+            .pointerInput(tile.id, tile.clickable, isEditing) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(
+                        requireUnconsumed = false,
+                        pass = PointerEventPass.Initial
+                    )
+
+                    if (currentEditorState.value.resizingTile.value != null) return@awaitEachGesture
+
+                    val isEditingNow = currentEditorState.value.editing.value
+                    var dragStarted = false
+                    var totalDrag = Offset.Zero
+                    var isTap = false
+
+                    if (isEditingNow) {
+                        try {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                if (change == null || !change.pressed) {
+                                    if (!dragStarted) isTap = true
+                                    break
+                                }
+                                if (currentEditorState.value.resizingTile.value != null) break
+                                val delta = change.position - change.previousPosition
+                                if (delta != Offset.Zero) {
+                                    totalDrag += delta
+                                    if (!dragStarted && totalDrag.getDistance() > viewConfiguration.touchSlop) {
+                                        dragStarted = true
+                                        currentOnDragStart.value(currentTile.value)
+                                    }
+                                    if (dragStarted) {
+                                        currentOnDrag.value(totalDrag)
+                                        change.consume()
+                                    }
+                                }
+                            }
+                            if (dragStarted) {
+                                currentOnDragEnd.value()
+                            } else if (isTap && currentEditorState.value.resizingTile.value == null) {
+                                currentOnClick.value(launchCoordinates?.screenBounds(rootView))
+                            }
+                        } catch (_: Exception) {
+                            if (dragStarted) currentOnDragEnd.value()
+                        }
+                    } else {
+                        var moved = false
+                        val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                if (change == null || !change.pressed) break
+                                if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                                    moved = true
+                                    break
+                                }
+                            }
+                            false
+                        } ?: true
+
+                        if (longPressed) {
+                            contextMenuExpanded = true
+                            currentOnLongClick.value()
+                            try {
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    val change = event.changes.firstOrNull { it.id == down.id }
+                                    if (change == null || !change.pressed) break
+                                    val delta = change.position - change.previousPosition
+                                    if (delta != Offset.Zero) {
+                                        totalDrag += delta
+                                        if (!dragStarted && totalDrag.getDistance() > viewConfiguration.touchSlop) {
+                                            dragStarted = true
+                                            contextMenuExpanded = false
+                                            if (!currentEditorState.value.editing.value) {
+                                                currentEditorState.value.enterEdit()
+                                            }
+                                            currentOnDragStart.value(currentTile.value)
+                                        }
+                                        if (dragStarted) {
+                                            currentOnDrag.value(totalDrag)
+                                            change.consume()
+                                        }
+                                    }
+                                }
+                                if (dragStarted) currentOnDragEnd.value()
+                            } catch (_: Exception) {
+                                if (dragStarted) currentOnDragEnd.value()
+                            }
+                        } else if (
+                            !moved &&
+                            tile.clickable &&
+                            !(tile.type == TileType.WIDGET && tile.payload == "appwidget")
+                        ) {
+                            currentOnClick.value(launchCoordinates?.screenBounds(rootView))
+                        }
+                    }
+                }
+            }
     ) {
         Box(
             modifier = Modifier
@@ -347,111 +447,6 @@ fun TileCell(
                 }
             }
         }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(tile.id, tile.clickable, isEditing) {
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-
-                        if (currentEditorState.value.resizingTile.value != null) return@awaitEachGesture
-
-                        val isEditingNow = currentEditorState.value.editing.value
-                        var dragStarted = false
-                        var totalDrag = Offset.Zero
-                        var isTap = false
-
-                        if (isEditingNow) {
-                            try {
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    val change = event.changes.firstOrNull { it.id == down.id }
-                                    if (change == null || !change.pressed) {
-                                        if (!dragStarted) {
-                                            isTap = true
-                                        }
-                                        break
-                                    }
-                                    if (currentEditorState.value.resizingTile.value != null) {
-                                        break
-                                    }
-                                    val delta = change.position - change.previousPosition
-                                    if (delta != Offset.Zero) {
-                                        totalDrag += delta
-                                        if (!dragStarted && totalDrag.getDistance() > viewConfiguration.touchSlop) {
-                                            dragStarted = true
-                                            currentOnDragStart.value(currentTile.value)
-                                        }
-                                        if (dragStarted) {
-                                            currentOnDrag.value(totalDrag)
-                                            change.consume()
-                                        }
-                                    }
-                                }
-                                if (dragStarted) {
-                                    currentOnDragEnd.value()
-                                } else if (isTap) {
-                                    if (currentEditorState.value.resizingTile.value == null) {
-                                        currentOnClick.value(launchCoordinates?.screenBounds(rootView))
-                                    }
-                                }
-                            } catch (_: Exception) {
-                                if (dragStarted) currentOnDragEnd.value()
-                            }
-                        } else {
-                            var moved = false
-                            val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    val change = event.changes.firstOrNull { it.id == down.id }
-                                    if (change == null || !change.pressed) break
-                                    if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
-                                        moved = true
-                                        break
-                                    }
-                                }
-                                false
-                            } ?: true
-
-                            if (longPressed) {
-                                contextMenuExpanded = true
-                                currentOnLongClick.value()
-                                try {
-                                    while (true) {
-                                        val event = awaitPointerEvent()
-                                        val change = event.changes.firstOrNull { it.id == down.id }
-                                        if (change == null || !change.pressed) break
-                                        val delta = change.position - change.previousPosition
-                                        if (delta != Offset.Zero) {
-                                            totalDrag += delta
-                                            if (!dragStarted && totalDrag.getDistance() > viewConfiguration.touchSlop) {
-                                                dragStarted = true
-                                                contextMenuExpanded = false
-                                                if (!currentEditorState.value.editing.value) {
-                                                    currentEditorState.value.enterEdit()
-                                                }
-                                                currentOnDragStart.value(currentTile.value)
-                                            }
-                                            if (dragStarted) {
-                                                currentOnDrag.value(totalDrag)
-                                                change.consume()
-                                            }
-                                        }
-                                    }
-                                    if (dragStarted) {
-                                        currentOnDragEnd.value()
-                                    }
-                                } catch (_: Exception) {
-                                    if (dragStarted) currentOnDragEnd.value()
-                                }
-                            } else if (!moved && tile.clickable) {
-                                currentOnClick.value(launchCoordinates?.screenBounds(rootView))
-                            }
-                        }
-                    }
-                }
-        )
 
         var resizeCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 

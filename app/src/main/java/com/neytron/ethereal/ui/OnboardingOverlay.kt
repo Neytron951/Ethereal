@@ -4,14 +4,18 @@ import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.media.SoundPool
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -68,6 +72,8 @@ import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.fontFamilyFor
 import com.neytron.ethereal.utils.toImageBitmap
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -93,8 +99,19 @@ fun OnboardingOverlay(
     val context = LocalContext.current
     var currentPhase by remember { mutableStateOf(OnboardingPhase.WIZARD) }
     var isFinishing by remember { mutableStateOf(false) }
+    var audioSpectrum by remember { mutableStateOf<List<Float>?>(null) }
+    var audioGain by remember { mutableFloatStateOf(0f) }
+    var isHolding by remember { mutableStateOf(false) }
 
-    OnboardingAudioPlayer(context = context, isFinishing = isFinishing)
+    OnboardingAudioPlayer(
+        context = context,
+        isFinishing = isFinishing,
+        isHolding = isHolding,
+        onSpectrumUpdate = { bands, gain ->
+            audioSpectrum = bands
+            audioGain = gain
+        }
+    )
 
     val handleComplete = {
         if (!isFinishing) {
@@ -102,8 +119,6 @@ fun OnboardingOverlay(
             onComplete()
         }
     }
-
-    var isHolding by remember { mutableStateOf(false) }
 
     AnimatedVisibility(
         visible = visible && !isFinishing,
@@ -120,7 +135,9 @@ fun OnboardingOverlay(
                 palette = palette,
                 active = true,
                 ringing = false,
-                holding = isHolding
+                holding = isHolding,
+                audioSpectrum = audioSpectrum,
+                audioGain = audioGain
             )
 
             when (currentPhase) {
@@ -226,63 +243,113 @@ private fun EtherealBackgroundAnimation(palette: EtherealPalette) {
 @Composable
 private fun OnboardingAudioPlayer(
     context: Context,
-    isFinishing: Boolean
+    isFinishing: Boolean,
+    isHolding: Boolean,
+    onSpectrumUpdate: (List<Float>, Float) -> Unit
 ) {
-    val mediaPlayerRef = remember { mutableStateOf<MediaPlayer?>(null) }
+    val soundPoolRef = remember { mutableStateOf<SoundPool?>(null) }
+    val streamIdRef = remember { mutableIntStateOf(0) }
+    val isFinishingState by rememberUpdatedState(isFinishing)
+    val onSpectrumUpdateState by rememberUpdatedState(onSpectrumUpdate)
+    var ambientSampleId by remember { mutableIntStateOf(0) }
+    var ambientStartedAt by remember { mutableLongStateOf(0L) }
+    var risingStartedAt by remember { mutableLongStateOf(0L) }
+    var ambientSpectrum by remember { mutableStateOf<OnboardingAudioSpectrum?>(null) }
+    var risingSpectrum by remember { mutableStateOf<OnboardingAudioSpectrum?>(null) }
+
+    LaunchedEffect(context) {
+        val spectra = withContext(Dispatchers.IO) {
+            decodeOnboardingAudioSpectrum(context, R.raw.onboarding_ambient) to
+                decodeOnboardingAudioSpectrum(context, R.raw.rising)
+        }
+        ambientSpectrum = spectra.first
+        risingSpectrum = spectra.second
+    }
 
     DisposableEffect(Unit) {
-        try {
-            var resId = context.resources.getIdentifier("onboarding_ambient", "raw", context.packageName)
-            if (resId == 0) {
-                resId = context.resources.getIdentifier("onboarding_bg", "raw", context.packageName)
+        val soundPool = SoundPool.Builder()
+            .setMaxStreams(1)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            .build()
+        soundPoolRef.value = soundPool
+        soundPool.setOnLoadCompleteListener { pool, sampleId, status ->
+            if (status != 0) {
+                Log.w("OnboardingAudio", "Could not load onboarding sample $sampleId (status $status)")
+            } else if (sampleId == ambientSampleId && !isFinishingState) {
+                streamIdRef.intValue = pool.play(sampleId, 0.7f, 0.7f, 1, -1, 1f)
+                ambientStartedAt = SystemClock.elapsedRealtime()
             }
-            if (resId == 0) {
-                resId = context.resources.getIdentifier("onboarding", "raw", context.packageName)
-            }
-
-            if (resId != 0) {
-                val player = MediaPlayer.create(context, resId)?.apply {
-                    isLooping = true
-                    setVolume(0.7f, 0.7f)
-                    start()
-                }
-                mediaPlayerRef.value = player
-            }
-        } catch (_: Exception) {}
+        }
+        ambientSampleId = soundPool.load(context, R.raw.onboarding_ambient, 1)
 
         onDispose {
-            try {
-                val player = mediaPlayerRef.value
-                mediaPlayerRef.value = null
-                if (player != null) {
-                    if (player.isPlaying) player.stop()
-                    player.release()
+            streamIdRef.intValue.takeIf { it != 0 }?.let { streamId ->
+                soundPoolRef.value?.stop(streamId)
+            }
+            soundPoolRef.value?.release()
+            soundPoolRef.value = null
+            streamIdRef.intValue = 0
+            ambientStartedAt = 0L
+            risingStartedAt = 0L
+        }
+    }
+
+    LaunchedEffect(isHolding) {
+        if (isHolding) {
+            risingStartedAt = SystemClock.elapsedRealtime()
+        } else {
+            risingStartedAt = 0L
+        }
+    }
+
+    LaunchedEffect(ambientSpectrum, risingSpectrum, ambientStartedAt, risingStartedAt, isHolding) {
+        while (true) {
+            val now = SystemClock.elapsedRealtime()
+            val rising = risingSpectrum
+            val risingStart = risingStartedAt
+            val ambient = ambientSpectrum
+            val ambientStart = ambientStartedAt
+            if (isHolding && rising != null && risingStart > 0L) {
+                val risingBands = rising.frameAt(now - risingStart)
+                val ambientBands = ambient?.takeIf { ambientStart > 0L }
+                    ?.frameAt(now - ambientStart)
+                val bands = FloatArray(risingBands.size) { index ->
+                    val ambientLevel = ambientBands?.getOrElse(index) { 0f } ?: 0f
+                    (ambientLevel * 0.55f + risingBands[index] * 0.95f).coerceIn(0f, 1f)
                 }
-            } catch (_: Exception) {}
+                onSpectrumUpdateState(bands.toList(), 1f)
+            } else if (ambient != null && ambientStart > 0L) {
+                val bands = ambient.frameAt(now - ambientStart).toList()
+                onSpectrumUpdateState(bands, 0.62f)
+            } else {
+                onSpectrumUpdateState(List(32) { 0f }, 0f)
+            }
+            delay(32)
         }
     }
 
     LaunchedEffect(isFinishing) {
         if (isFinishing) {
-            val player = mediaPlayerRef.value
-            if (player != null && player.isPlaying) {
+            val soundPool = soundPoolRef.value
+            val streamId = streamIdRef.intValue
+            if (soundPool != null && streamId != 0) {
                 val steps = 30
                 val fadeDurationMs = 1200L
                 val delayMs = fadeDurationMs / steps
 
                 for (i in steps downTo 0) {
                     val vol = i.toFloat() / steps * 0.7f
-                    try {
-                        player.setVolume(vol, vol)
-                    } catch (_: Exception) {}
+                    soundPool.setVolume(streamId, vol, vol)
                     delay(delayMs)
                 }
 
-                try {
-                    player.stop()
-                    player.release()
-                } catch (_: Exception) {}
-                mediaPlayerRef.value = null
+                soundPool.stop(streamId)
+                streamIdRef.intValue = 0
             }
         }
     }
@@ -1026,6 +1093,11 @@ private fun SeamlessExpandAndHoldScene(
 
     val tExpand = expandProgress.value
     val tSlide = slideUpProgress.value
+    val hintAlpha by animateFloatAsState(
+        targetValue = if (showHint) 1f else 0f,
+        animationSpec = tween(if (showHint) 500 else 300),
+        label = "hold_hint_alpha"
+    )
 
     val mainColor = palette.primary
 
@@ -1089,14 +1161,16 @@ private fun SeamlessExpandAndHoldScene(
                     }
                 )
 
-                AnimatedVisibility(
-                    visible = showHint,
-                    enter = fadeIn(animationSpec = tween(500)),
-                    exit = fadeOut(animationSpec = tween(300))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .padding(top = 20.dp),
+                    contentAlignment = Alignment.TopCenter
                 ) {
-                    Spacer(modifier = Modifier.height(20.dp))
                     Text(
                         text = stringResource(R.string.onboarding_press_and_hold),
+                        modifier = Modifier.graphicsLayer(alpha = hintAlpha),
                         color = palette.textSecondary.copy(alpha = 0.8f),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
@@ -1119,6 +1193,32 @@ private fun HoldToStartButton(
 
     var isHolding by remember { mutableStateOf(false) }
     var holdProgress by remember { mutableFloatStateOf(0f) }
+
+    DisposableEffect(isHolding, context) {
+        var player: MediaPlayer? = null
+
+        if (isHolding) {
+            player = MediaPlayer.create(context, R.raw.rising)?.apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                setVolume(1f, 1f)
+            }
+            player?.let { mediaPlayer ->
+                mediaPlayer.start()
+            }
+        }
+
+        onDispose {
+            player?.let {
+                if (it.isPlaying) it.pause()
+                it.release()
+            }
+        }
+    }
 
     LaunchedEffect(isHolding) {
         onHoldingChanged(isHolding)
