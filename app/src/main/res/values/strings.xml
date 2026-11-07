@@ -70,6 +70,8 @@
     <string name="editor_location_hint">Start typing city...</string>
     <string name="editor_app_choose">Choose application</string>
     <string name="editor_app_show_label">Show label</string>
+    <string name="editor_app_foreground_only">Show only foreground icon</string>
+    <string name="editor_app_foreground_only_subtitle">Hide the icon\'s background layer — only the logo stays (PNG icons have no layers)</string>
     <string name="editor_app_image">Custom image</string>
     <string name="editor_app_image_set">Set</string>
     <string name="editor_app_image_not_set">Not set</string>
@@ -313,6 +315,15 @@
     <string name="editor_border_accent">Accent Glow</string>
     <string name="editor_border_width">Border Width</string>
     <string name="editor_border_opacity">Border Opacity</string>
+    <string name="editor_texture_title">Background Texture</string>
+    <string name="editor_texture_none">None</string>
+    <string name="editor_texture_grain">Grain</string>
+    <string name="editor_texture_dots">Dots</string>
+    <string name="editor_texture_grid">Grid</string>
+    <string name="editor_texture_diagonal">Diagonal</string>
+    <string name="editor_texture_carbon">Carbon</string>
+    <string name="editor_texture_aurora">Aurora</string>
+    <string name="editor_texture_strength">Texture Intensity</string>
     <string name="day_sat">Sat</string>
     <string name="day_sun">Sun</string>
 
@@ -349,4 +360,34 @@
     <string name="update_button">Update</string>
     <string name="update_check_manual">Check for updates</string>
     <string name="update_checking">Checking...</string>
+
+    <!-- Grouped settings -->
+    <string name="settings_group_theme">Theme &amp; font</string>
+    <string name="settings_group_icons">Icons</string>
+    <string name="settings_group_panels">Panels</string>
+    <string name="settings_group_panels_subtitle">Glass effect shared by dock and tiles</string>
+    <string name="settings_group_grid">Grid</string>
+    <string name="settings_group_behaviour">Behaviour</string>
+    <string name="settings_group_search_panel">Search panel</string>
+    <string name="settings_group_layout">Layout</string>
+    <string name="settings_group_dock_geometry">Geometry</string>
+    <string name="settings_group_dock_look">Look</string>
+    <string name="editor_group_content">Content</string>
+    <string name="editor_group_background">Background</string>
+    <string name="editor_group_frame">Frame &amp; border</string>
+    <string name="editor_group_size">Size</string>
+
+    <!-- ESearch styles -->
+    <string name="settings_group_esearch_style">Style</string>
+    <string name="esearch_style_default">Classic list</string>
+    <string name="esearch_style_default_desc">Search field and a list of apps</string>
+    <string name="esearch_style_categories">Categories</string>
+    <string name="esearch_style_categories_desc">Best match, recent and all apps in sections</string>
+    <string name="esearch_style_grid">Icon grid</string>
+    <string name="esearch_style_grid_desc">Results as a grid of large icons</string>
+    <string name="esearch_style_compact">Compact</string>
+    <string name="esearch_style_compact_desc">Dense text list without icons</string>
+    <string name="esearch_section_best">Best match</string>
+    <string name="esearch_section_recent">Recent</string>
+    <string name="esearch_section_all">All apps</string>
 </resources>

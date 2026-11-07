@@ -36,6 +36,7 @@ import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.IconShape
 import com.neytron.ethereal.ui.theme.iconShapeFor
 import com.neytron.ethereal.utils.renderThemedIcon
+import com.neytron.ethereal.utils.toForegroundOnlyBitmap
 import com.neytron.ethereal.utils.tileBorder
 import com.neytron.ethereal.utils.toImageBitmap
 
@@ -208,9 +209,18 @@ fun createAppLaunchAnimationRequest(
     iconInsetDp: Float,
     showAccentHalo: Boolean,
     showSourceIcon: Boolean,
-    closeSearchOnFinish: Boolean
+    closeSearchOnFinish: Boolean,
+    foregroundOnlyIcon: Boolean = false
 ): AppLaunchAnimationRequest? =
-    (if (themedIcons) renderThemedIcon(app.icon, palette).asImageBitmap() else app.icon.toImageBitmap())
+    when {
+        themedIcons -> renderThemedIcon(
+            app.icon,
+            palette,
+            drawBackground = !foregroundOnlyIcon
+        ).asImageBitmap()
+        foregroundOnlyIcon -> app.icon.toForegroundOnlyBitmap()
+        else -> app.icon.toImageBitmap()
+    }
         ?.let { bitmap ->
         AppLaunchAnimationRequest(
             app,

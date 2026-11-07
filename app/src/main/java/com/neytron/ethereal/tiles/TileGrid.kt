@@ -61,7 +61,9 @@ fun TileGrid(
     val isEditing = editorState.editing.value
     val resizePreviewTiles = editorState.resizePreviewTiles.value
     val displayedTiles = (resizePreviewTiles ?: tiles).filter { it.y < rows }
-    val displayIncomingTiles = if (isTransitioning) incomingTiles.filter { it.y < rows } else displayedTiles
+    // Входящие плитки (переход между пространствами) не фильтруем по строкам:
+    // у соседнего пространства сетка может быть выше, и плитки бы «моргали» и пропадали.
+    val displayIncomingTiles = if (isTransitioning) incomingTiles else displayedTiles
     val cellSize = tileSize + spacing
     val totalWidth = cellSize * columns - spacing
     val totalHeight = cellSize * rows - spacing

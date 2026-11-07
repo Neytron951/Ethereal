@@ -69,6 +69,7 @@ import com.neytron.ethereal.data.UpdateInfo
 import com.neytron.ethereal.data.UpdateRepository
 import com.neytron.ethereal.data.WallpaperRepository
 import com.neytron.ethereal.tiles.Tile
+import com.neytron.ethereal.tiles.TileGridMetrics
 import com.neytron.ethereal.tiles.TileLayoutRepository
 import com.neytron.ethereal.tiles.TilesScreen
 import com.neytron.ethereal.tiles.TileType
@@ -189,6 +190,7 @@ fun EtherealApp() {
     var esearchWidth by remember { mutableStateOf(SettingsRepository.getESearchWidth(context)) }
     var esearchVisibleItems by remember { mutableStateOf(SettingsRepository.getESearchVisibleItems(context)) }
     var esearchAutoKeyboard by remember { mutableStateOf(SettingsRepository.getESearchAutoKeyboard(context)) }
+    var esearchStyle by remember { mutableStateOf(SettingsRepository.getESearchStyle(context)) }
     var esearchBorderStyle by remember { mutableStateOf(SettingsRepository.getESearchBorderStyle(context)) }
     var esearchBorderWidth by remember { mutableStateOf(SettingsRepository.getESearchBorderWidth(context)) }
     var esearchBorderOpacity by remember { mutableStateOf(SettingsRepository.getESearchBorderOpacity(context)) }
@@ -442,8 +444,24 @@ fun EtherealApp() {
         tileEditorState.exitEdit()
         tileEditorState.select(null)
 
+        // Сетка «по вместимости»: по ней в репозитории строится/чинится ландшафтная раскладка.
+        val grid = TileGridMetrics.compute(
+            availableWidthDp = TileGridMetrics.availableWidthDp(configuration.screenWidthDp.toFloat()),
+            availableHeightDp = TileGridMetrics.availableHeightDp(
+                screenHeightDp = configuration.screenHeightDp.toFloat(),
+                dockIconSizeDp = dockIconSize,
+                dockBottomPaddingDp = dockBottomPadding,
+                isLandscape = isLandscape
+            ),
+            desiredTileSizeDp = tileSize,
+            spacingDp = tileSpacing,
+            isLandscape = isLandscape,
+            layoutColumns = 0,
+            layoutRows = 0
+        )
+
         tiles = withContext(Dispatchers.IO) {
-            TileLayoutRepository.getTiles(context, currentSpaceId, isLandscape)
+            TileLayoutRepository.getTiles(context, currentSpaceId, isLandscape, grid)
         }
         if (isSetupCompleted && !hasAnimatedStartup) {
             hasAnimatedStartup = true
@@ -582,6 +600,7 @@ fun EtherealApp() {
     )
 
     val esearchConfig = ESearchConfig(
+        style = esearchStyle,
         opacityOverride = if (esearchUseOverride) esearchOpacity else null,
         blurOverride = if (esearchUseOverride) esearchBlur else null,
         widthFraction = esearchWidth,
@@ -664,8 +683,8 @@ fun EtherealApp() {
 
     // === Ручная проверка обновлений (для кнопки в About) ===
     val updateScope = rememberCoroutineScope()
-    val launchApp: (String, android.graphics.Rect?, Boolean, Boolean, Boolean, Boolean, com.neytron.ethereal.tiles.TileStyle?, Float, Float) -> Unit = {
-        packageName, sourceBounds, showAccentHalo, showSourceIcon, closeSearchOnFinish, showIconBackground, tileStyle, iconContentScale, iconInsetDp ->
+    val launchApp: (String, android.graphics.Rect?, Boolean, Boolean, Boolean, Boolean, com.neytron.ethereal.tiles.TileStyle?, Float, Float, Boolean) -> Unit = {
+        packageName, sourceBounds, showAccentHalo, showSourceIcon, closeSearchOnFinish, showIconBackground, tileStyle, iconContentScale, iconInsetDp, foregroundOnlyIcon ->
         val app = apps.firstOrNull { it.packageName == packageName }
         val animationRequest = if (app != null && sourceBounds != null) {
             createAppLaunchAnimationRequest(
@@ -685,7 +704,8 @@ fun EtherealApp() {
                 iconInsetDp = iconInsetDp,
                 showAccentHalo = showAccentHalo,
                 showSourceIcon = showSourceIcon,
-                closeSearchOnFinish = closeSearchOnFinish
+                closeSearchOnFinish = closeSearchOnFinish,
+                foregroundOnlyIcon = foregroundOnlyIcon
             )
         } else {
             null
@@ -789,8 +809,8 @@ fun EtherealApp() {
                         searchVisible = true
                         AnalyticsHelper.logESearchOpened(context)
                     },
-                    onLaunchApp = { packageName, sourceBounds, tileStyle, iconContentScale ->
-                        launchApp(packageName, sourceBounds, true, true, false, false, tileStyle, iconContentScale, 0f)
+                    onLaunchApp = { packageName, sourceBounds, tileStyle, iconContentScale, foregroundOnlyIcon ->
+                        launchApp(packageName, sourceBounds, true, true, false, false, tileStyle, iconContentScale, 0f, foregroundOnlyIcon)
                     },
                     editorState = tileEditorState,
                     currentSpaceId = currentSpaceId,
@@ -821,7 +841,7 @@ fun EtherealApp() {
                         palette = palette,
                         onAppClick = { app, sourceBounds ->
                             SettingsRepository.recordLaunch(context, app.packageName)
-                            launchApp(app.packageName, sourceBounds, true, true, false, dockShowIconBackground, null, 1f, 4f)
+                            launchApp(app.packageName, sourceBounds, true, true, false, dockShowIconBackground, null, 1f, 4f, false)
                         },
                         showPresets = showPresetsInDock,
                         presets = defaultPresets(),
@@ -888,7 +908,7 @@ fun EtherealApp() {
                     palette = palette,
                     onAppClick = { app, sourceBounds ->
                         SettingsRepository.recordLaunch(context, app.packageName)
-                        launchApp(app.packageName, sourceBounds, false, true, true, false, null, 1f, 0f)
+                        launchApp(app.packageName, sourceBounds, false, true, true, false, null, 1f, 0f, false)
                         isIntroRoulette = false
                         isIntroActive = false
                     },
@@ -1005,6 +1025,7 @@ fun EtherealApp() {
                         esearchWidth = esearchWidth,
                         esearchVisibleItems = esearchVisibleItems,
                         esearchAutoKeyboard = esearchAutoKeyboard,
+                        esearchStyle = esearchStyle,
                         esearchBorderStyle = esearchBorderStyle,
                         esearchBorderWidth = esearchBorderWidth,
                         esearchBorderOpacity = esearchBorderOpacity,
@@ -1031,6 +1052,10 @@ fun EtherealApp() {
                         onESearchAutoKeyboardChange = { v ->
                             esearchAutoKeyboard = v
                             SettingsRepository.setESearchAutoKeyboard(context, v)
+                        },
+                        onESearchStyleChange = { v ->
+                            esearchStyle = v
+                            SettingsRepository.setESearchStyle(context, v)
                         },
                         onESearchBorderStyleChange = { v ->
                             esearchBorderStyle = v

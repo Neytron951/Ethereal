@@ -40,12 +40,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
@@ -55,9 +57,9 @@ import androidx.compose.ui.zIndex
 import com.neytron.ethereal.R
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.data.SettingsRepository
-import com.neytron.ethereal.ui.theme.FrostedGlassBox
 import com.neytron.ethereal.tiles.TilePreset
 import com.neytron.ethereal.ui.theme.EtherealPalette
+import com.neytron.ethereal.ui.theme.FrostedGlassBox
 import com.neytron.ethereal.ui.theme.IconShape
 import com.neytron.ethereal.ui.theme.LocalAppearance
 import com.neytron.ethereal.ui.theme.LocalDockConfig
@@ -94,8 +96,12 @@ fun DockBar(
     val baseIconSize = config.iconSizeDp.dp
     val iconSize = if (isLandscape) (baseIconSize * 0.75f).coerceAtLeast(24.dp) else baseIconSize
     val itemCount = if (showPresets) presets.size else apps.size
-    val spacing = if (itemCount >= 5) 6.dp else 8.dp
-    val horizontalPadding = if (itemCount >= 5) 12.dp else 16.dp
+    val spacing = when {
+        itemCount >= 6 -> 4.dp
+        itemCount >= 5 -> 6.dp
+        else -> 8.dp
+    }
+    val horizontalPadding = if (itemCount >= 5) 8.dp else 12.dp
 
     var order by remember {
         val savedOrder = SettingsRepository.getDockOrder(context)
@@ -208,13 +214,6 @@ private fun AppsRow(
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetX by remember { mutableStateOf(0f) }
     val density = LocalDensity.current
-    val stepPx = with(density) { (iconSize + spacing).toPx() }
-
-    val targetIndex: Int? = if (draggingIndex == null || order.isEmpty()) null else {
-        val from = draggingIndex!!
-        val shift = (dragOffsetX / stepPx).roundToInt().coerceIn(-order.size, order.size)
-        (from + shift).coerceIn(0, order.size - 1)
-    }
 
     val rowModifier = if (config.scrollable) {
         Modifier.horizontalScroll(scrollState, enabled = draggingIndex == null)
@@ -222,53 +221,93 @@ private fun AppsRow(
         Modifier
     }
 
-    Row(
-        modifier = rowModifier,
-        horizontalArrangement = Arrangement.spacedBy(spacing, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        order.forEachIndexed { index, app ->
-            key(app.packageName) {
-                DockItem(
-                    app = app,
-                    index = index,
-                    palette = palette,
-                    iconSize = iconSize,
-                    spacing = spacing,
-                    iconShape = config.iconShape,
-                    draggingIndex = draggingIndex,
-                    themedIcons = config.themedIcons,
-                    showBackground = config.showIconBackground,
-                    targetIndex = targetIndex,
-                    dragOffsetX = dragOffsetX,
-                    introFlyIn = introFlyIn,
-                    onClick = { bounds -> onAppClick(app, bounds) },
-                    onDragStart = { i ->
-                        draggingIndex = i
-                        dragOffsetX = 0f
-                    },
-                    onDrag = { amount -> dragOffsetX += amount },
-                    onDragEnd = { finalOffset ->
-                        val from = draggingIndex
-                        if (from != null && order.isNotEmpty()) {
-                            val shift = (finalOffset / stepPx).roundToInt().coerceIn(-order.size, order.size)
-                            val to = (from + shift).coerceIn(0, order.size - 1)
-                            if (to != from && from in order.indices && to in order.indices) {
-                                val newOrder = order.toMutableList().apply {
-                                    val item = removeAt(from)
-                                    add(to, item)
+    BoxWithConstraints(modifier = rowModifier) {
+        val availablePx = if (config.scrollable) Int.MAX_VALUE else constraints.maxWidth
+        val baseCellPx = with(density) { iconSize.toPx() }
+        val baseGapPx = with(density) { spacing.toPx() }
+        val count = order.size
+        val naturalPx = count * baseCellPx + (count - 1).coerceAtLeast(0) * baseGapPx
+
+        // Если ряд шире доступного места, уменьшаем его целиком (иконки и пазы
+        // пропорционально). Так все промежутки остаются одинаковыми, ничего не
+        // вылезает за экран и последняя иконка не «съедает» свой паз.
+        val fitScale = if (!config.scrollable && availablePx > 0 && naturalPx > availablePx) {
+            availablePx / naturalPx
+        } else {
+            1f
+        }
+        val cellPx = (baseCellPx * fitScale).toInt().coerceAtLeast(1)
+        val gapPx = (baseGapPx * fitScale).toInt().coerceAtLeast(0)
+        val cellSize = with(density) { cellPx.toDp() }
+        val cellGap = with(density) { gapPx.toDp() }
+        val stepPx = cellPx + gapPx
+
+        val targetIndex: Int? = if (draggingIndex == null || order.isEmpty()) null else {
+            val from = draggingIndex!!
+            val shift = (dragOffsetX / stepPx).roundToInt().coerceIn(-order.size, order.size)
+            (from + shift).coerceIn(0, order.size - 1)
+        }
+
+        Layout(
+            content = {
+                order.forEachIndexed { index, app ->
+                    key(app.packageName) {
+                        DockItem(
+                            app = app,
+                            index = index,
+                            palette = palette,
+                            iconSize = cellSize,
+                            spacing = cellGap,
+                            iconShape = config.iconShape,
+                            draggingIndex = draggingIndex,
+                            themedIcons = config.themedIcons,
+                            showBackground = config.showIconBackground,
+                            targetIndex = targetIndex,
+                            dragOffsetX = dragOffsetX,
+                            introFlyIn = introFlyIn,
+                            onClick = { bounds -> onAppClick(app, bounds) },
+                            onDragStart = { i ->
+                                draggingIndex = i
+                                dragOffsetX = 0f
+                            },
+                            onDrag = { amount -> dragOffsetX += amount },
+                            onDragEnd = { finalOffset ->
+                                val from = draggingIndex
+                                if (from != null && order.isNotEmpty()) {
+                                    val shift = (finalOffset / stepPx).roundToInt().coerceIn(-order.size, order.size)
+                                    val to = (from + shift).coerceIn(0, order.size - 1)
+                                    if (to != from && from in order.indices && to in order.indices) {
+                                        val newOrder = order.toMutableList().apply {
+                                            val item = removeAt(from)
+                                            add(to, item)
+                                        }
+                                        onOrderChange(newOrder)
+                                        SettingsRepository.setDockOrder(context, newOrder.map { it.packageName })
+                                    }
                                 }
-                                onOrderChange(newOrder)
-                                SettingsRepository.setDockOrder(context, newOrder.map { it.packageName })
+                                draggingIndex = null
+                                dragOffsetX = 0f
                             }
-                        }
-                        draggingIndex = null
-                        dragOffsetX = 0f
+                        )
                     }
-                )
+                }
+            }
+        ) { measurables, layoutConstraints ->
+            val placeables = measurables.map { it.measure(Constraints.fixed(cellPx, cellPx)) }
+            val rowWidth = if (placeables.isEmpty()) 0
+            else cellPx * placeables.size + gapPx * (placeables.size - 1)
+            val rowHeight = placeables.maxOfOrNull { it.height } ?: 0
+            layout(
+                width = rowWidth.coerceIn(layoutConstraints.minWidth, layoutConstraints.maxWidth),
+                height = rowHeight.coerceIn(layoutConstraints.minHeight, layoutConstraints.maxHeight)
+            ) {
+                placeables.forEachIndexed { index, placeable ->
+                    placeable.placeRelative(index * stepPx, 0)
+                }
             }
         }
     }
+
 }
 
 @Composable

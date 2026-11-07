@@ -78,6 +78,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.neytron.ethereal.ui.theme.EtherealFont
 import com.neytron.ethereal.ui.theme.EtherealPalette
+import com.neytron.ethereal.ui.theme.ESearchStyle
 import com.neytron.ethereal.ui.theme.IconShape
 import com.neytron.ethereal.ui.theme.LocalAppearance
 import com.neytron.ethereal.ui.theme.fontFamilyFor
@@ -120,6 +121,7 @@ fun SettingsScreen(
     esearchWidth: Float,
     esearchVisibleItems: Int,
     esearchAutoKeyboard: Boolean = true,
+    esearchStyle: ESearchStyle = ESearchStyle.DEFAULT,
     esearchBorderStyle: TileBorderStyle,
     esearchBorderWidth: Float,
     esearchBorderOpacity: Float,
@@ -129,6 +131,7 @@ fun SettingsScreen(
     onESearchWidthChange: (Float) -> Unit,
     onESearchVisibleItemsChange: (Int) -> Unit,
     onESearchAutoKeyboardChange: (Boolean) -> Unit = {},
+    onESearchStyleChange: (ESearchStyle) -> Unit = {},
     onESearchBorderStyleChange: (TileBorderStyle) -> Unit,
     onESearchBorderWidthChange: (Float) -> Unit,
     onESearchBorderOpacityChange: (Float) -> Unit,
@@ -285,6 +288,7 @@ fun SettingsScreen(
                             width = esearchWidth,
                             visibleItems = esearchVisibleItems,
                             autoKeyboard = esearchAutoKeyboard,
+                            style = esearchStyle,
                             borderStyle = esearchBorderStyle,
                             borderWidth = esearchBorderWidth,
                             borderOpacity = esearchBorderOpacity,
@@ -294,6 +298,7 @@ fun SettingsScreen(
                             onWidthChange = onESearchWidthChange,
                             onVisibleItemsChange = onESearchVisibleItemsChange,
                             onAutoKeyboardChange = onESearchAutoKeyboardChange,
+                            onStyleChange = onESearchStyleChange,
                             onBorderStyleChange = onESearchBorderStyleChange,
                             onBorderWidthChange = onESearchBorderWidthChange,
                             onBorderOpacityChange = onESearchBorderOpacityChange
@@ -436,6 +441,7 @@ fun SettingsScreen(
                                 width = esearchWidth,
                                 visibleItems = esearchVisibleItems,
                                 autoKeyboard = esearchAutoKeyboard,
+                                style = esearchStyle,
                                 borderStyle = esearchBorderStyle,
                                 borderWidth = esearchBorderWidth,
                                 borderOpacity = esearchBorderOpacity,
@@ -445,6 +451,7 @@ fun SettingsScreen(
                                 onWidthChange = onESearchWidthChange,
                                 onVisibleItemsChange = onESearchVisibleItemsChange,
                                 onAutoKeyboardChange = onESearchAutoKeyboardChange,
+                                onStyleChange = onESearchStyleChange,
                                 onBorderStyleChange = onESearchBorderStyleChange,
                                 onBorderWidthChange = onESearchBorderWidthChange,
                                 onBorderOpacityChange = onESearchBorderOpacityChange
@@ -576,78 +583,82 @@ private fun AppearanceTab(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Text(
-                text = stringResource(R.string.settings_appearance_section),
-                color = currentPalette.textSecondary,
-                fontSize = 12.sp
-            )
+            SettingsGroup(
+                groupKey = "appearance.theme",
+                title = stringResource(R.string.settings_group_theme),
+                palette = currentPalette
+            ) {
+                ThemeDropdown(
+                    currentPalette = currentPalette,
+                    onPaletteChange = onPaletteChange
+                )
+                FontDropdown(
+                    currentPalette = currentPalette,
+                    fontFamilyName = fontFamilyName,
+                    onFontFamilyChange = onFontFamilyChange
+                )
+                SettingsSlider(
+                    title = stringResource(R.string.settings_font_scale),
+                    subtitle = stringResource(R.string.settings_font_scale_subtitle),
+                    value = appearance.fontScale,
+                    range = 0.7f..1.5f,
+                    palette = currentPalette,
+                    onValueChange = onFontScaleChange,
+                    format = { "${(it * 100).toInt()}%" }
+                )
+            }
         }
         item {
-            ThemeDropdown(
-                currentPalette = currentPalette,
-                onPaletteChange = onPaletteChange
-            )
+            SettingsGroup(
+                groupKey = "appearance.icons",
+                title = stringResource(R.string.settings_group_icons),
+                palette = currentPalette
+            ) {
+                IconPackDropdown(
+                    palette = currentPalette,
+                    iconPacks = iconPacks,
+                    selectedPackage = selectedIconPack,
+                    onIconPackChange = onIconPackChange
+                )
+                SettingsToggle(
+                    title = stringResource(R.string.settings_dock_themed_icons),
+                    subtitle = stringResource(R.string.settings_dock_themed_icons_subtitle),
+                    checked = themedIcons,
+                    palette = currentPalette,
+                    onCheckedChange = onThemedIconsChange
+                )
+            }
         }
         item {
-            FontDropdown(
-                currentPalette = currentPalette,
-                fontFamilyName = fontFamilyName,
-                onFontFamilyChange = onFontFamilyChange
-            )
-        }
-        item {
-            IconPackDropdown(
+            SettingsGroup(
+                groupKey = "appearance.panels",
+                title = stringResource(R.string.settings_group_panels),
+                subtitle = stringResource(R.string.settings_group_panels_subtitle),
                 palette = currentPalette,
-                iconPacks = iconPacks,
-                selectedPackage = selectedIconPack,
-                onIconPackChange = onIconPackChange
-            )
-        }
-        item {
-            SettingsToggle(
-                title = stringResource(R.string.settings_dock_themed_icons),
-                subtitle = stringResource(R.string.settings_dock_themed_icons_subtitle),
-                checked = themedIcons,
-                palette = currentPalette,
-                onCheckedChange = onThemedIconsChange
-            )
-        }
-
-        item {
-            SettingsSlider(
-                title = stringResource(R.string.settings_panel_opacity),
-                subtitle = stringResource(R.string.settings_panel_opacity_subtitle),
-                value = appearance.opacity,
-                range = 0f..1.0f,
-                palette = currentPalette,
-                onValueChange = onOpacityChange,
-                format = { "${(it * 100).toInt()}%" }
-            )
-        }
-        item {
-            SettingsSlider(
-                title = stringResource(R.string.settings_panel_blur),
-                subtitle = stringResource(R.string.settings_panel_blur_subtitle),
-                value = appearance.blur,
-                range = 0f..25f,
-                palette = currentPalette,
-                onValueChange = onBlurChange,
-                format = { "${it.toInt()} dp" }
-            )
-        }
-        item {
-            SettingsSlider(
-                title = stringResource(R.string.settings_font_scale),
-                subtitle = stringResource(R.string.settings_font_scale_subtitle),
-                value = appearance.fontScale,
-                range = 0.7f..1.5f,
-                palette = currentPalette,
-                onValueChange = onFontScaleChange,
-                format = { "${(it * 100).toInt()}%" }
-            )
+                defaultExpanded = false
+            ) {
+                SettingsSlider(
+                    title = stringResource(R.string.settings_panel_opacity),
+                    subtitle = stringResource(R.string.settings_panel_opacity_subtitle),
+                    value = appearance.opacity,
+                    range = 0f..1.0f,
+                    palette = currentPalette,
+                    onValueChange = onOpacityChange,
+                    format = { "${(it * 100).toInt()}%" }
+                )
+                SettingsSlider(
+                    title = stringResource(R.string.settings_panel_blur),
+                    subtitle = stringResource(R.string.settings_panel_blur_subtitle),
+                    value = appearance.blur,
+                    range = 0f..25f,
+                    palette = currentPalette,
+                    onValueChange = onBlurChange,
+                    format = { "${it.toInt()} dp" }
+                )
+            }
         }
         item { Spacer(modifier = Modifier.height(20.dp)) }
     }
@@ -748,56 +759,58 @@ private fun TilesTab(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Text(
-                text = stringResource(R.string.settings_tiles_section),
-                color = palette.textSecondary,
-                fontSize = 12.sp
-            )
+            SettingsGroup(
+                groupKey = "tiles.grid",
+                title = stringResource(R.string.settings_group_grid),
+                palette = palette
+            ) {
+                SettingsSlider(
+                    title = stringResource(R.string.settings_tile_size),
+                    subtitle = stringResource(R.string.settings_tile_size_subtitle),
+                    value = tileSize,
+                    range = 32f..96f,
+                    palette = palette,
+                    onValueChange = onTileSizeChange,
+                    format = { "${it.toInt()}dp" }
+                )
+                SettingsSlider(
+                    title = stringResource(R.string.settings_tile_spacing),
+                    subtitle = stringResource(R.string.settings_tile_spacing_subtitle),
+                    value = tileSpacing,
+                    range = 4f..24f,
+                    palette = palette,
+                    onValueChange = onTileSpacingChange,
+                    format = { "${it.toInt()}dp" }
+                )
+                SettingsSlider(
+                    title = stringResource(R.string.settings_tile_radius),
+                    subtitle = stringResource(R.string.settings_tile_radius_subtitle),
+                    value = tileRadius,
+                    range = 0f..32f,
+                    palette = palette,
+                    onValueChange = onTileRadiusChange,
+                    format = { "${it.toInt()}dp" }
+                )
+            }
         }
         item {
-            SettingsToggle(
-                title = stringResource(R.string.settings_resize_indicator),
-                subtitle = stringResource(R.string.settings_resize_indicator_subtitle),
-                checked = resizeIndicatorEnabled,
+            SettingsGroup(
+                groupKey = "tiles.behaviour",
+                title = stringResource(R.string.settings_group_behaviour),
                 palette = palette,
-                onCheckedChange = onResizeIndicatorEnabledChange
-            )
-        }
-        item {
-            SettingsSlider(
-                title = stringResource(R.string.settings_tile_size),
-                subtitle = stringResource(R.string.settings_tile_size_subtitle),
-                value = tileSize,
-                range = 32f..96f,
-                palette = palette,
-                onValueChange = onTileSizeChange,
-                format = { "${it.toInt()}dp" }
-            )
-        }
-        item {
-            SettingsSlider(
-                title = stringResource(R.string.settings_tile_spacing),
-                subtitle = stringResource(R.string.settings_tile_spacing_subtitle),
-                value = tileSpacing,
-                range = 4f..24f,
-                palette = palette,
-                onValueChange = onTileSpacingChange,
-                format = { "${it.toInt()}dp" }
-            )
-        }
-        item {
-            SettingsSlider(
-                title = stringResource(R.string.settings_tile_radius),
-                subtitle = stringResource(R.string.settings_tile_radius_subtitle),
-                value = tileRadius,
-                range = 0f..32f,
-                palette = palette,
-                onValueChange = onTileRadiusChange,
-                format = { "${it.toInt()}dp" }
-            )
+                defaultExpanded = false
+            ) {
+                SettingsToggle(
+                    title = stringResource(R.string.settings_resize_indicator),
+                    subtitle = stringResource(R.string.settings_resize_indicator_subtitle),
+                    checked = resizeIndicatorEnabled,
+                    palette = palette,
+                    onCheckedChange = onResizeIndicatorEnabledChange
+                )
+            }
         }
         item {
             Box(
@@ -834,6 +847,7 @@ private fun ESearchTab(
     width: Float,
     visibleItems: Int,
     autoKeyboard: Boolean,
+    style: ESearchStyle,
     borderStyle: TileBorderStyle,
     borderWidth: Float,
     borderOpacity: Float,
@@ -843,159 +857,240 @@ private fun ESearchTab(
     onWidthChange: (Float) -> Unit,
     onVisibleItemsChange: (Int) -> Unit,
     onAutoKeyboardChange: (Boolean) -> Unit,
+    onStyleChange: (ESearchStyle) -> Unit,
     onBorderStyleChange: (TileBorderStyle) -> Unit,
     onBorderWidthChange: (Float) -> Unit,
     onBorderOpacityChange: (Float) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Text(
-                text = stringResource(R.string.settings_esearch_section),
-                color = palette.textSecondary,
-                fontSize = 12.sp
-            )
-        }
-        item {
-            SettingsToggle(
-                title = stringResource(R.string.settings_esearch_auto_keyboard),
-                subtitle = stringResource(R.string.settings_esearch_auto_keyboard_subtitle),
-                checked = autoKeyboard,
-                palette = palette,
-                onCheckedChange = onAutoKeyboardChange
-            )
-        }
-        item {
-            SettingsToggle(
-                title = stringResource(R.string.settings_esearch_override),
-                subtitle = stringResource(R.string.settings_esearch_override_subtitle),
-                checked = useOverride,
-                palette = palette,
-                onCheckedChange = onUseOverrideChange
-            )
-        }
-        if (useOverride) {
-            item {
-                SettingsSlider(
-                    title = stringResource(R.string.settings_esearch_opacity),
-                    subtitle = stringResource(R.string.settings_esearch_opacity_subtitle),
-                    value = opacity,
-                    range = 0f..1.0f,
-                    palette = palette,
-                    onValueChange = onOpacityChange,
-                    format = { "${(it * 100).toInt()}%" }
-                )
-            }
-            item {
-                SettingsSlider(
-                    title = stringResource(R.string.settings_esearch_blur),
-                    subtitle = stringResource(R.string.settings_esearch_blur_subtitle),
-                    value = blur,
-                    range = 0f..25f,
-                    palette = palette,
-                    onValueChange = onBlurChange,
-                    format = { "${it.toInt()} dp" }
-                )
-            }
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(palette.surfaceVariant.copy(alpha = 0.4f))
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.editor_border_title),
-                        color = palette.textPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
+            SettingsGroup(
+                groupKey = "esearch.style",
+                title = stringResource(R.string.settings_group_esearch_style),
+                palette = palette
+            ) {
+                val styleOptions = listOf(
+                    Triple(
+                        ESearchStyle.DEFAULT,
+                        stringResource(R.string.esearch_style_default),
+                        stringResource(R.string.esearch_style_default_desc)
+                    ),
+                    Triple(
+                        ESearchStyle.CATEGORIES,
+                        stringResource(R.string.esearch_style_categories),
+                        stringResource(R.string.esearch_style_categories_desc)
+                    ),
+                    Triple(
+                        ESearchStyle.GRID,
+                        stringResource(R.string.esearch_style_grid),
+                        stringResource(R.string.esearch_style_grid_desc)
+                    ),
+                    Triple(
+                        ESearchStyle.COMPACT,
+                        stringResource(R.string.esearch_style_compact),
+                        stringResource(R.string.esearch_style_compact_desc)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val borderPresets = listOf(
-                        TileBorderStyle.NONE to stringResource(R.string.editor_border_none),
-                        TileBorderStyle.OUTLINE to stringResource(R.string.editor_border_outline),
-                        TileBorderStyle.LIQUID_GLASS to stringResource(R.string.editor_border_liquid_glass),
-                        TileBorderStyle.LIQUID_GLASS_SENSORS to stringResource(R.string.editor_border_liquid_glass_sensors),
-                        TileBorderStyle.ACCENT to stringResource(R.string.editor_border_accent)
-                    )
-                    borderPresets.forEach { (styleOption, label) ->
-                        val sel = borderStyle == styleOption
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (sel) palette.primary.copy(alpha = 0.18f) else palette.surfaceVariant.copy(alpha = 0.3f))
-                                .clickable {
-                                    onBorderStyleChange(styleOption)
-                                    onBorderWidthChange(if (styleOption == TileBorderStyle.NONE) 0f else 1.5f)
-                                }
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+
+                styleOptions.forEach { (option, title, description) ->
+                    val selected = option == style
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                if (selected) palette.primary.copy(alpha = 0.18f)
+                                else palette.surfaceVariant.copy(alpha = 0.35f)
+                            )
+                            .border(
+                                width = if (selected) 1.dp else 0.dp,
+                                color = if (selected) palette.primary else Color.Transparent,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .clickable { onStyleChange(option) }
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = label,
-                                color = if (sel) palette.primary else palette.textPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal
+                                text = title,
+                                color = if (selected) palette.primary else palette.textPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
                             )
+                            if (selected) {
+                                Text(
+                                    text = "✓",
+                                    color = palette.primary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-
-                    if (borderStyle != TileBorderStyle.NONE) {
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "${stringResource(R.string.editor_border_width)}: ${String.format("%.1f", borderWidth)} dp",
-                            color = palette.textPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Slider(
-                            value = borderWidth,
-                            onValueChange = onBorderWidthChange,
-                            valueRange = 0.5f..4f,
-                            colors = SliderDefaults.colors(thumbColor = palette.primary, activeTrackColor = palette.primary)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "${stringResource(R.string.editor_border_opacity)}: ${(borderOpacity * 100).toInt()}%",
-                            color = palette.textPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Slider(
-                            value = borderOpacity,
-                            onValueChange = onBorderOpacityChange,
-                            valueRange = 0f..1f,
-                            colors = SliderDefaults.colors(thumbColor = palette.primary, activeTrackColor = palette.primary)
+                            text = description,
+                            color = palette.textSecondary,
+                            fontSize = 11.sp
                         )
                     }
                 }
             }
         }
         item {
-            SettingsSlider(
-                title = stringResource(R.string.settings_esearch_width),
-                subtitle = stringResource(R.string.settings_esearch_width_subtitle),
-                value = width,
-                range = 0.5f..0.95f,
-                palette = palette,
-                onValueChange = onWidthChange,
-                format = { "${(it * 100).toInt()}%" }
-            )
+            SettingsGroup(
+                groupKey = "esearch.behaviour",
+                title = stringResource(R.string.settings_group_behaviour),
+                palette = palette
+            ) {
+                SettingsToggle(
+                    title = stringResource(R.string.settings_esearch_auto_keyboard),
+                    subtitle = stringResource(R.string.settings_esearch_auto_keyboard_subtitle),
+                    checked = autoKeyboard,
+                    palette = palette,
+                    onCheckedChange = onAutoKeyboardChange
+                )
+            }
         }
         item {
-            SettingsSlider(
-                title = stringResource(R.string.settings_esearch_visible_items),
-                subtitle = stringResource(R.string.settings_esearch_visible_items_subtitle),
-                value = visibleItems.toFloat(),
-                range = 3f..12f,
-                palette = palette,
-                onValueChange = { onVisibleItemsChange(it.toInt()) },
-                format = { it.toInt().toString() }
-            )
+            SettingsGroup(
+                groupKey = "esearch.panel",
+                title = stringResource(R.string.settings_group_search_panel),
+                palette = palette
+            ) {
+                SettingsToggle(
+                    title = stringResource(R.string.settings_esearch_override),
+                    subtitle = stringResource(R.string.settings_esearch_override_subtitle),
+                    checked = useOverride,
+                    palette = palette,
+                    onCheckedChange = onUseOverrideChange
+                )
+                if (useOverride) {
+                    SettingsSlider(
+                        title = stringResource(R.string.settings_esearch_opacity),
+                        subtitle = stringResource(R.string.settings_esearch_opacity_subtitle),
+                        value = opacity,
+                        range = 0f..1.0f,
+                        palette = palette,
+                        onValueChange = onOpacityChange,
+                        format = { "${(it * 100).toInt()}%" }
+                    )
+                    SettingsSlider(
+                        title = stringResource(R.string.settings_esearch_blur),
+                        subtitle = stringResource(R.string.settings_esearch_blur_subtitle),
+                        value = blur,
+                        range = 0f..25f,
+                        palette = palette,
+                        onValueChange = onBlurChange,
+                        format = { "${it.toInt()} dp" }
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(palette.surfaceVariant.copy(alpha = 0.4f))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.editor_border_title),
+                            color = palette.textPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val borderPresets = listOf(
+                            TileBorderStyle.NONE to stringResource(R.string.editor_border_none),
+                            TileBorderStyle.OUTLINE to stringResource(R.string.editor_border_outline),
+                            TileBorderStyle.LIQUID_GLASS to stringResource(R.string.editor_border_liquid_glass),
+                            TileBorderStyle.LIQUID_GLASS_SENSORS to stringResource(R.string.editor_border_liquid_glass_sensors),
+                            TileBorderStyle.ACCENT to stringResource(R.string.editor_border_accent)
+                        )
+                        borderPresets.forEach { (styleOption, label) ->
+                            val sel = borderStyle == styleOption
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (sel) palette.primary.copy(alpha = 0.18f) else palette.surfaceVariant.copy(alpha = 0.3f))
+                                    .clickable {
+                                        onBorderStyleChange(styleOption)
+                                        onBorderWidthChange(if (styleOption == TileBorderStyle.NONE) 0f else 1.5f)
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (sel) palette.primary else palette.textPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+
+                        if (borderStyle != TileBorderStyle.NONE) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "${stringResource(R.string.editor_border_width)}: ${String.format("%.1f", borderWidth)} dp",
+                                color = palette.textPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Slider(
+                                value = borderWidth,
+                                onValueChange = onBorderWidthChange,
+                                valueRange = 0.5f..4f,
+                                colors = SliderDefaults.colors(thumbColor = palette.primary, activeTrackColor = palette.primary)
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "${stringResource(R.string.editor_border_opacity)}: ${(borderOpacity * 100).toInt()}%",
+                                color = palette.textPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Slider(
+                                value = borderOpacity,
+                                onValueChange = onBorderOpacityChange,
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(thumbColor = palette.primary, activeTrackColor = palette.primary)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            SettingsGroup(
+                groupKey = "esearch.layout",
+                title = stringResource(R.string.settings_group_layout),
+                palette = palette
+            ) {
+                SettingsSlider(
+                    title = stringResource(R.string.settings_esearch_width),
+                    subtitle = stringResource(R.string.settings_esearch_width_subtitle),
+                    value = width,
+                    range = 0.5f..0.95f,
+                    palette = palette,
+                    onValueChange = onWidthChange,
+                    format = { "${(it * 100).toInt()}%" }
+                )
+                SettingsSlider(
+                    title = stringResource(R.string.settings_esearch_visible_items),
+                    subtitle = stringResource(R.string.settings_esearch_visible_items_subtitle),
+                    value = visibleItems.toFloat(),
+                    range = 3f..12f,
+                    palette = palette,
+                    onValueChange = { onVisibleItemsChange(it.toInt()) },
+                    format = { it.toInt().toString() }
+                )
+            }
         }
         item { Spacer(modifier = Modifier.height(20.dp)) }
     }
@@ -1030,140 +1125,134 @@ private fun DockTab(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Text(
-                text = stringResource(R.string.settings_dock_section),
-                color = currentPalette.textSecondary,
-                fontSize = 12.sp
-            )
-        }
-        item {
-            SettingsSlider(
-                title = stringResource(R.string.settings_dock_icon_size),
-                subtitle = stringResource(R.string.settings_dock_icon_size_subtitle),
-                value = iconSize,
-                range = 36f..72f,
-                palette = currentPalette,
-                onValueChange = onIconSizeChange,
-                format = { "${it.toInt()}dp" }
-            )
-        }
-        item {
-            SettingsSlider(
-                title = stringResource(R.string.settings_dock_bottom_padding),
-                subtitle = stringResource(R.string.settings_dock_bottom_padding_subtitle),
-                value = bottomPadding,
-                range = 0f..80f,
-                palette = currentPalette,
-                onValueChange = onBottomPaddingChange,
-                format = { "${it.toInt()}dp" }
-            )
-        }
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(currentPalette.surfaceVariant.copy(alpha = 0.4f))
-                    .padding(14.dp)
+            SettingsGroup(
+                groupKey = "dock.geometry",
+                title = stringResource(R.string.settings_group_dock_geometry),
+                palette = currentPalette
             ) {
-                Text(
-                    text = stringResource(R.string.settings_dock_icon_shape),
-                    color = currentPalette.textPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                SettingsSlider(
+                    title = stringResource(R.string.settings_dock_icon_size),
+                    subtitle = stringResource(R.string.settings_dock_icon_size_subtitle),
+                    value = iconSize,
+                    range = 36f..72f,
+                    palette = currentPalette,
+                    onValueChange = onIconSizeChange,
+                    format = { "${it.toInt()}dp" }
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(R.string.settings_dock_icon_shape_subtitle),
-                    color = currentPalette.textSecondary,
-                    fontSize = 11.sp
+                SettingsSlider(
+                    title = stringResource(R.string.settings_dock_bottom_padding),
+                    subtitle = stringResource(R.string.settings_dock_bottom_padding_subtitle),
+                    value = bottomPadding,
+                    range = 0f..80f,
+                    palette = currentPalette,
+                    onValueChange = onBottomPaddingChange,
+                    format = { "${it.toInt()}dp" }
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(currentPalette.surfaceVariant.copy(alpha = 0.4f))
+                        .padding(14.dp)
                 ) {
-                    IconShape.values().forEach { shape ->
-                        val selected = shape.name == iconShape
-                        ShapePreview(
-                            shape = shape,
-                            selected = selected,
-                            palette = currentPalette,
-                            onClick = { onIconShapeChange(shape.name) }
-                        )
+                    Text(
+                        text = stringResource(R.string.settings_dock_icon_shape),
+                        color = currentPalette.textPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.settings_dock_icon_shape_subtitle),
+                        color = currentPalette.textSecondary,
+                        fontSize = 11.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IconShape.values().forEach { shape ->
+                            val selected = shape.name == iconShape
+                            ShapePreview(
+                                shape = shape,
+                                selected = selected,
+                                palette = currentPalette,
+                                onClick = { onIconShapeChange(shape.name) }
+                            )
+                        }
                     }
                 }
             }
         }
         item {
-            SettingsToggle(
-                title = stringResource(R.string.settings_dock_show_bg),
-                subtitle = stringResource(R.string.settings_dock_show_bg_subtitle),
-                checked = showIconBackground,
+            SettingsGroup(
+                groupKey = "dock.look",
+                title = stringResource(R.string.settings_group_dock_look),
                 palette = currentPalette,
-                onCheckedChange = onShowIconBackgroundChange
-            )
-        }
-        item {
-            SettingsToggle(
-                title = stringResource(R.string.settings_dock_scrollable),
-                subtitle = stringResource(R.string.settings_dock_scrollable_subtitle),
-                checked = scrollable,
-                palette = currentPalette,
-                onCheckedChange = onScrollableChange
-            )
-        }
-        item {
-            SettingsToggle(
-                title = stringResource(R.string.settings_dock_override),
-                subtitle = stringResource(R.string.settings_dock_override_subtitle),
-                checked = useOverride,
-                palette = currentPalette,
-                onCheckedChange = onUseOverrideChange
-            )
-        }
-        if (useOverride) {
-            item {
-                SettingsSlider(
-                    title = stringResource(R.string.settings_dock_opacity),
-                    subtitle = stringResource(R.string.settings_dock_opacity_subtitle),
-                    value = opacity,
-                    range = 0f..1.0f,
+                defaultExpanded = false
+            ) {
+                SettingsToggle(
+                    title = stringResource(R.string.settings_dock_show_bg),
+                    subtitle = stringResource(R.string.settings_dock_show_bg_subtitle),
+                    checked = showIconBackground,
                     palette = currentPalette,
-                    onValueChange = onOpacityChange,
-                    format = { "${(it * 100).toInt()}%" }
+                    onCheckedChange = onShowIconBackgroundChange
+                )
+                SettingsToggle(
+                    title = stringResource(R.string.settings_dock_scrollable),
+                    subtitle = stringResource(R.string.settings_dock_scrollable_subtitle),
+                    checked = scrollable,
+                    palette = currentPalette,
+                    onCheckedChange = onScrollableChange
+                )
+                SettingsToggle(
+                    title = stringResource(R.string.settings_dock_override),
+                    subtitle = stringResource(R.string.settings_dock_override_subtitle),
+                    checked = useOverride,
+                    palette = currentPalette,
+                    onCheckedChange = onUseOverrideChange
+                )
+                if (useOverride) {
+                    SettingsSlider(
+                        title = stringResource(R.string.settings_dock_opacity),
+                        subtitle = stringResource(R.string.settings_dock_opacity_subtitle),
+                        value = opacity,
+                        range = 0f..1.0f,
+                        palette = currentPalette,
+                        onValueChange = onOpacityChange,
+                        format = { "${(it * 100).toInt()}%" }
+                    )
+                    SettingsSlider(
+                        title = stringResource(R.string.settings_dock_blur),
+                        subtitle = stringResource(R.string.settings_dock_blur_subtitle),
+                        value = blur,
+                        range = 0f..25f,
+                        palette = currentPalette,
+                        onValueChange = onBlurChange,
+                        format = { "${it.toInt()} dp" }
+                    )
+                }
+            }
+        }
+        item {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(currentPalette.outline.copy(alpha = 0.4f))
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                SettingsGroupLabel(
+                    title = stringResource(R.string.settings_dock_apps_count, draftDock.size),
+                    palette = currentPalette
                 )
             }
-            item {
-                SettingsSlider(
-                    title = stringResource(R.string.settings_dock_blur),
-                    subtitle = stringResource(R.string.settings_dock_blur_subtitle),
-                    value = blur,
-                    range = 0f..25f,
-                    palette = currentPalette,
-                    onValueChange = onBlurChange,
-                    format = { "${it.toInt()} dp" }
-                )
-            }
-        }
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(currentPalette.outline.copy(alpha = 0.4f))
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.settings_dock_apps_count, draftDock.size),
-                color = currentPalette.textSecondary,
-                fontSize = 12.sp
-            )
         }
         items(apps, key = { it.packageName }) { app ->
             DockAppRow(

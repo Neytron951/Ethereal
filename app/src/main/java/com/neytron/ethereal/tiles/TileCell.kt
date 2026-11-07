@@ -69,6 +69,8 @@ import com.neytron.ethereal.utils.DeviceTiltProvider
 import com.neytron.ethereal.utils.screenBounds
 import com.neytron.ethereal.utils.renderThemedIcon
 import com.neytron.ethereal.utils.tileBorder
+import com.neytron.ethereal.utils.tileTexture
+import com.neytron.ethereal.utils.toForegroundOnlyBitmap
 import com.neytron.ethereal.utils.toImageBitmap
 import com.neytron.ethereal.weather.WeatherCodeMapper
 import com.neytron.ethereal.weather.WeatherData
@@ -172,6 +174,16 @@ fun TileCell(
         label = "appear"
     )
 
+    val appLauncherConfig = remember(tile.type, tile.config) {
+        if (tile.type == TileType.APP_LAUNCHER) AppLauncherConfig.fromJson(tile.config) else null
+    }
+    val appPackage = appLauncherConfig?.packageName
+
+    // «Show only foreground icon»: у иконки не рисуется её background-слой,
+    // остаётся только foreground (логотип). Подложка самой плитки не затрагивается.
+    val foregroundOnlyIcon = appLauncherConfig?.showOnlyForegroundIcon == true &&
+        appLauncherConfig.packageName != null
+
     val backgroundColor = when {
         isTargetCell -> palette.primary
         isSelected -> palette.primary
@@ -184,15 +196,10 @@ fun TileCell(
         tile.type == TileType.EMPTY -> 0f
         else -> tile.style.backgroundOpacity
     }
+    val backgroundBlur = tile.style.backgroundBlur
 
     val contentScale = tile.style.contentScale
-    val appPackage = remember(tile.type, tile.config) {
-        if (tile.type == TileType.APP_LAUNCHER) {
-            AppLauncherConfig.fromJson(tile.config).packageName
-        } else {
-            null
-        }
-    }
+
     val tilt = if (
         tile.style.borderStyle == TileBorderStyle.LIQUID_GLASS ||
         tile.style.borderStyle == TileBorderStyle.LIQUID_GLASS_SENSORS
@@ -318,7 +325,7 @@ fun TileCell(
                 .alpha(alpha)
         ) {
             FrostedGlassBox(
-                blur = tile.style.backgroundBlur,
+                blur = backgroundBlur,
                 opacity = backgroundOpacity,
                 backgroundColor = backgroundColor,
                 shape = shape,
@@ -333,7 +340,10 @@ fun TileCell(
                             else -> Modifier.tileBorder(tile.style, palette, shape, tilt)
                         }
                     )
-                    .resizeCornerIndicator(isEditing, canResizeTile, palette, radius)
+                    .resizeCornerIndicator(isEditing, canResizeTile, palette, radius),
+                contentModifier = Modifier
+                    .fillMaxSize()
+                    .tileTexture(tile.style, palette)
             ) {
                 when (tile.type) {
                     TileType.EMPTY -> { }
@@ -392,7 +402,8 @@ fun TileCell(
                             palette = palette,
                             contentScale = contentScale,
                             installedApps = installedApps,
-                            themedIcons = themedIcons
+                            themedIcons = themedIcons,
+                            foregroundOnlyIcon = foregroundOnlyIcon
                         )
                     }
 
@@ -549,7 +560,8 @@ private fun AppLauncherContent(
     palette: EtherealPalette,
     contentScale: Float,
     installedApps: List<AppInfo>,
-    themedIcons: Boolean
+    themedIcons: Boolean,
+    foregroundOnlyIcon: Boolean = false
 ) {
     val config = remember(tile.config) {
         AppLauncherConfig.fromJson(tile.config)
@@ -582,11 +594,15 @@ private fun AppLauncherContent(
         return
     }
 
-    val bmp = remember(app.packageName, app.icon, themedIcons, palette.id) {
-        if (themedIcons) {
-            renderThemedIcon(app.icon, palette).asImageBitmap()
-        } else {
-            app.icon.toImageBitmap()
+    val bmp = remember(app.packageName, app.icon, themedIcons, palette.id, foregroundOnlyIcon) {
+        when {
+            themedIcons -> renderThemedIcon(
+                app.icon,
+                palette,
+                drawBackground = !foregroundOnlyIcon
+            ).asImageBitmap()
+            foregroundOnlyIcon -> app.icon.toForegroundOnlyBitmap()
+            else -> app.icon.toImageBitmap()
         }
     }
 
@@ -629,7 +645,12 @@ private fun AppLauncherContent(
 
 @Composable
 private fun ClockTileContent(tileSize: Dp, palette: EtherealPalette, contentScale: Float) {
-    val now = java.util.Calendar.getInstance()
+    // Сами часы не перерисовываются: без тика время «замерзает» на моменте
+    // первой композиции (например, показывает 12:37 в два часа ночи).
+    val nowMs = rememberMinuteTick()
+    val now = remember(nowMs) {
+        java.util.Calendar.getInstance().apply { timeInMillis = nowMs }
+    }
     val hour = now.get(java.util.Calendar.HOUR_OF_DAY).toString().padStart(2, '0')
     val minute = now.get(java.util.Calendar.MINUTE).toString().padStart(2, '0')
     val dayOfWeek = when (now.get(java.util.Calendar.DAY_OF_WEEK)) {
@@ -672,10 +693,15 @@ private fun WeatherTileContent(
     }
 
     LaunchedEffect(tile.id, tile.config) {
-        val data = withContext(Dispatchers.IO) {
-            WeatherRepository.getWeather(context, tile.config)
+        while (true) {
+            val data = withContext(Dispatchers.IO) {
+                WeatherRepository.getWeather(context, tile.config)
+            }
+            if (data != null) weather = data
+            // Репозиторий сам решает, брать кэш или идти в сеть (TTL 1 час),
+            // но плитка больше не остаётся с данными «навсегда».
+            delay(WEATHER_REFRESH_MS)
         }
-        weather = data
     }
 
     val data: WeatherData = weather ?: WeatherData.EMPTY
@@ -723,6 +749,27 @@ private fun SearchTileContent(tileSize: Dp, palette: EtherealPalette, contentSca
             fontSize = (tileSize.value * 0.22f * contentScale).sp
         )
     }
+}
+
+private const val MINUTE_MS = 60_000L
+private const val WEATHER_REFRESH_MS = 15L * 60_000L
+
+/**
+ * Тикает на границе каждой минуты.
+ * Позволяет плиткам с часами обновляться сами, без внешних рекомпозиций.
+ */
+@Composable
+private fun rememberMinuteTick(): Long {
+    var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val current = System.currentTimeMillis()
+            nowMs = current
+            val untilNextMinute = MINUTE_MS - (current % MINUTE_MS)
+            delay(untilNextMinute.coerceAtLeast(16L) + 20L)
+        }
+    }
+    return nowMs
 }
 
 private fun Modifier.resizeCornerIndicator(

@@ -30,6 +30,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -60,8 +63,10 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,6 +76,7 @@ import com.neytron.ethereal.data.AppSorter
 import com.neytron.ethereal.data.SettingsRepository
 import com.neytron.ethereal.tiles.TileStyle
 import com.neytron.ethereal.ui.theme.EtherealPalette
+import com.neytron.ethereal.ui.theme.ESearchStyle
 import com.neytron.ethereal.ui.theme.LocalAppearance
 import com.neytron.ethereal.ui.theme.LocalESearchConfig
 import com.neytron.ethereal.ui.theme.FrostedGlassBox
@@ -490,31 +496,21 @@ private fun ESearchPanel(
                         )
                     }
                 } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = listMaxHeight),
-                        contentPadding = PaddingValues(vertical = 8.dp)
-                    ) {
-                        items(filtered.size, key = { filtered[it].packageName }) { index ->
-                            val app = filtered[index]
-                            ESearchItem(
-                                modifier = Modifier,
-                                app = app,
-                                index = index,
-                                visibleItems = visibleItems,
-                                selected = index == selectedIndex,
-                                palette = palette,
-                                themedIcons = themedIcons,
-                                alreadyShown = app.packageName in shownPackages,
-                                iconCache = iconCache,
-                                onShown = { pkg -> shownPackages.add(pkg) },
-                                onLongClick = { onAppLongClick(app) },
-                                onClick = { bounds -> onAppClick(app, bounds) }
-                            )
-                        }
-                    }
+                    ESearchResultsBlock(
+                        style = config.style,
+                        apps = filtered,
+                        selectedIndex = selectedIndex,
+                        visibleItems = visibleItems,
+                        maxHeight = listMaxHeight,
+                        listState = listState,
+                        palette = palette,
+                        themedIcons = themedIcons,
+                        iconCache = iconCache,
+                        shownPackages = shownPackages,
+                        stats = statsMap,
+                        onAppClick = onAppClick,
+                        onAppLongClick = onAppLongClick
+                    )
                 }
             }
         }
@@ -646,4 +642,341 @@ private fun ESearchDivider(color: Color, thickness: Dp) {
             .height(thickness)
             .background(color)
     )
+}
+
+// ============================================================
+// СТИЛИ РЕЗУЛЬТАТОВ
+// ============================================================
+
+/**
+ * Список результатов в выбранном стиле.
+ * Поле поиска, клавиатура и анимация панели общие — отличается только подача.
+ */
+@Composable
+private fun ESearchResultsBlock(
+    style: ESearchStyle,
+    apps: List<AppInfo>,
+    selectedIndex: Int,
+    visibleItems: Int,
+    maxHeight: Dp,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    palette: EtherealPalette,
+    themedIcons: Boolean,
+    iconCache: MutableMap<String, ImageBitmap?>,
+    shownPackages: MutableSet<String>,
+    stats: Map<String, Pair<Int, Long>>,
+    onAppClick: (AppInfo, Rect?) -> Unit,
+    onAppLongClick: (AppInfo) -> Unit
+) {
+    when (style) {
+        ESearchStyle.DEFAULT -> {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = maxHeight),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(apps.size, key = { apps[it].packageName }) { index ->
+                    val app = apps[index]
+                    ESearchItem(
+                        app = app,
+                        index = index,
+                        visibleItems = visibleItems,
+                        selected = index == selectedIndex,
+                        palette = palette,
+                        themedIcons = themedIcons,
+                        alreadyShown = app.packageName in shownPackages,
+                        iconCache = iconCache,
+                        onShown = { pkg -> shownPackages.add(pkg) },
+                        onLongClick = { onAppLongClick(app) },
+                        onClick = { bounds -> onAppClick(app, bounds) }
+                    )
+                }
+            }
+        }
+
+        ESearchStyle.COMPACT -> {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = maxHeight),
+                contentPadding = PaddingValues(vertical = 6.dp)
+            ) {
+                items(apps.size, key = { apps[it].packageName }) { index ->
+                    val app = apps[index]
+                    CompactSearchRow(
+                        app = app,
+                        index = index,
+                        selected = index == selectedIndex,
+                        palette = palette,
+                        onClick = { bounds -> onAppClick(app, bounds) },
+                        onLongClick = { onAppLongClick(app) }
+                    )
+                }
+            }
+        }
+
+        ESearchStyle.GRID -> {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = maxHeight + 24.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
+                    GridSearchCell(
+                        app = app,
+                        selected = index == selectedIndex,
+                        palette = palette,
+                        themedIcons = themedIcons,
+                        iconCache = iconCache,
+                        onClick = { bounds -> onAppClick(app, bounds) },
+                        onLongClick = { onAppLongClick(app) }
+                    )
+                }
+            }
+        }
+
+        ESearchStyle.CATEGORIES -> {
+            CategoriesSearchResults(
+                apps = apps,
+                selectedIndex = selectedIndex,
+                visibleItems = visibleItems,
+                maxHeight = maxHeight,
+                listState = listState,
+                palette = palette,
+                themedIcons = themedIcons,
+                iconCache = iconCache,
+                shownPackages = shownPackages,
+                stats = stats,
+                onAppClick = onAppClick,
+                onAppLongClick = onAppLongClick
+            )
+        }
+    }
+}
+
+/** Плотная строка: номер + название, без иконок. */
+@Composable
+private fun CompactSearchRow(
+    app: AppInfo,
+    index: Int,
+    selected: Boolean,
+    palette: EtherealPalette,
+    onClick: (Rect?) -> Unit,
+    onLongClick: () -> Unit
+) {
+    val rootView = LocalView.current
+    var coordinates by remember(app.packageName) { mutableStateOf<LayoutCoordinates?>(null) }
+
+    val bg by animateColorAsState(
+        targetValue = if (selected) palette.primary.copy(alpha = 0.15f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 150),
+        label = "compactBg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (selected) palette.primary else palette.textPrimary,
+        animationSpec = tween(durationMillis = 150),
+        label = "compactText"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { coordinates = it }
+            .background(bg)
+            .combinedClickable(
+                onClick = { onClick(coordinates?.screenBounds(rootView)) },
+                onLongClick = onLongClick
+            )
+            .padding(horizontal = 20.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = (index + 1).toString().padStart(2, '0'),
+            color = if (selected) palette.primary else palette.textSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.width(26.dp)
+        )
+        Text(
+            text = app.label,
+            color = textColor,
+            fontSize = 14.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/** Ячейка сетки: крупная иконка + подпись. */
+@Composable
+private fun GridSearchCell(
+    app: AppInfo,
+    selected: Boolean,
+    palette: EtherealPalette,
+    themedIcons: Boolean,
+    iconCache: MutableMap<String, ImageBitmap?>,
+    onClick: (Rect?) -> Unit,
+    onLongClick: () -> Unit
+) {
+    val rootView = LocalView.current
+    var coordinates by remember(app.packageName) { mutableStateOf<LayoutCoordinates?>(null) }
+
+    val bmp = remember(app.packageName, themedIcons, palette.id) {
+        iconCache.getOrPut(app.packageName) {
+            if (themedIcons) {
+                renderThemedIcon(app.icon, palette).asImageBitmap()
+            } else {
+                app.icon.toImageBitmap()
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) palette.primary.copy(alpha = 0.15f) else Color.Transparent)
+            .onGloballyPositioned { coordinates = it }
+            .combinedClickable(
+                onClick = { onClick(coordinates?.screenBounds(rootView)) },
+                onLongClick = onLongClick
+            )
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (bmp != null) {
+            Image(
+                bitmap = bmp,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = app.label,
+            color = if (selected) palette.primary else palette.textPrimary,
+            fontSize = 10.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+private data class SearchSection(
+    val title: String,
+    val apps: List<AppInfo>
+)
+
+/** Секции: лучший результат, недавние (за 2 недели), всё остальное. */
+private fun buildSearchSections(
+    apps: List<AppInfo>,
+    stats: Map<String, Pair<Int, Long>>,
+    now: Long,
+    bestTitle: String,
+    recentTitle: String,
+    allTitle: String
+): List<SearchSection> {
+    if (apps.isEmpty()) return emptyList()
+
+    val sections = mutableListOf<SearchSection>()
+    val best = apps.first()
+    sections.add(SearchSection(bestTitle, listOf(best)))
+
+    val recentWindow = 14L * 24L * 60L * 60L * 1000L
+    val recents = apps.drop(1)
+        .filter { app ->
+            val last = stats[app.packageName]?.second ?: 0L
+            last > 0L && now - last in 0..recentWindow
+        }
+        .sortedByDescending { app -> stats[app.packageName]?.second ?: 0L }
+        .take(5)
+
+    if (recents.isNotEmpty()) {
+        sections.add(SearchSection(recentTitle, recents))
+    }
+
+    val used = buildSet {
+        add(best.packageName)
+        recents.forEach { add(it.packageName) }
+    }
+    val rest = apps.filter { it.packageName !in used }
+    if (rest.isNotEmpty()) {
+        sections.add(SearchSection(allTitle, rest))
+    }
+
+    return sections
+}
+
+@Composable
+private fun CategoriesSearchResults(
+    apps: List<AppInfo>,
+    selectedIndex: Int,
+    visibleItems: Int,
+    maxHeight: Dp,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    palette: EtherealPalette,
+    themedIcons: Boolean,
+    iconCache: MutableMap<String, ImageBitmap?>,
+    shownPackages: MutableSet<String>,
+    stats: Map<String, Pair<Int, Long>>,
+    onAppClick: (AppInfo, Rect?) -> Unit,
+    onAppLongClick: (AppInfo) -> Unit
+) {
+    val bestTitle = stringResource(R.string.esearch_section_best)
+    val recentTitle = stringResource(R.string.esearch_section_recent)
+    val allTitle = stringResource(R.string.esearch_section_all)
+
+    val now = remember { System.currentTimeMillis() }
+    val sections = remember(apps, stats, bestTitle, recentTitle, allTitle) {
+        buildSearchSections(apps, stats, now, bestTitle, recentTitle, allTitle)
+    }
+    val indexByPackage = remember(apps) {
+        apps.withIndex().associate { (index, app) -> app.packageName to index }
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = maxHeight + 24.dp),
+        contentPadding = PaddingValues(vertical = 6.dp)
+    ) {
+        sections.forEach { section ->
+            item(key = "section_${section.title}") {
+                Text(
+                    text = section.title.uppercase(),
+                    color = palette.textSecondary,
+                    fontSize = 10.sp,
+                    letterSpacing = 1.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 4.dp)
+                )
+            }
+            items(section.apps.size, key = { "app_${section.apps[it].packageName}" }) { itemIndex ->
+                val app = section.apps[itemIndex]
+                val globalIndex = indexByPackage[app.packageName] ?: 0
+                ESearchItem(
+                    app = app,
+                    index = globalIndex,
+                    visibleItems = visibleItems,
+                    selected = globalIndex == selectedIndex,
+                    palette = palette,
+                    themedIcons = themedIcons,
+                    alreadyShown = app.packageName in shownPackages,
+                    iconCache = iconCache,
+                    onShown = { pkg -> shownPackages.add(pkg) },
+                    onLongClick = { onAppLongClick(app) },
+                    onClick = { bounds -> onAppClick(app, bounds) }
+                )
+            }
+        }
+    }
 }

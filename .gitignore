@@ -33,6 +33,8 @@ google-services.json
 
 # AI / IDE Agent Artifacts
 .artifacts/
+.gradle-home/
+.android-home/
 
 # Android profiling
 *.hprof

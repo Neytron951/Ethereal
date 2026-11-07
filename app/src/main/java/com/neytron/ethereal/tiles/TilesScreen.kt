@@ -84,7 +84,7 @@ fun TilesScreen(
     onWidgetPickerVisibilityChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onSwipeUp: () -> Unit,
-    onLaunchApp: (String, Rect?, TileStyle?, Float) -> Unit,
+    onLaunchApp: (String, Rect?, TileStyle?, Float, Boolean) -> Unit,
     editorState: TileEditorState,
     currentSpaceId: String,
     onOpenSpace: (String) -> Unit,
@@ -111,71 +111,50 @@ fun TilesScreen(
     val widgetDeniedSystemMsg = stringResource(R.string.widget_denied_system)
     val audioPermissionDeniedMsg = stringResource(R.string.audio_spectrum_permission_denied)
 
-    val edgePadding = 16.dp
-    val topPadding = 72.dp
-    val gapAboveDock = 16.dp
+    val edgePadding = TileGridMetrics.EDGE_PADDING_DP.dp
+    val topPadding = TileGridMetrics.TOP_PADDING_DP.dp
+    val gapAboveDock = TileGridMetrics.GAP_ABOVE_DOCK_DP.dp
 
-    val dockHeight = dockIconSizeDp.dp + 24.dp
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+
+    // DockBar в ландшафте рисует иконки мельче — резервируем ровно столько, сколько он занимает.
+    val dockIconDp = if (isLandscape) {
+        (dockIconSizeDp * TileGridMetrics.LANDSCAPE_DOCK_SCALE).coerceAtLeast(24f)
+    } else {
+        dockIconSizeDp
+    }
+    val dockHeight = (dockIconDp + TileGridMetrics.DOCK_EXTRA_DP).dp
     val dockBottomPadding = dockBottomPaddingDp.dp
 
-    val screenWidthDp = configuration.screenWidthDp.dp
-    val screenHeightDp = configuration.screenHeightDp.dp
-    val availableWidth = screenWidthDp - edgePadding * 2
-    val availableHeight = screenHeightDp - topPadding - gapAboveDock - dockHeight - dockBottomPadding
-    val isLandscape = screenWidthDp > screenHeightDp
+    val availableWidthDp = TileGridMetrics.availableWidthDp(configuration.screenWidthDp.toFloat())
+    val availableHeightDp = TileGridMetrics.availableHeightDp(
+        screenHeightDp = configuration.screenHeightDp.toFloat(),
+        dockIconSizeDp = dockIconSizeDp,
+        dockBottomPaddingDp = dockBottomPaddingDp,
+        isLandscape = isLandscape
+    )
 
-    val initialColumns = remember(tileSizeDp, spacingDp, availableWidth) {
-        val ts = tileSizeDp
-        val sp = spacingDp
-        if (ts <= 0f) 1
-        else {
-            val n = ((availableWidth.value + sp) / (ts + sp)).toInt()
-            n.coerceIn(1, 12)
-        }
-    }
+    val layoutColumns = remember(tiles) { tiles.maxOfOrNull { it.x + it.w }?.coerceAtLeast(1) ?: 1 }
+    val layoutRows = remember(tiles) { tiles.maxOfOrNull { it.y + it.h }?.coerceAtLeast(1) ?: 1 }
 
-    val autoColumns = remember(tileSizeDp, spacingDp, availableWidth) {
-        val ts = tileSizeDp
-        val sp = spacingDp
-        if (ts <= 0f) 1
-        else {
-            val n = ((availableWidth.value + sp) / (ts + sp)).toInt()
-            n.coerceIn(1, 12)
-        }
-    }
-
-    val activeTiles = editorState.resizePreviewTiles.value ?: tiles
-    val maxTileRow = remember(activeTiles) { activeTiles.maxOfOrNull { it.y + it.h } ?: 4 }
-
-    val autoRows = remember(
-        tileSizeDp, spacingDp, screenHeightDp,
-        dockHeight, dockBottomPadding, topPadding, gapAboveDock, tiles, maxTileRow
+    val gridSpec = remember(
+        availableWidthDp, availableHeightDp, tileSizeDp, spacingDp,
+        isLandscape, layoutColumns, layoutRows
     ) {
-        val availableHeight =
-            screenHeightDp - topPadding - gapAboveDock - dockHeight - dockBottomPadding
-        val ts = tileSizeDp
-        val sp = spacingDp
-        val screenRows = if (ts <= 0f || availableHeight.value <= 0f) 4
-        else {
-            ((availableHeight.value + sp) / (ts + sp)).toInt()
-        }
-        maxOf(screenRows, maxTileRow, 4)
+        TileGridMetrics.compute(
+            availableWidthDp = availableWidthDp,
+            availableHeightDp = availableHeightDp,
+            desiredTileSizeDp = tileSizeDp,
+            spacingDp = spacingDp,
+            isLandscape = isLandscape,
+            layoutColumns = layoutColumns,
+            layoutRows = layoutRows
+        )
     }
 
-    val effectiveTileSizeDp = remember(tileSizeDp, spacingDp, screenHeightDp, autoRows, availableWidth, availableHeight, initialColumns, tiles) {
-        val cols = autoColumns.coerceAtLeast(1)
-        val rows = autoRows.coerceAtLeast(1)
-
-        val totalSpacingX = spacingDp * (cols - 1)
-        val totalSpacingY = spacingDp * (rows - 1)
-
-        val sizeFromWidth = (availableWidth.value - totalSpacingX) / cols
-        val sizeFromHeight = if (availableHeight.value > 0f) (availableHeight.value - totalSpacingY) / rows else sizeFromWidth
-
-        minOf(sizeFromWidth, sizeFromHeight).coerceIn(24f, 160f)
-    }
-
-    val tileSize: Dp = effectiveTileSizeDp.dp
+    val autoColumns = gridSpec.columns
+    val autoRows = gridSpec.rows
+    val tileSize: Dp = gridSpec.tileSizeDp.dp
     val spacing: Dp = spacingDp.dp
     val radius: Dp = radiusDp.dp
 
@@ -216,7 +195,7 @@ fun TilesScreen(
             previousSpaceId = currentSpaceId
 
             if (!isTransitioning) {
-                val newTiles = TileLayoutRepository.getTiles(context, currentSpaceId)
+                val newTiles = TileLayoutRepository.getTiles(context, currentSpaceId, isLandscape, gridSpec)
                 incomingTilesState = newTiles
 
                 val matchingTile = newTiles.firstOrNull { it.type == TileType.SPACE && it.payload == oldSpaceId }
@@ -398,7 +377,7 @@ fun TilesScreen(
     val handleDeleteTile: (Tile) -> Unit = { tile ->
         if (tile.type == TileType.SPACE && !tile.payload.isNullOrEmpty()) {
             val spaceId = tile.payload!!
-            val innerTiles = TileLayoutRepository.getTiles(context, spaceId)
+            val innerTiles = TileLayoutRepository.getTiles(context, spaceId, isLandscape)
             innerTiles.forEach { inner ->
                 if (inner.type == TileType.WIDGET) {
                     val wid = EtherealAppWidgetHost.decodeWidgetId(inner.config)
@@ -491,19 +470,19 @@ fun TilesScreen(
         val latestTile = tiles.firstOrNull { it.id == tile.id } ?: tile
         val base = editorState.resizingTile.value ?: latestTile
         val maxWidth = (autoColumns - base.x).coerceAtLeast(1)
-        val maxHeight = (12 - base.y).coerceAtLeast(1)
+        // Высота ограничена реальной сеткой: иначе плитка «уезжает» за экран и пропадает из грида
+        val maxHeight = (autoRows - base.y).coerceAtLeast(1)
         val stepX = cellSizePx
         val stepY = cellSizePx
         val newW = (base.w + (offset.x / stepX).roundToInt()).coerceIn(1, maxWidth)
         val newH = (base.h + (offset.y / stepY).roundToInt()).coerceIn(1, maxHeight)
-        val targetRows = maxOf(autoRows, base.y + newH, 12)
         val preview = TileLayoutRepository.previewResizeWithDisplacement(
             tiles = tiles,
             tileId = base.id,
             newW = newW,
             newH = newH,
             columns = autoColumns,
-            rows = targetRows
+            rows = autoRows
         )
         if (preview != null) {
             editorState.resizePreviewTiles.value = preview
@@ -537,7 +516,7 @@ fun TilesScreen(
                             transitionPivotFractionX = (tile.x + tile.w / 2f) / autoColumns.coerceAtLeast(1).toFloat()
                             transitionPivotFractionY = (tile.y + tile.h / 2f) / autoRows.coerceAtLeast(1).toFloat()
                             oldTilesState = tiles
-                            incomingTilesState = TileLayoutRepository.getTiles(context, spaceId)
+                            incomingTilesState = TileLayoutRepository.getTiles(context, spaceId, isLandscape, gridSpec)
                             isPopState = false
                             isTransitioning = true
                             targetProgress = 1f
@@ -560,7 +539,7 @@ fun TilesScreen(
                         } else {
                             0.45f * tile.style.contentScale
                         }
-                        onLaunchApp(pkg, sourceBounds, tile.style, iconScale)
+                        onLaunchApp(pkg, sourceBounds, tile.style, iconScale, config.showOnlyForegroundIcon)
                     }
                 }
 
@@ -572,7 +551,7 @@ fun TilesScreen(
                         } else {
                             0.45f * tile.style.contentScale
                         }
-                        onLaunchApp(config.packageName, sourceBounds, tile.style, iconScale)
+                        onLaunchApp(config.packageName, sourceBounds, tile.style, iconScale, config.showOnlyForegroundIcon)
                     } else {
                         when (tile.payload) {
                             "ethereal_clock" -> {

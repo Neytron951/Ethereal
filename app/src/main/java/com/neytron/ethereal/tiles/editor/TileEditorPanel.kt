@@ -46,10 +46,13 @@ import com.neytron.ethereal.tiles.SpaceConfig
 import com.neytron.ethereal.tiles.Tile
 import com.neytron.ethereal.tiles.TilePreset
 import com.neytron.ethereal.tiles.TileStyle
+import com.neytron.ethereal.tiles.TileTexture
 import com.neytron.ethereal.tiles.TileBorderStyle
 import com.neytron.ethereal.tiles.TileType
+import com.neytron.ethereal.ui.SettingsGroup
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.utils.toImageBitmap
+import com.neytron.ethereal.utils.tileTexture
 import com.neytron.ethereal.weather.CityResult
 import com.neytron.ethereal.weather.LocationProvider
 import kotlinx.coroutines.Dispatchers
@@ -409,121 +412,144 @@ private fun TileSettingsMode(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    ResizeRow(
-        label = stringResource(R.string.editor_width),
-        value = tile.w,
-        palette = palette,
-        onMinus = { onResize(tile.w - 1, tile.h) },
-        onPlus = { onResize(tile.w + 1, tile.h) }
-    )
-    Spacer(modifier = Modifier.height(6.dp))
-    ResizeRow(
-        label = stringResource(R.string.editor_height),
-        value = tile.h,
-        palette = palette,
-        onMinus = { onResize(tile.w, tile.h - 1) },
-        onPlus = { onResize(tile.w, tile.h + 1) }
-    )
+    SettingsGroup(
+        groupKey = "editor.size",
+        title = stringResource(R.string.editor_group_size),
+        palette = palette
+    ) {
+        ResizeRow(
+            label = stringResource(R.string.editor_width),
+            value = tile.w,
+            palette = palette,
+            onMinus = { onResize(tile.w - 1, tile.h) },
+            onPlus = { onResize(tile.w + 1, tile.h) }
+        )
+        ResizeRow(
+            label = stringResource(R.string.editor_height),
+            value = tile.h,
+            palette = palette,
+            onMinus = { onResize(tile.w, tile.h - 1) },
+            onPlus = { onResize(tile.w, tile.h + 1) }
+        )
+    }
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    if (tile.type == TileType.SPACE) {
-        SpaceSettings(
+    SettingsGroup(
+        groupKey = "editor.content",
+        title = stringResource(R.string.editor_group_content),
+        palette = palette
+    ) {
+        if (tile.type == TileType.SPACE) {
+            SpaceSettings(
+                palette = palette,
+                tile = tile,
+                onConfigChange = onConfigChange,
+                onPickImage = onPickImage
+            )
+        }
+
+        if (tile.payload == "ethereal_weather") {
+            CitySearchField(
+                palette = palette,
+                currentConfig = tile.config,
+                onCitySelected = { cityResult ->
+                    onConfigChange(cityResult?.toConfig())
+                }
+            )
+        }
+
+        if (tile.type == TileType.APP_LAUNCHER) {
+            AppLauncherSettings(
+                palette = palette,
+                tile = tile,
+                installedApps = installedApps,
+                onConfigChange = onConfigChange,
+                onPickImage = onPickImage
+            )
+        }
+
+        if (tile.type == TileType.WIDGET) {
+            AppLauncherSettings(
+                palette = palette,
+                tile = tile,
+                installedApps = installedApps,
+                onConfigChange = onConfigChange,
+                onPickImage = { },
+                showExtraSettings = false
+            )
+        }
+
+        if (tile.type == TileType.SETTINGS) {
+            TileCustomImageSettings(
+                palette = palette,
+                tile = tile,
+                onConfigChange = onConfigChange,
+                onPickImage = onPickImage
+            )
+        }
+
+        if (tile.type == TileType.EQUALIZER) {
+            AudioSpectrumSettings(
+                palette = palette,
+                tile = tile,
+                onConfigChange = onConfigChange
+            )
+        }
+
+        StyleSlider(
+            label = stringResource(R.string.editor_content_scale),
+            value = tile.style.contentScale,
+            range = 0.5f..2.0f,
+            palette = palette,
+            onValueChange = { v -> onStyleChange(tile.style.copy(contentScale = v)) },
+            format = { "${(it * 100).toInt()}%" }
+        )
+    }
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    SettingsGroup(
+        groupKey = "editor.background",
+        title = stringResource(R.string.editor_group_background),
+        palette = palette
+    ) {
+        StyleSlider(
+            label = stringResource(R.string.editor_opacity),
+            value = tile.style.backgroundOpacity,
+            range = 0f..1f,
+            palette = palette,
+            onValueChange = { v -> onStyleChange(tile.style.copy(backgroundOpacity = v)) },
+            format = { "${(it * 100).toInt()}%" }
+        )
+        StyleSlider(
+            label = stringResource(R.string.editor_blur),
+            value = tile.style.backgroundBlur,
+            range = 0f..25f,
+            palette = palette,
+            onValueChange = { v -> onStyleChange(tile.style.copy(backgroundBlur = v)) },
+            format = { "${it.toInt()} dp" }
+        )
+        TileTextureSettings(
             palette = palette,
             tile = tile,
-            onConfigChange = onConfigChange,
-            onPickImage = onPickImage
+            onStyleChange = onStyleChange
         )
-        Spacer(modifier = Modifier.height(12.dp))
     }
 
-    if (tile.payload == "ethereal_weather") {
-        CitySearchField(
-            palette = palette,
-            currentConfig = tile.config,
-            onCitySelected = { cityResult ->
-                onConfigChange(cityResult?.toConfig())
-            }
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
+    Spacer(modifier = Modifier.height(12.dp))
 
-    if (tile.type == TileType.APP_LAUNCHER) {
-        AppLauncherSettings(
+    SettingsGroup(
+        groupKey = "editor.frame",
+        title = stringResource(R.string.editor_group_frame),
+        palette = palette
+    ) {
+        TileBorderSettings(
             palette = palette,
             tile = tile,
-            installedApps = installedApps,
-            onConfigChange = onConfigChange,
-            onPickImage = onPickImage
+            onStyleChange = onStyleChange
         )
-        Spacer(modifier = Modifier.height(12.dp))
     }
-
-    if (tile.type == TileType.WIDGET) {
-        AppLauncherSettings(
-            palette = palette,
-            tile = tile,
-            installedApps = installedApps,
-            onConfigChange = onConfigChange,
-            onPickImage = { },
-            showExtraSettings = false
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    if (tile.type == TileType.SETTINGS) {
-        TileCustomImageSettings(
-            palette = palette,
-            tile = tile,
-            onConfigChange = onConfigChange,
-            onPickImage = onPickImage
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    if (tile.type == TileType.EQUALIZER) {
-        AudioSpectrumSettings(
-            palette = palette,
-            tile = tile,
-            onConfigChange = onConfigChange
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    StyleSlider(
-        label = stringResource(R.string.editor_opacity),
-        value = tile.style.backgroundOpacity,
-        range = 0f..1f,
-        palette = palette,
-        onValueChange = { v -> onStyleChange(tile.style.copy(backgroundOpacity = v)) },
-        format = { "${(it * 100).toInt()}%" }
-    )
-    Spacer(modifier = Modifier.height(6.dp))
-    StyleSlider(
-        label = stringResource(R.string.editor_blur),
-        value = tile.style.backgroundBlur,
-        range = 0f..25f,
-        palette = palette,
-        onValueChange = { v -> onStyleChange(tile.style.copy(backgroundBlur = v)) },
-        format = { "${it.toInt()} dp" }
-    )
-    Spacer(modifier = Modifier.height(6.dp))
-    StyleSlider(
-        label = stringResource(R.string.editor_content_scale),
-        value = tile.style.contentScale,
-        range = 0.5f..2.0f,
-        palette = palette,
-        onValueChange = { v -> onStyleChange(tile.style.copy(contentScale = v)) },
-        format = { "${(it * 100).toInt()}%" }
-    )
-
-    Spacer(modifier = Modifier.height(10.dp))
-
-    TileBorderSettings(
-        palette = palette,
-        tile = tile,
-        onStyleChange = onStyleChange
-    )
 
     Spacer(modifier = Modifier.height(12.dp))
 
@@ -881,6 +907,44 @@ private fun AppLauncherSettings(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(palette.surfaceVariant.copy(alpha = 0.4f))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.editor_app_foreground_only),
+                    color = palette.textPrimary,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.editor_app_foreground_only_subtitle),
+                    color = palette.textSecondary,
+                    fontSize = 11.sp
+                )
+            }
+            Switch(
+                checked = config.showOnlyForegroundIcon,
+                onCheckedChange = { checked ->
+                    val newConfig = config.copy(showOnlyForegroundIcon = checked)
+                    onConfigChange(newConfig.toJson())
+                },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = palette.primary,
+                    checkedTrackColor = palette.primary.copy(alpha = 0.4f),
+                    uncheckedThumbColor = palette.textSecondary,
+                    uncheckedTrackColor = palette.outline
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1117,21 +1181,7 @@ private fun TileBorderSettings(
     val currentWidth = tile.style.borderWidth
     val currentOpacity = tile.style.borderOpacity
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(palette.surfaceVariant.copy(alpha = 0.4f))
-            .padding(horizontal = 12.dp, vertical = 10.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.editor_border_title),
-            color = palette.textPrimary,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
+    Column(modifier = Modifier.fillMaxWidth()) {
         val borderPresets = listOf(
             TileBorderStyle.NONE to stringResource(R.string.editor_border_none),
             TileBorderStyle.OUTLINE to stringResource(R.string.editor_border_outline),
@@ -1208,6 +1258,97 @@ private fun TileBorderSettings(
                 format = { "${(it * 100).toInt()}%" }
             )
         }
+    }
+}
+
+@Composable
+private fun TileTextureSettings(
+    palette: EtherealPalette,
+    tile: Tile,
+    onStyleChange: (TileStyle) -> Unit
+) {
+    val current = tile.style.texture
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        val options = listOf(
+            TileTexture.NONE to stringResource(R.string.editor_texture_none),
+            TileTexture.GRAIN to stringResource(R.string.editor_texture_grain),
+            TileTexture.DOTS to stringResource(R.string.editor_texture_dots),
+            TileTexture.GRID to stringResource(R.string.editor_texture_grid),
+            TileTexture.DIAGONAL to stringResource(R.string.editor_texture_diagonal),
+            TileTexture.CARBON to stringResource(R.string.editor_texture_carbon),
+            TileTexture.AURORA to stringResource(R.string.editor_texture_aurora)
+        )
+
+        options.chunked(2).forEach { rowOptions ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowOptions.forEach { (texture, label) ->
+                    TexturePreviewChip(
+                        texture = texture,
+                        label = label,
+                        selected = current == texture,
+                        palette = palette,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onStyleChange(tile.style.copy(texture = texture)) }
+                    )
+                }
+                if (rowOptions.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        if (current != TileTexture.NONE) {
+            StyleSlider(
+                label = stringResource(R.string.editor_texture_strength),
+                value = tile.style.textureStrength,
+                range = 0.05f..1f,
+                palette = palette,
+                onValueChange = { v -> onStyleChange(tile.style.copy(textureStrength = v)) },
+                format = { "${(it * 100).toInt()}%" }
+            )
+        }
+    }
+}
+
+@Composable
+private fun TexturePreviewChip(
+    texture: TileTexture,
+    label: String,
+    selected: Boolean,
+    palette: EtherealPalette,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .height(56.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(palette.surfaceVariant.copy(alpha = if (selected) 0.85f else 0.5f))
+            .then(
+                Modifier.tileTexture(
+                    TileStyle(texture = texture, textureStrength = 0.9f),
+                    palette
+                )
+            )
+            .border(
+                width = if (selected) 1.dp else 0.dp,
+                color = if (selected) palette.primary else Color.Transparent,
+                shape = RoundedCornerShape(10.dp)
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = if (selected) palette.primary else palette.textPrimary,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+        )
     }
 }
 

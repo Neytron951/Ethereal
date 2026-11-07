@@ -10,6 +10,31 @@ enum class TileBorderStyle {
     ACCENT,
 }
 
+/**
+ * Плитки приложений по умолчанию создаются с крупной иконкой — 200%.
+ * Меняется в редакторе плитки («Содержимое → Размер контента»).
+ */
+const val APP_LAUNCHER_DEFAULT_CONTENT_SCALE = 2f
+
+/**
+ * Процедурная текстура фона плитки.
+ * Рисуется кодом (без картинок), поэтому масштабируется на любой размер.
+ */
+enum class TileTexture {
+    NONE,
+    GRAIN,
+    DOTS,
+    GRID,
+    DIAGONAL,
+    CARBON,
+    AURORA;
+
+    companion object {
+        fun fromName(raw: String?): TileTexture =
+            values().firstOrNull { it.name.equals(raw, ignoreCase = true) } ?: NONE
+    }
+}
+
 data class TileStyle(
     val backgroundOpacity: Float = 0.55f,
     val backgroundBlur: Float = 0f,
@@ -17,7 +42,9 @@ data class TileStyle(
     val themedIcon: Boolean? = null,
     val borderWidth: Float = 0f,
     val borderOpacity: Float = 0.3f,
-    val borderStyle: TileBorderStyle = TileBorderStyle.NONE
+    val borderStyle: TileBorderStyle = TileBorderStyle.NONE,
+    val texture: TileTexture = TileTexture.NONE,
+    val textureStrength: Float = 0.35f
 )
 
 data class Tile(
@@ -64,7 +91,9 @@ data class TilePreset(
 data class AppLauncherConfig(
     val packageName: String? = null,
     val imageUri: String? = null,
-    val showLabel: Boolean = true
+    val showLabel: Boolean = true,
+    /** Показывать только иконку, без подложки плитки (по умолчанию включено). */
+    val showOnlyForegroundIcon: Boolean = true
 ) {
     fun toJson(): String {
         return buildString {
@@ -74,6 +103,7 @@ data class AppLauncherConfig(
             append(",\"imageUri\":")
             if (imageUri == null) append("null") else append("\"$imageUri\"")
             append(",\"showLabel\":$showLabel")
+            append(",\"showOnlyForegroundIcon\":$showOnlyForegroundIcon")
             append("}")
         }
     }
@@ -86,7 +116,8 @@ data class AppLauncherConfig(
                 AppLauncherConfig(
                     packageName = obj.optString("packageName", "").takeIf { it.isNotEmpty() },
                     imageUri = obj.optString("imageUri", "").takeIf { it.isNotEmpty() },
-                    showLabel = obj.optBoolean("showLabel", true)
+                    showLabel = obj.optBoolean("showLabel", true),
+                    showOnlyForegroundIcon = obj.optBoolean("showOnlyForegroundIcon", true)
                 )
             } catch (e: Exception) {
                 AppLauncherConfig()

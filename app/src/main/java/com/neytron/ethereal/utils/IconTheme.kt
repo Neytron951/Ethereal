@@ -25,13 +25,14 @@ fun renderThemedIcon(
     drawable: Drawable,
     palette: EtherealPalette,
     sizePx: Int = 256,
+    drawBackground: Boolean = true,
 ): Bitmap {
 
     // ============ Уровень 1: <monochrome> (Android 13+) ============
     if ((Build.VERSION.SDK_INT >= 33) && (drawable is AdaptiveIconDrawable)) {
         val mono = try { drawable.monochrome } catch (_: Exception) { null }
         if (mono != null) {
-            return renderMonochromeLayer(mono, palette, sizePx)
+            return renderMonochromeLayer(mono, palette, sizePx, drawBackground)
         }
     }
 
@@ -39,12 +40,16 @@ fun renderThemedIcon(
     if (drawable is AdaptiveIconDrawable) {
         val fg = try { drawable.foreground } catch (_: Exception) { null }
         if (fg != null) {
-            return extractAndRenderMonochrome(fg, palette, sizePx, isAdaptiveFg = true)
+            return extractAndRenderMonochrome(
+                fg, palette, sizePx, isAdaptiveFg = true, drawBackground = drawBackground
+            )
         }
     }
 
     // ============ Уровень 3: Legacy PNG / Drawable ============
-    return extractAndRenderMonochrome(drawable, palette, sizePx, isAdaptiveFg = false)
+    return extractAndRenderMonochrome(
+        drawable, palette, sizePx, isAdaptiveFg = false, drawBackground = drawBackground
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -54,12 +59,15 @@ private fun renderMonochromeLayer(
     monochrome: Drawable,
     palette: EtherealPalette,
     sizePx: Int,
+    drawBackground: Boolean,
 ): Bitmap {
     val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
 
     // 1) Фоновый контейнер
-    canvas.drawColor(palette.surfaceVariant.toArgb())
+    if (drawBackground) {
+        canvas.drawColor(palette.surfaceVariant.toArgb())
+    }
 
     // 2) Monochrome слой — масштаб 1.48f для сочной и выразительной подачи
     val scaleFactor = 1.48f
@@ -87,6 +95,7 @@ private fun extractAndRenderMonochrome(
     palette: EtherealPalette,
     sizePx: Int,
     isAdaptiveFg: Boolean,
+    drawBackground: Boolean,
 ): Bitmap {
     // 1) Отрисовываем исходный слой
     val fgBitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
@@ -108,7 +117,9 @@ private fun extractAndRenderMonochrome(
     // 3) Итоговый результат: контейнер surfaceVariant + четкий силуэт primary
     val result = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(result)
-    canvas.drawColor(palette.surfaceVariant.toArgb())
+    if (drawBackground) {
+        canvas.drawColor(palette.surfaceVariant.toArgb())
+    }
 
     val paint = Paint().apply {
         isAntiAlias = true

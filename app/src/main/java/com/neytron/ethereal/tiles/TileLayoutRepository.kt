@@ -46,54 +46,87 @@ object TileLayoutRepository {
      * Читает раскладку для указанного пространства.
      * Root: если ключ пуст → defaultTiles() (совместимость со старыми установками).
      * Пространство: если ключ пуст → emptyList() (новое пустое пространство).
+     *
+     * @param grid актуальная сетка экрана (колонки/строки). Нужна для ландшафта: по ней
+     *   строится раскладка при первом повороте и в неё же перепаковывается всё, что не влезает.
      */
-    fun getTiles(context: Context, spaceId: String, isLandscape: Boolean): List<Tile> {
+    fun getTiles(
+        context: Context,
+        spaceId: String,
+        isLandscape: Boolean,
+        grid: TileGridSpec? = null
+    ): List<Tile> {
         val baseKey = keyFor(spaceId)
-        val key = if (isLandscape) baseKey + "_landscape" else baseKey
-        val raw = prefs(context).getString(key, null)
+        if (!isLandscape) return getTilesImpl(context, baseKey, spaceId)
 
-        val portraitTiles = if (isLandscape) getTilesImpl(context, baseKey, spaceId) else emptyList()
+        val landscapeKey = baseKey + "_landscape"
+        val rawLandscape = prefs(context).getString(landscapeKey, null)
+        val portraitTiles = getTilesImpl(context, baseKey, spaceId)
 
-        if ((raw == null || raw == "[]") && isLandscape && portraitTiles.isNotEmpty()) {
-            val columns = getColumns(context).coerceAtLeast(4)
-            val reflowed = reflowTilesLeftToRight(portraitTiles, columns)
-            setTilesImpl(context, key, reflowed)
-            return reflowed
+        // 1) Ландшафтной раскладки ещё нет — строим её из портретной.
+        if (rawLandscape == null || rawLandscape == "[]") {
+            if (portraitTiles.isEmpty()) return emptyList()
+            val target = grid ?: TileGridSpec(
+                columns = getColumns(context).coerceAtLeast(1),
+                rows = (portraitTiles.maxOfOrNull { it.y + it.h } ?: 1).coerceAtLeast(1),
+                tileSizeDp = 0f,
+                spacingDp = 0f
+            )
+            val packed = TileGridMetrics.projectTiles(portraitTiles, target.columns, target.rows)
+            setTilesImpl(context, landscapeKey, packed)
+            return packed
         }
 
-        val landscapeTiles = getTilesImpl(context, key, spaceId)
+        val landscapeTiles = getTilesImpl(context, landscapeKey, spaceId)
 
-        if (isLandscape && portraitTiles.isNotEmpty()) {
-            val portraitMap = portraitTiles.associateBy { it.id }
-            var mutated = false
-            val syncedTiles = landscapeTiles.map { landTile ->
-                val portTile = portraitMap[landTile.id]
-                if (portTile != null && (landTile.style != portTile.style || landTile.config != portTile.config || landTile.payload != portTile.payload)) {
-                    mutated = true
-                    landTile.copy(style = portTile.style, config = portTile.config, payload = portTile.payload)
-                } else {
-                    landTile
-                }
-            }.toMutableList()
+        // 2) Стили/конфиги тянем из портретных плиток, недостающие — добавляем.
+        var result = syncLandscapeWithPortrait(context, landscapeTiles, portraitTiles, grid)
 
-            val landscapeIds = syncedTiles.mapTo(HashSet()) { it.id }
-            val missingFromPortrait = portraitTiles.filter { it.id !in landscapeIds }
-            if (missingFromPortrait.isNotEmpty()) {
-                val columns = getColumns(context).coerceAtLeast(4)
-                missingFromPortrait.forEach { portTile ->
-                    val spot = findClosestFreeSpot(syncedTiles, columns, 20, portTile.w, portTile.h, 0, 0)
-                    syncedTiles.add(portTile.copy(x = spot.first, y = spot.second))
-                }
-                mutated = true
-            }
-
-            if (mutated) {
-                setTilesImpl(context, key, syncedTiles)
-                return syncedTiles
-            }
+        // 3) Не влезает в сетку экрана (старая раскладка, смена размера плитки/экрана) —
+        //    перепаковываем, сохраняя порядок. Ни одна плитка не теряется.
+        if (grid != null && !TileGridMetrics.fitsGrid(result, grid)) {
+            result = TileGridMetrics.projectTiles(result, grid.columns, grid.rows)
         }
 
-        return landscapeTiles
+        if (result != landscapeTiles) {
+            setTilesImpl(context, landscapeKey, result)
+        }
+        return result
+    }
+
+    private fun syncLandscapeWithPortrait(
+        context: Context,
+        landscapeTiles: List<Tile>,
+        portraitTiles: List<Tile>,
+        grid: TileGridSpec?
+    ): List<Tile> {
+        if (portraitTiles.isEmpty()) return landscapeTiles
+
+        val portraitMap = portraitTiles.associateBy { it.id }
+        val synced = landscapeTiles.map { landTile ->
+            val portTile = portraitMap[landTile.id]
+            if (portTile != null &&
+                (landTile.style != portTile.style ||
+                    landTile.config != portTile.config ||
+                    landTile.payload != portTile.payload)
+            ) {
+                landTile.copy(style = portTile.style, config = portTile.config, payload = portTile.payload)
+            } else {
+                landTile
+            }
+        }.toMutableList()
+
+        val landscapeIds = synced.mapTo(HashSet()) { it.id }
+        val missingFromPortrait = portraitTiles.filter { it.id !in landscapeIds }
+        if (missingFromPortrait.isNotEmpty()) {
+            val columns = (grid?.columns ?: getColumns(context)).coerceAtLeast(1)
+            missingFromPortrait.forEach { portTile ->
+                val rows = maxOf(grid?.rows ?: 24, portTile.y + portTile.h)
+                val spot = findClosestFreeSpot(synced, columns, rows, portTile.w, portTile.h, 0, 0)
+                synced.add(portTile.copy(x = spot.first, y = spot.second))
+            }
+        }
+        return synced
     }
 
     fun setTiles(context: Context, spaceId: String, tiles: List<Tile>, isLandscape: Boolean) {
@@ -145,7 +178,9 @@ object TileLayoutRepository {
                                     else styleObj.optDouble("borderWidth", 0.0).toFloat(),
                                 borderOpacity = styleObj.optDouble("borderOpacity", 0.3).toFloat(),
                                 borderStyle = bStyle,
-                                themedIcon = if (styleObj.has("themedIcon")) styleObj.optBoolean("themedIcon") else null
+                                themedIcon = if (styleObj.has("themedIcon")) styleObj.optBoolean("themedIcon") else null,
+                                texture = TileTexture.fromName(styleObj.optString("texture", TileTexture.NONE.name)),
+                                textureStrength = styleObj.optDouble("textureStrength", 0.35).toFloat()
                             )
                         } else TileStyle(),
                         clickable = obj.optBoolean("clickable", true),
@@ -172,6 +207,8 @@ object TileLayoutRepository {
                 put("borderWidth", tile.style.borderWidth.toDouble())
                 put("borderOpacity", tile.style.borderOpacity.toDouble())
                 put("borderStyle", tile.style.borderStyle.name)
+                put("texture", tile.style.texture.name)
+                put("textureStrength", tile.style.textureStrength.toDouble())
                 if (tile.style.themedIcon != null) {
                     put("themedIcon", tile.style.themedIcon)
                 }
@@ -480,6 +517,11 @@ object TileLayoutRepository {
             payload = preset.payload,
             locked = false,
             clickable = preset.clickable,
+            style = if (preset.type == TileType.APP_LAUNCHER) {
+                TileStyle(contentScale = APP_LAUNCHER_DEFAULT_CONTENT_SCALE)
+            } else {
+                TileStyle()
+            },
             config = null
         )
 

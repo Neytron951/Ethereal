@@ -10,6 +10,7 @@ import com.neytron.ethereal.tiles.Tile
 import com.neytron.ethereal.tiles.TileBorderStyle
 import com.neytron.ethereal.tiles.TileLayoutRepository
 import com.neytron.ethereal.tiles.TileStyle
+import com.neytron.ethereal.tiles.TileTexture
 import com.neytron.ethereal.tiles.TileType
 import com.neytron.ethereal.ui.navigation.ScreenStack
 import org.json.JSONArray
@@ -235,6 +236,8 @@ object BackupRepository {
                     put("borderWidth", tile.style.borderWidth)
                     put("borderOpacity", tile.style.borderOpacity)
                     put("borderStyle", tile.style.borderStyle.name)
+                    put("texture", tile.style.texture.name)
+                    put("textureStrength", tile.style.textureStrength.toDouble())
                     if (tile.style.themedIcon != null) {
                         put("themedIcon", tile.style.themedIcon)
                     }
@@ -293,7 +296,9 @@ object BackupRepository {
                                 else styleObj.optDouble("borderWidth", 0.0).toFloat(),
                             borderOpacity = styleObj.optDouble("borderOpacity", 0.3).toFloat(),
                             borderStyle = bStyle,
-                            themedIcon = if (styleObj.has("themedIcon")) styleObj.optBoolean("themedIcon") else null
+                            themedIcon = if (styleObj.has("themedIcon")) styleObj.optBoolean("themedIcon") else null,
+                            texture = TileTexture.fromName(styleObj.optString("texture", TileTexture.NONE.name)),
+                            textureStrength = styleObj.optDouble("textureStrength", 0.35).toFloat().coerceIn(0f, 1f)
                         )
                     } else TileStyle(),
                     clickable = obj.optBoolean("clickable", true),
@@ -701,6 +706,7 @@ object BackupRepository {
                     validateTileStyle(style, "bgOpacity", 0.0..1.0)
                     validateTileStyle(style, "bgBlur", 0.0..25.0)
                     validateTileStyle(style, "contentScale", 0.5..2.0)
+                    validateTileStyle(style, "textureStrength", 0.0..1.0)
                 }
             }
             deserializeTiles(context, array)

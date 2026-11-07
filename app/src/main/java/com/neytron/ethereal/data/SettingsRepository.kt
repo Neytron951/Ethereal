@@ -2,6 +2,7 @@ package com.neytron.ethereal.data
 
 import android.content.Context
 import com.neytron.ethereal.tiles.TileBorderStyle
+import com.neytron.ethereal.ui.theme.ESearchStyle
 
 object SettingsRepository {
 
@@ -51,6 +52,7 @@ object SettingsRepository {
     private const val KEY_ESEARCH_WIDTH = "esearch_width"
     private const val KEY_ESEARCH_VISIBLE_ITEMS = "esearch_visible_items"
     private const val KEY_ESEARCH_AUTO_KEYBOARD = "esearch_auto_keyboard"
+    private const val KEY_ESEARCH_STYLE = "esearch_style"
 
     private const val DEFAULT_ESEARCH_WIDTH = 0.75f
     private const val DEFAULT_ESEARCH_VISIBLE = 6
@@ -258,6 +260,14 @@ object SettingsRepository {
         prefs(context).getBoolean(KEY_ESEARCH_AUTO_KEYBOARD, true)
     fun setESearchAutoKeyboard(context: Context, value: Boolean) {
         prefs(context).edit().putBoolean(KEY_ESEARCH_AUTO_KEYBOARD, value).apply()
+    }
+
+    fun getESearchStyle(context: Context): ESearchStyle {
+        val name = prefs(context).getString(KEY_ESEARCH_STYLE, ESearchStyle.DEFAULT.name)
+        return ESearchStyle.fromName(name)
+    }
+    fun setESearchStyle(context: Context, style: ESearchStyle) {
+        prefs(context).edit().putString(KEY_ESEARCH_STYLE, style.name).apply()
     }
 
     private const val KEY_ESEARCH_BORDER_STYLE = "esearch_border_style"

@@ -70,6 +70,8 @@
     <string name="editor_location_hint">Начните вводить город...</string>
     <string name="editor_app_choose">Выбрать приложение</string>
     <string name="editor_app_show_label">Показывать название</string>
+    <string name="editor_app_foreground_only">Только foreground иконки</string>
+    <string name="editor_app_foreground_only_subtitle">Скрыть background-слой иконки — остаётся только логотип (у PNG-иконок слоёв нет)</string>
     <string name="editor_app_image">Своя картинка</string>
     <string name="editor_app_image_set">Установлена</string>
     <string name="editor_app_image_not_set">Не установлена</string>
@@ -313,6 +315,15 @@
     <string name="editor_border_accent">Акцент</string>
     <string name="editor_border_width">Толщина рамки</string>
     <string name="editor_border_opacity">Прозрачность рамки</string>
+    <string name="editor_texture_title">Текстура фона</string>
+    <string name="editor_texture_none">Нет</string>
+    <string name="editor_texture_grain">Зерно</string>
+    <string name="editor_texture_dots">Точки</string>
+    <string name="editor_texture_grid">Сетка</string>
+    <string name="editor_texture_diagonal">Диагональ</string>
+    <string name="editor_texture_carbon">Карбон</string>
+    <string name="editor_texture_aurora">Аврора</string>
+    <string name="editor_texture_strength">Насыщенность текстуры</string>
     <string name="day_sat">Сб</string>
     <string name="day_sun">Вс</string>
 
@@ -349,4 +360,34 @@
     <string name="update_button">Обновить</string>
     <string name="update_check_manual">Проверить обновления</string>
     <string name="update_checking">Проверка...</string>
+
+    <!-- Grouped settings -->
+    <string name="settings_group_theme">Тема и шрифт</string>
+    <string name="settings_group_icons">Иконки</string>
+    <string name="settings_group_panels">Панели</string>
+    <string name="settings_group_panels_subtitle">Стеклянный эффект дока и плиток</string>
+    <string name="settings_group_grid">Сетка</string>
+    <string name="settings_group_behaviour">Поведение</string>
+    <string name="settings_group_search_panel">Панель поиска</string>
+    <string name="settings_group_layout">Раскладка</string>
+    <string name="settings_group_dock_geometry">Геометрия</string>
+    <string name="settings_group_dock_look">Внешний вид</string>
+    <string name="editor_group_content">Содержимое</string>
+    <string name="editor_group_background">Фон</string>
+    <string name="editor_group_frame">Рамка</string>
+    <string name="editor_group_size">Размер</string>
+
+    <!-- ESearch styles -->
+    <string name="settings_group_esearch_style">Стиль</string>
+    <string name="esearch_style_default">Классика</string>
+    <string name="esearch_style_default_desc">Строка поиска и список приложений</string>
+    <string name="esearch_style_categories">Категории</string>
+    <string name="esearch_style_categories_desc">Лучший результат, недавние и все приложения по секциям</string>
+    <string name="esearch_style_grid">Сетка иконок</string>
+    <string name="esearch_style_grid_desc">Результаты крупными иконками в сетке</string>
+    <string name="esearch_style_compact">Компактный</string>
+    <string name="esearch_style_compact_desc">Плотный текстовый список без иконок</string>
+    <string name="esearch_section_best">Лучший результат</string>
+    <string name="esearch_section_recent">Недавние</string>
+    <string name="esearch_section_all">Все приложения</string>
 </resources>

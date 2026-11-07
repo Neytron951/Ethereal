@@ -37,6 +37,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.neytron.ethereal.R
 import com.neytron.ethereal.data.AppInfo
+import com.neytron.ethereal.tiles.APP_LAUNCHER_DEFAULT_CONTENT_SCALE
 import com.neytron.ethereal.tiles.TileBorderStyle
 import com.neytron.ethereal.tiles.TileStyle
 import com.neytron.ethereal.ui.theme.EtherealPalette
@@ -62,7 +63,7 @@ fun MultiAppsPickerDialog(
 
     var opacity by remember { mutableStateOf(0.55f) }
     var blur by remember { mutableStateOf(0f) }
-    var contentScale by remember { mutableStateOf(1.0f) }
+    var contentScale by remember { mutableStateOf(APP_LAUNCHER_DEFAULT_CONTENT_SCALE) }
     var borderStyle by remember { mutableStateOf(TileBorderStyle.NONE) }
     var borderWidth by remember { mutableStateOf(0f) }
     var borderOpacity by remember { mutableStateOf(0.3f) }

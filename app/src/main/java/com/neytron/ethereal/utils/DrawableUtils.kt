@@ -53,6 +53,48 @@ fun Drawable.toImageBitmap(
     }
 }
 
+/**
+ * Рисует иконку без background-слоя — только foreground (логотип).
+ *
+ * Работает для адаптивных иконок (Android 8+), где back и fore лежат раздельно.
+ * Для иконок без слоёв (обычный PNG, легаси, часть иконпаков) вернёт иконку целиком:
+ * отделить там нечего.
+ */
+fun Drawable.toForegroundOnlyBitmap(sizePx: Int = 256): ImageBitmap? {
+    return try {
+        val adaptive = this as? AdaptiveIconDrawable
+        val foreground = try { adaptive?.foreground } catch (_: Throwable) { null }
+        if (foreground != null) renderAdaptiveForeground(foreground, sizePx)
+        else toImageBitmap(sizePx)
+    } catch (_: Throwable) {
+        null
+    }
+}
+
+/**
+ * Foreground-слой рисуем с тем же масштабом (1.5x), что и в [renderAdaptive],
+ * иначе при переключении тумблера логотип «прыгал» бы по размеру.
+ */
+private fun renderAdaptiveForeground(foreground: Drawable, sizePx: Int): ImageBitmap? {
+    return try {
+        val safeSize = sizePx.coerceIn(1, 1024)
+        val bitmap = Bitmap.createBitmap(safeSize, safeSize, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        canvas.save()
+        canvas.translate(safeSize / 2f, safeSize / 2f)
+        canvas.scale(1.5f, 1.5f)
+        canvas.translate(-safeSize / 2f, -safeSize / 2f)
+        foreground.setBounds(0, 0, safeSize, safeSize)
+        foreground.draw(canvas)
+        canvas.restore()
+
+        bitmap.asImageBitmap()
+    } catch (_: Throwable) {
+        null
+    }
+}
+
 private fun renderAdaptive(
     drawable: AdaptiveIconDrawable,
     sizePx: Int,

@@ -48,6 +48,7 @@ fun FrostedGlassBox(
     backgroundColor: Color,
     shape: Shape,
     modifier: Modifier = Modifier,
+    contentModifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit
 ) {
     val wallpaperPath = LocalWallpaperPath.current
@@ -132,6 +133,7 @@ fun FrostedGlassBox(
                 .background(backgroundColor.copy(alpha = opacity))
         )
         Box(
+            modifier = contentModifier,
             contentAlignment = Alignment.Center,
             content = content
         )
