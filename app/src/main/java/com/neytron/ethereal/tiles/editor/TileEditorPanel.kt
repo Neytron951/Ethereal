@@ -50,7 +50,10 @@ import com.neytron.ethereal.tiles.TileTexture
 import com.neytron.ethereal.tiles.TileBorderStyle
 import com.neytron.ethereal.tiles.TileType
 import com.neytron.ethereal.ui.SettingsGroup
+import com.neytron.ethereal.ui.TileShapePicker
 import com.neytron.ethereal.ui.theme.EtherealPalette
+import com.neytron.ethereal.ui.theme.LocalAppearance
+import com.neytron.ethereal.ui.theme.TileShape
 import com.neytron.ethereal.utils.toImageBitmap
 import com.neytron.ethereal.utils.tileTexture
 import com.neytron.ethereal.weather.CityResult
@@ -66,6 +69,8 @@ fun TileEditorPanel(
     presets: List<TilePreset>,
     selectedTile: Tile?,
     installedApps: List<AppInfo>,
+    defaultShape: TileShape = TileShape.ROUNDED,
+    tileRadiusDp: Float = 8f,
     onPresetClick: (TilePreset) -> Unit,
     onSystemWidgetClick: () -> Unit,
     onCreateSpaceClick: () -> Unit,
@@ -119,6 +124,8 @@ fun TileEditorPanel(
                 palette = palette,
                 tile = selectedTile,
                 installedApps = installedApps,
+                defaultShape = defaultShape,
+                tileRadiusDp = tileRadiusDp,
                 onResize = { w, h -> onResizeTile(selectedTile, w, h) },
                 onStyleChange = { newStyle -> onStyleChange(selectedTile, newStyle) },
                 onConfigChange = { newConfig -> onConfigChange(selectedTile, newConfig) },
@@ -358,6 +365,8 @@ private fun TileSettingsMode(
     palette: EtherealPalette,
     tile: Tile,
     installedApps: List<AppInfo>,
+    defaultShape: TileShape,
+    tileRadiusDp: Float,
     onResize: (Int, Int) -> Unit,
     onStyleChange: (TileStyle) -> Unit,
     onConfigChange: (String?) -> Unit,
@@ -412,6 +421,23 @@ private fun TileSettingsMode(
 
     Spacer(modifier = Modifier.height(12.dp))
 
+    if (LocalAppearance.current.isFlat) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(palette.primary.copy(alpha = 0.12f))
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.editor_flat_hint),
+                color = palette.textSecondary,
+                fontSize = 11.sp
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
     SettingsGroup(
         groupKey = "editor.size",
         title = stringResource(R.string.editor_group_size),
@@ -430,6 +456,24 @@ private fun TileSettingsMode(
             palette = palette,
             onMinus = { onResize(tile.w, tile.h - 1) },
             onPlus = { onResize(tile.w, tile.h + 1) }
+        )
+    }
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    SettingsGroup(
+        groupKey = "editor.shape",
+        title = stringResource(R.string.editor_group_shape),
+        palette = palette
+    ) {
+        TileShapePicker(
+            shapes = listOf(TileShape.AUTO) + TileShape.explicit,
+            selected = tile.style.shape,
+            palette = palette,
+            defaultShape = defaultShape,
+            radiusDp = tileRadiusDp,
+            columns = 5,
+            onSelect = { shape -> onStyleChange(tile.style.copy(shape = shape)) }
         )
     }
 

@@ -31,8 +31,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -342,12 +344,14 @@ private fun ESearchPanel(
     val view = LocalView.current
     val haptic = LocalHapticFeedback.current
     val config = LocalESearchConfig.current
+    val appearance = LocalAppearance.current
     val tilt = DeviceTiltProvider.tilt.collectAsState().value
     val keyboardController = LocalSoftwareKeyboardController.current
     var query by remember { mutableStateOf("") }
     var selectedIndex by remember { mutableIntStateOf(0) }
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
 
     // Множество пакетов, которые уже хотя бы раз отобразились в рамках текущей сессии ESearch
     val shownPackages = remember { mutableSetOf<String>() }
@@ -366,18 +370,30 @@ private fun ESearchPanel(
         AppSorter.sortByScore(apps, query, statsMap)
     }
 
-    LaunchedEffect(rouletteMode) {
+    LaunchedEffect(rouletteMode, config.style) {
         if (rouletteMode) {
             val startTime = System.currentTimeMillis()
             val durationMs = 1200L
             try {
-                listState.scroll {
-                    while (System.currentTimeMillis() - startTime < durationMs) {
-                        val progress = (System.currentTimeMillis() - startTime).toFloat() / durationMs
-                        val speed = (1f - progress) * 35f + 3f
-                        scrollBy(speed)
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        delay(16)
+                if (config.style == ESearchStyle.GRID) {
+                    gridState.scroll {
+                        while (System.currentTimeMillis() - startTime < durationMs) {
+                            val progress = (System.currentTimeMillis() - startTime).toFloat() / durationMs
+                            val speed = (1f - progress) * 35f + 3f
+                            scrollBy(speed)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            delay(16)
+                        }
+                    }
+                } else {
+                    listState.scroll {
+                        while (System.currentTimeMillis() - startTime < durationMs) {
+                            val progress = (System.currentTimeMillis() - startTime).toFloat() / durationMs
+                            val speed = (1f - progress) * 35f + 3f
+                            scrollBy(speed)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            delay(16)
+                        }
                     }
                 }
             } catch (_: Exception) {}
@@ -423,18 +439,22 @@ private fun ESearchPanel(
         FrostedGlassBox(
             blur = blur,
             opacity = opacity,
-            backgroundColor = palette.background,
+            backgroundColor = palette.surface,
             shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.tileBorder(
-                tileStyle = TileStyle(
-                    borderWidth = config.borderWidth,
-                    borderOpacity = config.borderOpacity,
-                    borderStyle = config.borderStyle
-                ),
-                palette = palette,
-                shape = RoundedCornerShape(20.dp),
-                tilt = tilt
-            )
+            modifier = if (appearance.isFlat) {
+                Modifier
+            } else {
+                Modifier.tileBorder(
+                    tileStyle = TileStyle(
+                        borderWidth = config.borderWidth,
+                        borderOpacity = config.borderOpacity,
+                        borderStyle = config.borderStyle
+                    ),
+                    palette = palette,
+                    shape = RoundedCornerShape(20.dp),
+                    tilt = tilt
+                )
+            }
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Box(
@@ -503,6 +523,7 @@ private fun ESearchPanel(
                         visibleItems = visibleItems,
                         maxHeight = listMaxHeight,
                         listState = listState,
+                        gridState = gridState,
                         palette = palette,
                         themedIcons = themedIcons,
                         iconCache = iconCache,
@@ -660,6 +681,7 @@ private fun ESearchResultsBlock(
     visibleItems: Int,
     maxHeight: Dp,
     listState: androidx.compose.foundation.lazy.LazyListState,
+    gridState: LazyGridState,
     palette: EtherealPalette,
     themedIcons: Boolean,
     iconCache: MutableMap<String, ImageBitmap?>,
@@ -721,6 +743,7 @@ private fun ESearchResultsBlock(
         ESearchStyle.GRID -> {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
+                state = gridState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = maxHeight + 24.dp),

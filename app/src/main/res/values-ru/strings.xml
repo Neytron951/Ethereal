@@ -390,4 +390,16 @@
     <string name="esearch_section_best">Лучший результат</string>
     <string name="esearch_section_recent">Недавние</string>
     <string name="esearch_section_all">Все приложения</string>
+
+    <!-- UI style -->
+    <string name="settings_group_design">Дизайн</string>
+    <string name="settings_group_design_subtitle">Общий характер интерфейса</string>
+    <string name="ui_style_glass">Ethereal Glass</string>
+    <string name="ui_style_glass_desc">Полупрозрачные панели, блюр обоев, стеклянные рамки</string>
+    <string name="ui_style_flat">Flat (Material You)</string>
+    <string name="ui_style_flat_desc">Плотные тональные поверхности: без блюра, текстур и стеклянных рамок</string>
+    <string name="editor_flat_hint">Включён стиль Flat: блюр, текстуры и стеклянные рамки не отображаются. Настройки сохранены и вернутся вместе с Ethereal Glass.</string>
+    <string name="editor_group_shape">Форма</string>
+    <string name="settings_tile_shape">Форма плитки</string>
+    <string name="settings_tile_shape_subtitle">Форма по умолчанию. У каждой плитки её можно переопределить в редакторе.</string>
 </resources>

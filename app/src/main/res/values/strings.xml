@@ -390,4 +390,16 @@
     <string name="esearch_section_best">Best match</string>
     <string name="esearch_section_recent">Recent</string>
     <string name="esearch_section_all">All apps</string>
+
+    <!-- UI style -->
+    <string name="settings_group_design">Design</string>
+    <string name="settings_group_design_subtitle">Overall character of the interface</string>
+    <string name="ui_style_glass">Ethereal Glass</string>
+    <string name="ui_style_glass_desc">Translucent panels, wallpaper blur, glass borders</string>
+    <string name="ui_style_flat">Flat (Material You)</string>
+    <string name="ui_style_flat_desc">Solid tonal surfaces: no blur, textures or glass borders</string>
+    <string name="editor_flat_hint">Flat style is on: blur, textures and glass borders are not rendered. Your settings are kept and will come back with Ethereal Glass.</string>
+    <string name="editor_group_shape">Shape</string>
+    <string name="settings_tile_shape">Tile shape</string>
+    <string name="settings_tile_shape_subtitle">Default shape for tiles. Each tile can override it in the editor.</string>
 </resources>

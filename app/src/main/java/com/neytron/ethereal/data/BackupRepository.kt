@@ -12,6 +12,7 @@ import com.neytron.ethereal.tiles.TileLayoutRepository
 import com.neytron.ethereal.tiles.TileStyle
 import com.neytron.ethereal.tiles.TileTexture
 import com.neytron.ethereal.tiles.TileType
+import com.neytron.ethereal.ui.theme.TileShape
 import com.neytron.ethereal.ui.navigation.ScreenStack
 import org.json.JSONArray
 import org.json.JSONObject
@@ -238,6 +239,7 @@ object BackupRepository {
                     put("borderStyle", tile.style.borderStyle.name)
                     put("texture", tile.style.texture.name)
                     put("textureStrength", tile.style.textureStrength.toDouble())
+                    put("shape", tile.style.shape.name)
                     if (tile.style.themedIcon != null) {
                         put("themedIcon", tile.style.themedIcon)
                     }
@@ -298,7 +300,8 @@ object BackupRepository {
                             borderStyle = bStyle,
                             themedIcon = if (styleObj.has("themedIcon")) styleObj.optBoolean("themedIcon") else null,
                             texture = TileTexture.fromName(styleObj.optString("texture", TileTexture.NONE.name)),
-                            textureStrength = styleObj.optDouble("textureStrength", 0.35).toFloat().coerceIn(0f, 1f)
+                            textureStrength = styleObj.optDouble("textureStrength", 0.35).toFloat().coerceIn(0f, 1f),
+                            shape = TileShape.fromName(styleObj.optString("shape", TileShape.AUTO.name))
                         )
                     } else TileStyle(),
                     clickable = obj.optBoolean("clickable", true),

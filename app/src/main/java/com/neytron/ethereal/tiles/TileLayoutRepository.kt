@@ -2,6 +2,7 @@ package com.neytron.ethereal.tiles
 
 import android.content.Context
 import com.neytron.ethereal.ui.navigation.ScreenStack
+import com.neytron.ethereal.ui.theme.TileShape
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -180,7 +181,8 @@ object TileLayoutRepository {
                                 borderStyle = bStyle,
                                 themedIcon = if (styleObj.has("themedIcon")) styleObj.optBoolean("themedIcon") else null,
                                 texture = TileTexture.fromName(styleObj.optString("texture", TileTexture.NONE.name)),
-                                textureStrength = styleObj.optDouble("textureStrength", 0.35).toFloat()
+                                textureStrength = styleObj.optDouble("textureStrength", 0.35).toFloat(),
+                                shape = TileShape.fromName(styleObj.optString("shape", TileShape.AUTO.name))
                             )
                         } else TileStyle(),
                         clickable = obj.optBoolean("clickable", true),
@@ -209,6 +211,7 @@ object TileLayoutRepository {
                 put("borderStyle", tile.style.borderStyle.name)
                 put("texture", tile.style.texture.name)
                 put("textureStrength", tile.style.textureStrength.toDouble())
+                put("shape", tile.style.shape.name)
                 if (tile.style.themedIcon != null) {
                     put("themedIcon", tile.style.themedIcon)
                 }

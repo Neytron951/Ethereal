@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
@@ -23,6 +24,8 @@ import androidx.compose.ui.zIndex
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.tiles.editor.TileEditorState
 import com.neytron.ethereal.ui.theme.EtherealPalette
+import com.neytron.ethereal.ui.theme.TileShape
+import com.neytron.ethereal.ui.theme.tileShapeFor
 
 @Composable
 fun TileGrid(
@@ -32,6 +35,7 @@ fun TileGrid(
     tileSize: Dp,
     spacing: Dp,
     radius: Dp,
+    defaultShape: TileShape,
     palette: EtherealPalette,
     editorState: TileEditorState,
     installedApps: List<AppInfo>,
@@ -67,6 +71,8 @@ fun TileGrid(
     val cellSize = tileSize + spacing
     val totalWidth = cellSize * columns - spacing
     val totalHeight = cellSize * rows - spacing
+    // Форма пустых ячеек и «тени» перетаскивания повторяет глобальную форму плиток
+    val cellShape: Shape = tileShapeFor(defaultShape, radius.value)
 
     val dragging = editorState.draggingTile.value
     val occupied: Array<BooleanArray> = remember(displayedTiles, columns, rows, dragging) {
@@ -105,7 +111,7 @@ fun TileGrid(
                         EmptyCell(
                             visible = isEditing && !isTransitioning,
                             tileSize = tileSize,
-                            radius = radius,
+                            shape = cellShape,
                             palette = palette,
                             onClick = onEmptyTap,
                             modifier = Modifier.offset(
@@ -129,9 +135,9 @@ fun TileGrid(
                     modifier = Modifier
                         .offset(x = targetX, y = targetY)
                         .size(width = targetW, height = targetH)
-                        .clip(RoundedCornerShape(radius))
+                        .clip(cellShape)
                         .background(palette.primary.copy(alpha = 0.22f))
-                        .border(1.5.dp, palette.primary, RoundedCornerShape(radius))
+                        .border(1.5.dp, palette.primary, cellShape)
                 )
             }
 
@@ -158,6 +164,7 @@ fun TileGrid(
                                     tileSize = tileSize,
                                     spacing = spacing,
                                     radius = radius,
+                                    defaultShape = defaultShape,
                                     palette = palette,
                                     editorState = editorState,
                                     installedApps = installedApps,
@@ -198,6 +205,7 @@ fun TileGrid(
                                     tileSize = tileSize,
                                     spacing = spacing,
                                     radius = radius,
+                                    defaultShape = defaultShape,
                                     palette = palette,
                                     editorState = editorState,
                                     installedApps = installedApps,
@@ -238,6 +246,7 @@ fun TileGrid(
                                     tileSize = tileSize,
                                     spacing = spacing,
                                     radius = radius,
+                                    defaultShape = defaultShape,
                                     palette = palette,
                                     editorState = editorState,
                                     installedApps = installedApps,
@@ -278,6 +287,7 @@ fun TileGrid(
                                     tileSize = tileSize,
                                     spacing = spacing,
                                     radius = radius,
+                                    defaultShape = defaultShape,
                                     palette = palette,
                                     editorState = editorState,
                                     installedApps = installedApps,
@@ -328,6 +338,7 @@ fun TileGrid(
                             tileSize = tileSize,
                             spacing = spacing,
                             radius = radius,
+                            defaultShape = defaultShape,
                             palette = palette,
                             editorState = editorState,
                             installedApps = installedApps,
@@ -361,7 +372,7 @@ fun TileGrid(
 private fun EmptyCell(
     visible: Boolean,
     tileSize: Dp,
-    radius: Dp,
+    shape: Shape,
     palette: EtherealPalette,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -373,9 +384,9 @@ private fun EmptyCell(
     Box(
         modifier = modifier
             .size(tileSize)
-            .clip(RoundedCornerShape(radius))
+            .clip(shape)
             .background(bg)
-            .border(0.5.dp, borderColor, RoundedCornerShape(radius))
+            .border(0.5.dp, borderColor, shape)
     )
 }
 

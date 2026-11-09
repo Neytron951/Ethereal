@@ -33,11 +33,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,6 +81,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.neytron.ethereal.ui.theme.EtherealFont
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.ESearchStyle
+import com.neytron.ethereal.ui.theme.TileShape
+import com.neytron.ethereal.ui.theme.UiStyle
 import com.neytron.ethereal.ui.theme.IconShape
 import com.neytron.ethereal.ui.theme.LocalAppearance
 import com.neytron.ethereal.ui.theme.fontFamilyFor
@@ -104,6 +108,8 @@ fun SettingsScreen(
     onOpacityChange: (Float) -> Unit,
     onBlurChange: (Float) -> Unit,
     onFontScaleChange: (Float) -> Unit,
+    uiStyle: UiStyle = UiStyle.GLASS,
+    onUiStyleChange: (UiStyle) -> Unit = {},
     fontFamilyName: String,
     onFontFamilyChange: (String) -> Unit,
     wallpapers: List<java.io.File>,
@@ -159,10 +165,12 @@ fun SettingsScreen(
     tileSize: Float,
     tileSpacing: Float,
     tileRadius: Float,
+    tileShape: TileShape = TileShape.ROUNDED,
     resizeIndicatorEnabled: Boolean,
     onTileSizeChange: (Float) -> Unit,
     onTileSpacingChange: (Float) -> Unit,
     onTileRadiusChange: (Float) -> Unit,
+    onTileShapeChange: (TileShape) -> Unit = {},
     onResizeIndicatorEnabledChange: (Boolean) -> Unit,
     onResetTiles: () -> Unit,
     analyticsEnabled: Boolean,
@@ -194,7 +202,7 @@ fun SettingsScreen(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        color = currentPalette.background.copy(alpha = appearance.opacity)
+        color = currentPalette.background.copy(alpha = if (appearance.isFlat) 1f else appearance.opacity)
     ) {
         if (isLandscape) {
             Row(
@@ -260,6 +268,8 @@ fun SettingsScreen(
                             onOpacityChange = onOpacityChange,
                             onBlurChange = onBlurChange,
                             onFontScaleChange = onFontScaleChange,
+                            uiStyle = uiStyle,
+                            onUiStyleChange = onUiStyleChange,
                             fontFamilyName = fontFamilyName,
                             onFontFamilyChange = onFontFamilyChange,
                             themedIcons = dockThemedIcons,
@@ -273,10 +283,12 @@ fun SettingsScreen(
                             tileSize = tileSize,
                             tileSpacing = tileSpacing,
                             tileRadius = tileRadius,
+                            tileShape = tileShape,
                             resizeIndicatorEnabled = resizeIndicatorEnabled,
                             onTileSizeChange = onTileSizeChange,
                             onTileSpacingChange = onTileSpacingChange,
                             onTileRadiusChange = onTileRadiusChange,
+                            onTileShapeChange = onTileShapeChange,
                             onResizeIndicatorEnabledChange = onResizeIndicatorEnabledChange,
                             onResetTiles = onResetTiles
                         )
@@ -413,6 +425,8 @@ fun SettingsScreen(
                                 onOpacityChange = onOpacityChange,
                                 onBlurChange = onBlurChange,
                                 onFontScaleChange = onFontScaleChange,
+                                uiStyle = uiStyle,
+                                onUiStyleChange = onUiStyleChange,
                                 fontFamilyName = fontFamilyName,
                                 onFontFamilyChange = onFontFamilyChange,
                                 themedIcons = dockThemedIcons,
@@ -426,10 +440,12 @@ fun SettingsScreen(
                                 tileSize = tileSize,
                                 tileSpacing = tileSpacing,
                                 tileRadius = tileRadius,
+                                tileShape = tileShape,
                                 resizeIndicatorEnabled = resizeIndicatorEnabled,
                                 onTileSizeChange = onTileSizeChange,
                                 onTileSpacingChange = onTileSpacingChange,
                                 onTileRadiusChange = onTileRadiusChange,
+                                onTileShapeChange = onTileShapeChange,
                                 onResizeIndicatorEnabledChange = onResizeIndicatorEnabledChange,
                                 onResetTiles = onResetTiles
                             )
@@ -571,6 +587,8 @@ private fun AppearanceTab(
     onOpacityChange: (Float) -> Unit,
     onBlurChange: (Float) -> Unit,
     onFontScaleChange: (Float) -> Unit,
+    uiStyle: UiStyle,
+    onUiStyleChange: (UiStyle) -> Unit,
     fontFamilyName: String,
     onFontFamilyChange: (String) -> Unit,
     themedIcons: Boolean,
@@ -585,6 +603,31 @@ private fun AppearanceTab(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        item {
+            SettingsGroup(
+                groupKey = "appearance.design",
+                title = stringResource(R.string.settings_group_design),
+                subtitle = stringResource(R.string.settings_group_design_subtitle),
+                palette = currentPalette
+            ) {
+                UiStyleOption(
+                    title = stringResource(R.string.ui_style_glass),
+                    description = stringResource(R.string.ui_style_glass_desc),
+                    selected = uiStyle == UiStyle.GLASS,
+                    palette = currentPalette,
+                    isFlatPreview = false,
+                    onClick = { onUiStyleChange(UiStyle.GLASS) }
+                )
+                UiStyleOption(
+                    title = stringResource(R.string.ui_style_flat),
+                    description = stringResource(R.string.ui_style_flat_desc),
+                    selected = uiStyle == UiStyle.FLAT,
+                    palette = currentPalette,
+                    isFlatPreview = true,
+                    onClick = { onUiStyleChange(UiStyle.FLAT) }
+                )
+            }
+        }
         item {
             SettingsGroup(
                 groupKey = "appearance.theme",
@@ -661,6 +704,91 @@ private fun AppearanceTab(
             }
         }
         item { Spacer(modifier = Modifier.height(20.dp)) }
+    }
+}
+
+@Composable
+private fun UiStyleOption(
+    title: String,
+    description: String,
+    selected: Boolean,
+    palette: EtherealPalette,
+    isFlatPreview: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (selected) palette.primary.copy(alpha = 0.18f)
+                else palette.surfaceVariant.copy(alpha = 0.35f)
+            )
+            .border(
+                width = if (selected) 1.dp else 0.dp,
+                color = if (selected) palette.primary else Color.Transparent,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        UiStylePreview(isFlat = isFlatPreview, palette = palette)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = if (selected) palette.primary else palette.textPrimary,
+                fontSize = 14.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = description,
+                color = palette.textSecondary,
+                fontSize = 11.sp
+            )
+        }
+        if (selected) {
+            Text("✓", color = palette.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun UiStylePreview(isFlat: Boolean, palette: EtherealPalette) {
+    Box(
+        modifier = Modifier
+            .size(52.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (isFlat) {
+                    Brush.linearGradient(listOf(palette.surfaceVariant, palette.surfaceVariant))
+                } else {
+                    Brush.linearGradient(
+                        listOf(
+                            palette.surfaceVariant.copy(alpha = 0.65f),
+                            palette.surfaceVariant.copy(alpha = 0.25f)
+                        )
+                    )
+                }
+            )
+            .border(
+                width = if (isFlat) 0.dp else 1.dp,
+                color = if (isFlat) Color.Transparent else Color.White.copy(alpha = 0.35f),
+                shape = RoundedCornerShape(12.dp)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 28.dp, height = 16.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .background(
+                    if (isFlat) palette.primary.copy(alpha = 0.85f)
+                    else palette.primary.copy(alpha = 0.35f)
+                )
+        )
     }
 }
 
@@ -750,10 +878,12 @@ private fun TilesTab(
     tileSize: Float,
     tileSpacing: Float,
     tileRadius: Float,
+    tileShape: TileShape,
     resizeIndicatorEnabled: Boolean,
     onTileSizeChange: (Float) -> Unit,
     onTileSpacingChange: (Float) -> Unit,
     onTileRadiusChange: (Float) -> Unit,
+    onTileShapeChange: (TileShape) -> Unit,
     onResizeIndicatorEnabledChange: (Boolean) -> Unit,
     onResetTiles: () -> Unit
 ) {
@@ -785,15 +915,37 @@ private fun TilesTab(
                     onValueChange = onTileSpacingChange,
                     format = { "${it.toInt()}dp" }
                 )
-                SettingsSlider(
-                    title = stringResource(R.string.settings_tile_radius),
-                    subtitle = stringResource(R.string.settings_tile_radius_subtitle),
-                    value = tileRadius,
-                    range = 0f..32f,
-                    palette = palette,
-                    onValueChange = onTileRadiusChange,
-                    format = { "${it.toInt()}dp" }
+                Text(
+                    text = stringResource(R.string.settings_tile_shape),
+                    color = palette.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
                 )
+                Text(
+                    text = stringResource(R.string.settings_tile_shape_subtitle),
+                    color = palette.textSecondary,
+                    fontSize = 11.sp
+                )
+                TileShapePicker(
+                    shapes = TileShape.explicit,
+                    selected = tileShape,
+                    palette = palette,
+                    defaultShape = tileShape,
+                    radiusDp = tileRadius,
+                    columns = 5,
+                    onSelect = onTileShapeChange
+                )
+                if (tileShape == TileShape.ROUNDED) {
+                    SettingsSlider(
+                        title = stringResource(R.string.settings_tile_radius),
+                        subtitle = stringResource(R.string.settings_tile_radius_subtitle),
+                        value = tileRadius,
+                        range = 0f..32f,
+                        palette = palette,
+                        onValueChange = onTileRadiusChange,
+                        format = { "${it.toInt()}dp" }
+                    )
+                }
             }
         }
         item {
@@ -2582,6 +2734,8 @@ private fun WallpaperTab(
                         color = if (isSelected) palette.primary else palette.textPrimary,
                         fontSize = 10.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                         maxLines = 1
                     )
                 }

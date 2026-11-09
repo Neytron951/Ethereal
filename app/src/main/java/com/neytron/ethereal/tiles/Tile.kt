@@ -1,6 +1,7 @@
 package com.neytron.ethereal.tiles
 
 import org.json.JSONObject
+import com.neytron.ethereal.ui.theme.TileShape
 
 enum class TileBorderStyle {
     NONE,
@@ -44,7 +45,8 @@ data class TileStyle(
     val borderOpacity: Float = 0.3f,
     val borderStyle: TileBorderStyle = TileBorderStyle.NONE,
     val texture: TileTexture = TileTexture.NONE,
-    val textureStrength: Float = 0.35f
+    val textureStrength: Float = 0.35f,
+    val shape: TileShape = TileShape.AUTO
 )
 
 data class Tile(

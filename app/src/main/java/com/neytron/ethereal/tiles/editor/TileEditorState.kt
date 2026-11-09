@@ -29,6 +29,19 @@ class TileEditorState {
     val resizingTile: MutableState<Tile?> = mutableStateOf(null)
     val resizePreviewTiles: MutableState<List<Tile>?> = mutableStateOf(null)
     val displacedTileIds: MutableState<Set<String>> = mutableStateOf(emptySet())
+    val newlyCreatedTileIds: MutableState<Set<String>> = mutableStateOf(emptySet())
+
+    fun markNewlyCreated(id: String) {
+        newlyCreatedTileIds.value = newlyCreatedTileIds.value + id
+    }
+
+    fun consumeNewlyCreated(id: String): Boolean {
+        if (id in newlyCreatedTileIds.value) {
+            newlyCreatedTileIds.value = newlyCreatedTileIds.value - id
+            return true
+        }
+        return false
+    }
 
     fun enterEdit() {
         editing.value = true

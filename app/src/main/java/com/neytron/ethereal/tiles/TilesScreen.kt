@@ -53,6 +53,7 @@ import com.neytron.ethereal.tiles.editor.TileEditorPanel
 import com.neytron.ethereal.tiles.editor.TileEditorState
 import com.neytron.ethereal.tiles.editor.defaultPresets
 import com.neytron.ethereal.ui.theme.EtherealPalette
+import com.neytron.ethereal.ui.theme.TileShape
 import com.neytron.ethereal.weather.WeatherRepository
 import com.neytron.ethereal.widgets.EtherealAppWidgetHost
 import com.neytron.ethereal.widgets.WidgetHostManager
@@ -70,6 +71,7 @@ fun TilesScreen(
     tileSizeDp: Float,
     spacingDp: Float,
     radiusDp: Float,
+    tileShape: TileShape = TileShape.ROUNDED,
     dockIconSizeDp: Float,
     dockBottomPaddingDp: Float,
     installedApps: List<AppInfo>,
@@ -348,6 +350,7 @@ fun TilesScreen(
     }
 
     val handlePresetClick: (TilePreset) -> Unit = { preset ->
+        val oldIds = tiles.map { it.id }.toSet()
         val updated = TileLayoutRepository.addTileFromPreset(
             context = context,
             spaceId = currentSpaceId,
@@ -358,6 +361,7 @@ fun TilesScreen(
             isLandscape = isLandscape
         )
         if (updated != null) {
+            updated.filter { it.id !in oldIds }.forEach { editorState.markNewlyCreated(it.id) }
             onTilesChange(updated)
         } else {
             scope.launch {
@@ -753,6 +757,7 @@ fun TilesScreen(
                 tileSize = tileSize,
                 spacing = spacing,
                 radius = radius,
+                defaultShape = tileShape,
                 palette = palette,
                 editorState = editorState,
                 installedApps = installedApps,
@@ -814,6 +819,8 @@ fun TilesScreen(
                 presets = emptyList(),
                 selectedTile = selectedTile,
                 installedApps = installedApps,
+                defaultShape = tileShape,
+                tileRadiusDp = radiusDp,
                 onPresetClick = { preset -> handlePresetClick(preset) },
                 onSystemWidgetClick = {
                     onWidgetPickerVisibilityChange(true)
@@ -855,6 +862,7 @@ fun TilesScreen(
                                 config = AppLauncherConfig(packageName = app.packageName, showLabel = batchConfig.showLabel).toJson()
                             )
                             mutableTiles.add(newTile)
+                            editorState.markNewlyCreated(newTile.id)
                         }
                     }
                     TileLayoutRepository.setTiles(context, currentSpaceId, mutableTiles, isLandscape)
@@ -934,6 +942,7 @@ fun TilesScreen(
                                 iconText = spaceMeta.iconText
                             ).toJson()
                         )
+                        val oldIds = currentTiles.map { it.id }.toSet()
                         val updated = TileLayoutRepository.addTile(
                             context = context,
                             spaceId = currentSpaceIdState,
@@ -943,6 +952,7 @@ fun TilesScreen(
                             rows = currentRows
                         )
                         if (updated != null) {
+                            updated.filter { it.id !in oldIds }.forEach { editorState.markNewlyCreated(it.id) }
                             onTilesChange(updated)
                         } else {
                             scope.launch {

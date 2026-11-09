@@ -1,5 +1,6 @@
 package com.neytron.ethereal.tiles
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -35,6 +36,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -65,6 +67,9 @@ import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.tiles.editor.TileEditorState
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.FrostedGlassBox
+import com.neytron.ethereal.ui.theme.LocalAppearance
+import com.neytron.ethereal.ui.theme.TileShape
+import com.neytron.ethereal.ui.theme.tileShapeFor
 import com.neytron.ethereal.utils.DeviceTiltProvider
 import com.neytron.ethereal.utils.screenBounds
 import com.neytron.ethereal.utils.renderThemedIcon
@@ -89,6 +94,7 @@ fun TileCell(
     tileSize: Dp,
     spacing: Dp,
     radius: Dp,
+    defaultShape: TileShape = TileShape.ROUNDED,
     palette: EtherealPalette,
     editorState: TileEditorState,
     installedApps: List<AppInfo>,
@@ -116,7 +122,7 @@ fun TileCell(
     val widthDp = tileSize * tile.w + spacing * (tile.w - 1)
     val heightDp = tileSize * tile.h + spacing * (tile.h - 1)
 
-    val shape = RoundedCornerShape(radius)
+    val shape = tileShapeFor(tile.style.shape, radius.value, defaultShape)
 
     val dragging = editorState.draggingTile.value
     val isDragging = dragging?.id == tile.id
@@ -144,6 +150,20 @@ fun TileCell(
         }
     }
 
+    val isNewCreation = remember(tile.id) { editorState.consumeNewlyCreated(tile.id) }
+    val createScale = remember { Animatable(if (isNewCreation) 0f else 1f) }
+    LaunchedEffect(Unit) {
+        if (isNewCreation) {
+            createScale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium
+                )
+            )
+        }
+    }
+
     val revealProgress by animateFloatAsState(
         targetValue = if (hasRevealed && !isHiddenByIntro) 1f else 0f,
         animationSpec = spring(
@@ -153,8 +173,8 @@ fun TileCell(
         label = "reveal"
     )
 
-    val scale = (if (isDragging) 1.08f else 1f) * (if (isHiddenByIntro) 0.8f else (0.8f + 0.2f * revealProgress))
-    val alpha = if (isHiddenByIntro) 0f else (if (isDragging) 0.9f else 1f) * revealProgress.coerceIn(0f, 1f)
+    val scale = (if (isDragging) 1.08f else 1f) * (if (isHiddenByIntro) 0.8f else (0.8f + 0.2f * revealProgress)) * createScale.value
+    val alpha = (if (isHiddenByIntro) 0f else (if (isDragging) 0.9f else 1f) * revealProgress.coerceIn(0f, 1f)) * createScale.value.coerceIn(0f, 1f)
 
     val currentTile = rememberUpdatedState(tile)
     val currentEditorState = rememberUpdatedState(editorState)
@@ -208,6 +228,9 @@ fun TileCell(
     } else {
         Pair(0f, 0f)
     }
+
+    // В плоском стиле стеклянные рамки и текстуры не рисуем — только чистые тональные поверхности.
+    val flat = LocalAppearance.current.isFlat
 
     Box(
         modifier = modifier
@@ -335,15 +358,17 @@ fun TileCell(
                         when {
                             isTargetCell -> Modifier.border(2.dp, palette.primary, shape)
                             isSelected -> Modifier.border(2.dp, palette.primary, shape)
-                            tile.style.borderStyle != TileBorderStyle.NONE -> Modifier.tileBorder(tile.style, palette, shape, tilt)
+                            flat -> Modifier
+                            tile.style.borderStyle != TileBorderStyle.NONE ->
+                                tileBorderForShape(tile.style, palette, shape, tilt)
                             isEditing -> Modifier.border(1.dp, palette.outline.copy(alpha = 0.3f), shape)
-                            else -> Modifier.tileBorder(tile.style, palette, shape, tilt)
+                            else -> Modifier
                         }
                     )
                     .resizeCornerIndicator(isEditing, canResizeTile, palette, radius),
                 contentModifier = Modifier
                     .fillMaxSize()
-                    .tileTexture(tile.style, palette)
+                    .then(if (flat) Modifier else Modifier.tileTexture(tile.style, palette))
             ) {
                 when (tile.type) {
                     TileType.EMPTY -> { }
@@ -770,6 +795,32 @@ private fun rememberMinuteTick(): Long {
         }
     }
     return nowMs
+}
+
+/**
+ * Рамка под произвольную форму: «жидкое стекло» умеет только скруглённый прямоугольник,
+ * для остальных форм рисуем аккуратный контур по пути.
+ */
+private fun tileBorderForShape(
+    style: TileStyle,
+    palette: EtherealPalette,
+    shape: Shape,
+    tilt: Pair<Float, Float>
+): Modifier {
+    val rounded = shape as? RoundedCornerShape
+    if (rounded != null) {
+        return Modifier.tileBorder(style, palette, rounded, tilt)
+    }
+
+    val color = when (style.borderStyle) {
+        TileBorderStyle.ACCENT -> palette.primary
+        else -> palette.outline
+    }
+    return Modifier.border(
+        width = style.borderWidth.coerceAtLeast(1f).dp,
+        color = color.copy(alpha = style.borderOpacity.coerceIn(0f, 1f)),
+        shape = shape
+    )
 }
 
 private fun Modifier.resizeCornerIndicator(

@@ -29,12 +29,31 @@ import coil.compose.AsyncImage
 import java.io.File
 import kotlin.math.roundToInt
 
+/**
+ * Общий характер интерфейса.
+ *
+ * GLASS — родной Ethereal: полупрозрачные панели, блюр обоев, тонкие стеклянные рамки.
+ * FLAT  — Material You: плотные тональные поверхности, без блюра, текстур и стеклянных рамок.
+ */
+enum class UiStyle {
+    GLASS,
+    FLAT;
+
+    companion object {
+        fun fromName(raw: String?): UiStyle =
+            values().firstOrNull { it.name.equals(raw, ignoreCase = true) } ?: GLASS
+    }
+}
+
 data class AppearanceState(
     val opacity: Float = 0.95f,
     val blur: Float = 0f,
     val fontScale: Float = 1.0f,
-    val fontFamily: FontFamily? = null
-)
+    val fontFamily: FontFamily? = null,
+    val style: UiStyle = UiStyle.GLASS
+) {
+    val isFlat: Boolean get() = style == UiStyle.FLAT
+}
 
 val LocalAppearance = compositionLocalOf { AppearanceState() }
 val LocalWallpaperPath = compositionLocalOf { null as String? }
@@ -56,8 +75,16 @@ fun FrostedGlassBox(
     val wallpaperContainerCoords = LocalWallpaperContainerCoordinates.current
     val imageFile = remember(wallpaperPath) { wallpaperPath?.let { File(it) } }
 
+    val uiStyle = LocalAppearance.current.style
+    val isFlat = uiStyle == UiStyle.FLAT
+
+    // В плоском стиле стекла нет: блюр отключаем, а прозрачность поднимаем до
+    // плотной поверхности. Ноль остаётся нулём — «плитки-иконки» остаются прозрачными.
+    val effectiveBlur = if (isFlat) 0f else blur
+    val effectiveOpacity = if (isFlat) flatPanelOpacity(opacity) else opacity
+
     val blurAlpha by animateFloatAsState(
-        targetValue = if (blur > 0f) 1f else 0f,
+        targetValue = if (effectiveBlur > 0f) 1f else 0f,
         animationSpec = tween(durationMillis = 200),
         label = "blurFadeIn"
     )
@@ -73,7 +100,7 @@ fun FrostedGlassBox(
         modifier = modifier.clip(shape),
         contentAlignment = Alignment.Center
     ) {
-        if (blur > 0f && wallpaperContainerCoords?.isAttached == true) {
+        if (effectiveBlur > 0f && wallpaperContainerCoords?.isAttached == true) {
             val containerSize = wallpaperContainerCoords.size
             if (containerSize.width > 0 && containerSize.height > 0) {
                 Box(
@@ -103,7 +130,7 @@ fun FrostedGlassBox(
                                     }
                                 }
                             }
-                            .blur(blur.dp)
+                            .blur(effectiveBlur.dp)
                     ) {
                         if (imageFile != null && imageFile.exists()) {
                             AsyncImage(
@@ -130,7 +157,7 @@ fun FrostedGlassBox(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(backgroundColor.copy(alpha = opacity))
+                .background(backgroundColor.copy(alpha = effectiveOpacity))
         )
         Box(
             modifier = contentModifier,
@@ -142,3 +169,10 @@ fun FrostedGlassBox(
 
 @Suppress("NOTHING_TO_INLINE")
 inline fun Float.scaled(): Float = this
+
+/**
+ * Плотность поверхности в плоском стиле: почти непрозрачная, но ноль остаётся нулём
+ * (так «плитки-иконки» без фона продолжают жить без подложки).
+ */
+private fun flatPanelOpacity(opacity: Float): Float =
+    if (opacity <= 0.01f) 0f else maxOf(opacity, 0.92f)

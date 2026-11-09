@@ -3,6 +3,8 @@ package com.neytron.ethereal.data
 import android.content.Context
 import com.neytron.ethereal.tiles.TileBorderStyle
 import com.neytron.ethereal.ui.theme.ESearchStyle
+import com.neytron.ethereal.ui.theme.TileShape
+import com.neytron.ethereal.ui.theme.UiStyle
 
 object SettingsRepository {
 
@@ -37,6 +39,7 @@ object SettingsRepository {
     private const val KEY_BLUR = "panel_blur"
     private const val KEY_FONT_SCALE = "font_scale"
     private const val KEY_FONT = "font_family"
+    private const val KEY_UI_STYLE = "ui_style"
 
     private const val DEFAULT_OPACITY = 0.95f
     private const val DEFAULT_FONT_SCALE = 1.0f
@@ -63,6 +66,7 @@ object SettingsRepository {
     private const val KEY_TILE_COLUMNS = "tile_columns"
     private const val KEY_TILE_SPACING = "tile_spacing"
     private const val KEY_TILE_RADIUS = "tile_radius"
+    private const val KEY_TILE_SHAPE = "tile_shape"
     private const val KEY_RESIZE_INDICATOR_ENABLED = "resize_indicator_enabled"
 
     private const val DEFAULT_TILE_SIZE = 64f
@@ -202,6 +206,12 @@ object SettingsRepository {
         prefs(context).edit().putString(KEY_FONT, value).apply()
     }
 
+    fun getUiStyle(context: Context): UiStyle =
+        UiStyle.fromName(prefs(context).getString(KEY_UI_STYLE, UiStyle.GLASS.name))
+    fun setUiStyle(context: Context, style: UiStyle) {
+        prefs(context).edit().putString(KEY_UI_STYLE, style.name).apply()
+    }
+
     // ============================================================
     // Launch stats
     // ============================================================
@@ -262,8 +272,7 @@ object SettingsRepository {
         prefs(context).edit().putBoolean(KEY_ESEARCH_AUTO_KEYBOARD, value).apply()
     }
 
-    fun getESearchStyle(context: Context): ESearchStyle {
-        val name = prefs(context).getString(KEY_ESEARCH_STYLE, ESearchStyle.DEFAULT.name)
+    fun getESearchStyle(context: Context): ESearchStyle {        val name = prefs(context).getString(KEY_ESEARCH_STYLE, ESearchStyle.DEFAULT.name)
         return ESearchStyle.fromName(name)
     }
     fun setESearchStyle(context: Context, style: ESearchStyle) {
@@ -320,6 +329,12 @@ object SettingsRepository {
         prefs(context).getFloat(KEY_TILE_RADIUS, DEFAULT_TILE_RADIUS)
     fun setTileRadius(context: Context, value: Float) {
         prefs(context).edit().putFloat(KEY_TILE_RADIUS, value.coerceIn(0f, 32f)).apply()
+    }
+
+    fun getTileShape(context: Context): TileShape =
+        TileShape.fromName(prefs(context).getString(KEY_TILE_SHAPE, TileShape.ROUNDED.name))
+    fun setTileShape(context: Context, shape: TileShape) {
+        prefs(context).edit().putString(KEY_TILE_SHAPE, shape.name).apply()
     }
 
     fun getResizeIndicatorEnabled(context: Context): Boolean =

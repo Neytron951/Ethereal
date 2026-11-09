@@ -174,6 +174,7 @@ fun EtherealApp() {
     var opacity by remember { mutableStateOf(SettingsRepository.getOpacity(context)) }
     var blur by remember { mutableStateOf(SettingsRepository.getBlur(context)) }
     var fontScale by remember { mutableStateOf(SettingsRepository.getFontScale(context)) }
+    var uiStyle by remember { mutableStateOf(SettingsRepository.getUiStyle(context)) }
     var fontFamilyName by remember { mutableStateOf(SettingsRepository.getFont(context)) }
 
     var isSetupCompleted by remember {
@@ -198,6 +199,7 @@ fun EtherealApp() {
     var tileSize by remember { mutableStateOf(SettingsRepository.getTileSize(context)) }
     var tileSpacing by remember { mutableStateOf(SettingsRepository.getTileSpacing(context)) }
     var tileRadius by remember { mutableStateOf(SettingsRepository.getTileRadius(context)) }
+    var tileShape by remember { mutableStateOf(SettingsRepository.getTileShape(context)) }
     var resizeIndicatorEnabled by remember { mutableStateOf(SettingsRepository.getResizeIndicatorEnabled(context)) }
 
     var searchVisible by remember { mutableStateOf(false) }
@@ -354,7 +356,7 @@ fun EtherealApp() {
                     R.drawable.builtin_wallpaper_2,
                     R.drawable.builtin_wallpaper_3,
                     R.drawable.builtin_wallpaper_4,
-                    R.drawable.builtin_wallpaper_5
+                    R.drawable.builtin_wallpaper_6
                 )
             )
         }
@@ -596,7 +598,8 @@ fun EtherealApp() {
         opacity = opacity,
         blur = blur,
         fontScale = fontScale,
-        fontFamily = fontFamily
+        fontFamily = fontFamily,
+        style = uiStyle
     )
 
     val esearchConfig = ESearchConfig(
@@ -785,6 +788,7 @@ fun EtherealApp() {
                     tileSizeDp = tileSize,
                     spacingDp = tileSpacing,
                     radiusDp = tileRadius,
+                    tileShape = tileShape,
                     dockIconSizeDp = dockIconSize,
                     dockBottomPaddingDp = dockBottomPadding,
                     installedApps = apps,
@@ -978,6 +982,11 @@ fun EtherealApp() {
                             fontScale = newScale
                             SettingsRepository.setFontScale(context, newScale)
                         },
+                        uiStyle = uiStyle,
+                        onUiStyleChange = { newStyle ->
+                            uiStyle = newStyle
+                            SettingsRepository.setUiStyle(context, newStyle)
+                        },
                         fontFamilyName = fontFamilyName,
                         onFontFamilyChange = { v ->
                             fontFamilyName = v
@@ -1132,6 +1141,7 @@ fun EtherealApp() {
                         tileSize = tileSize,
                         tileSpacing = tileSpacing,
                         tileRadius = tileRadius,
+                        tileShape = tileShape,
                         resizeIndicatorEnabled = resizeIndicatorEnabled,
                         onTileSizeChange = { v ->
                             tileSize = v
@@ -1148,6 +1158,10 @@ fun EtherealApp() {
                         onTileRadiusChange = { v ->
                             tileRadius = v
                             SettingsRepository.setTileRadius(context, v)
+                        },
+                        onTileShapeChange = { v ->
+                            tileShape = v
+                            SettingsRepository.setTileShape(context, v)
                         },
                         onResizeIndicatorEnabledChange = { v ->
                             resizeIndicatorEnabled = v
