@@ -62,6 +62,8 @@ object TileGridMetrics {
      * Считает сетку под доступную область с учётом того, сколько ячеек уже занято раскладкой.
      *
      * @param layoutColumns/minRows — сколько колонок/строк требует сама раскладка (меньше сетка быть не может)
+     * @param fixedColumns/fixedRows — если > 0, сетка жёстко зафиксирована пользователем:
+     *   раскладка в неё вписывается (нормализуется), а не наоборот. 0 = авто.
      */
     fun compute(
         availableWidthDp: Float,
@@ -70,7 +72,9 @@ object TileGridMetrics {
         spacingDp: Float,
         isLandscape: Boolean,
         layoutColumns: Int,
-        layoutRows: Int
+        layoutRows: Int,
+        fixedColumns: Int = 0,
+        fixedRows: Int = 0
     ): TileGridSpec {
         val spacing = spacingDp.coerceIn(0f, 32f)
         val desired = desiredTileSizeDp.coerceIn(MIN_TILE_DP, MAX_TILE_DP)
@@ -79,6 +83,14 @@ object TileGridMetrics {
             .coerceIn(1, MAX_COLUMNS)
         val heightFit = ((availableHeightDp + spacing) / (desired + spacing)).toInt()
             .coerceAtLeast(1)
+
+        // Выбранная пользователем сетка: размер плитки считаем от неё и не раздуваем раскладкой
+        if (fixedColumns > 0 && fixedRows > 0) {
+            val cols = fixedColumns.coerceIn(1, MAX_COLUMNS)
+            val rws = fixedRows.coerceAtLeast(1)
+            val tile = tileSizeFor(availableWidthDp, availableHeightDp, cols, rws, spacing)
+            return TileGridSpec(cols, rws, tile, spacing)
+        }
 
         var columns: Int = widthFit
         var rows: Int = heightFit
@@ -122,6 +134,34 @@ object TileGridMetrics {
         val byHeight = (availableHeightDp - spacingDp * (rws - 1)) / rws
         return minOf(byWidth, byHeight).coerceIn(MIN_TILE_DP, MAX_TILE_DP)
     }
+
+    /**
+     * Пресет сетки для выбора пользователем: плитки занимают всю ширину,
+     * количество строк — сколько реально влезает по высоте на этом экране.
+     */
+    fun presetGrid(
+        availableWidthDp: Float,
+        availableHeightDp: Float,
+        columns: Int,
+        spacingDp: Float
+    ): TileGridSpec {
+        val spacing = spacingDp.coerceIn(0f, 32f)
+        val cols = columns.coerceIn(1, MAX_COLUMNS)
+        val tile = ((availableWidthDp - spacing * (cols - 1)) / cols)
+            .coerceIn(MIN_TILE_DP, MAX_TILE_DP)
+        val rows = ((availableHeightDp + spacing) / (tile + spacing)).toInt().coerceAtLeast(2)
+        return TileGridSpec(cols, rows, tile, spacing)
+    }
+
+    /**
+     * Готовые варианты сетки для выбора: 4, 5 и 6 колонок.
+     * Всегда вписываются в экран, потому что строки считаются по фактической высоте.
+     */
+    fun gridPresets(
+        availableWidthDp: Float,
+        availableHeightDp: Float,
+        spacingDp: Float
+    ): List<TileGridSpec> = listOf(4, 5, 6).map { presetGrid(availableWidthDp, availableHeightDp, it, spacingDp) }
 
     /** Все плитки влезают в сетку и не пересекаются. */
     fun fitsGrid(tiles: List<Tile>, spec: TileGridSpec): Boolean {

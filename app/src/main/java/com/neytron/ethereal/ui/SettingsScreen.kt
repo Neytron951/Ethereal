@@ -83,6 +83,7 @@ import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.ESearchStyle
 import com.neytron.ethereal.ui.theme.TileShape
 import com.neytron.ethereal.ui.theme.UiStyle
+import com.neytron.ethereal.tiles.TileGridSpec
 import com.neytron.ethereal.ui.theme.IconShape
 import com.neytron.ethereal.ui.theme.LocalAppearance
 import com.neytron.ethereal.ui.theme.fontFamilyFor
@@ -171,6 +172,10 @@ fun SettingsScreen(
     onTileSpacingChange: (Float) -> Unit,
     onTileRadiusChange: (Float) -> Unit,
     onTileShapeChange: (TileShape) -> Unit = {},
+    tileColumns: Int = 0,
+    tileRows: Int = 0,
+    gridOptions: List<TileGridSpec> = emptyList(),
+    onPickGrid: (Int, Int) -> Unit = { _, _ -> },
     onResizeIndicatorEnabledChange: (Boolean) -> Unit,
     onResetTiles: () -> Unit,
     analyticsEnabled: Boolean,
@@ -289,6 +294,10 @@ fun SettingsScreen(
                             onTileSpacingChange = onTileSpacingChange,
                             onTileRadiusChange = onTileRadiusChange,
                             onTileShapeChange = onTileShapeChange,
+                            tileColumns = tileColumns,
+                            tileRows = tileRows,
+                            gridOptions = gridOptions,
+                            onPickGrid = onPickGrid,
                             onResizeIndicatorEnabledChange = onResizeIndicatorEnabledChange,
                             onResetTiles = onResetTiles
                         )
@@ -446,6 +455,10 @@ fun SettingsScreen(
                                 onTileSpacingChange = onTileSpacingChange,
                                 onTileRadiusChange = onTileRadiusChange,
                                 onTileShapeChange = onTileShapeChange,
+                                tileColumns = tileColumns,
+                                tileRows = tileRows,
+                                gridOptions = gridOptions,
+                                onPickGrid = onPickGrid,
                                 onResizeIndicatorEnabledChange = onResizeIndicatorEnabledChange,
                                 onResetTiles = onResetTiles
                             )
@@ -879,11 +892,15 @@ private fun TilesTab(
     tileSpacing: Float,
     tileRadius: Float,
     tileShape: TileShape,
+    tileColumns: Int = 0,
+    tileRows: Int = 0,
+    gridOptions: List<TileGridSpec> = emptyList(),
     resizeIndicatorEnabled: Boolean,
     onTileSizeChange: (Float) -> Unit,
     onTileSpacingChange: (Float) -> Unit,
     onTileRadiusChange: (Float) -> Unit,
     onTileShapeChange: (TileShape) -> Unit,
+    onPickGrid: (Int, Int) -> Unit = { _, _ -> },
     onResizeIndicatorEnabledChange: (Boolean) -> Unit,
     onResetTiles: () -> Unit
 ) {
@@ -897,15 +914,6 @@ private fun TilesTab(
                 title = stringResource(R.string.settings_group_grid),
                 palette = palette
             ) {
-                SettingsSlider(
-                    title = stringResource(R.string.settings_tile_size),
-                    subtitle = stringResource(R.string.settings_tile_size_subtitle),
-                    value = tileSize,
-                    range = 32f..96f,
-                    palette = palette,
-                    onValueChange = onTileSizeChange,
-                    format = { "${it.toInt()}dp" }
-                )
                 SettingsSlider(
                     title = stringResource(R.string.settings_tile_spacing),
                     subtitle = stringResource(R.string.settings_tile_spacing_subtitle),
@@ -946,6 +954,41 @@ private fun TilesTab(
                         format = { "${it.toInt()}dp" }
                     )
                 }
+            }
+        }
+        item {
+            SettingsGroup(
+                groupKey = "tiles.gridsize",
+                title = stringResource(R.string.settings_group_grid_size),
+                subtitle = stringResource(R.string.settings_group_grid_size_subtitle),
+                palette = palette
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    gridOptions.forEachIndexed { index, spec ->
+                        GridPresetCard(
+                            spec = spec,
+                            label = stringResource(
+                                when (index) {
+                                    0 -> R.string.settings_grid_preset_large
+                                    1 -> R.string.settings_grid_preset_medium
+                                    else -> R.string.settings_grid_preset_small
+                                }
+                            ),
+                            selected = tileColumns == spec.columns && tileRows == spec.rows,
+                            palette = palette,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onPickGrid(spec.columns, spec.rows) }
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(R.string.settings_grid_hint),
+                    color = palette.textSecondary,
+                    fontSize = 11.sp
+                )
             }
         }
         item {
@@ -1534,14 +1577,16 @@ private fun AboutTab(
         item { Spacer(modifier = Modifier.height(8.dp)) }
 
         // === ПЛАШКА ОБНОВЛЕНИЯ (над логотипом) ===
-        if (updateInfo != null && updateInfo.hasUpdate) {
+        // Показываем всегда, когда есть данные о последнем релизе: даже без обновления
+        // центр должен открываться — посмотреть заметки текущей версии.
+        if (updateInfo != null) {
             item {
                 UpdateBadge(
                     palette = palette,
                     updateInfo = updateInfo,
                     updateChecking = updateChecking,
                     onCheckForUpdates = onCheckForUpdates,
-                    onOpenUpdateOverlay = { showUpdatesAndDataDialog = true }
+                    onOpenUpdateOverlay = onOpenUpdateOverlay
                 )
             }
         }
@@ -1550,7 +1595,10 @@ private fun AboutTab(
             Image(
                 painter = painterResource(id = R.drawable.ic_logo),
                 contentDescription = "Ethereal",
-                modifier = Modifier.size(180.dp)
+                // Логотип в ресурсах — чёрная векторная маска, поэтому в тёмной теме
+                // он невидим. Тонируем цветом текста: чёрный на светлом, белый на тёмном.
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(palette.textPrimary),
+                modifier = Modifier.size(104.dp)
             )
         }
 
@@ -1807,13 +1855,26 @@ private fun UpdatesAndDataDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = stringResource(R.string.updates_and_data_title),
-                        color = palette.textPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_logo),
+                        contentDescription = null,
+                        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(palette.primary),
+                        modifier = Modifier.size(34.dp)
                     )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.updates_and_data_title),
+                            color = palette.textPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = stringResource(R.string.update_center_subtitle),
+                            color = palette.textSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .size(32.dp)
@@ -1880,11 +1941,44 @@ private fun UpdatesAndDataDialog(
                             )
                         }
 
+                        // Статус + метаданные релиза (дата и размер APK)
+                        Text(
+                            text = when {
+                                updateInfo == null -> stringResource(R.string.update_center_no_data)
+                                updateInfo.hasUpdate -> stringResource(R.string.update_available_title)
+                                else -> stringResource(R.string.update_up_to_date)
+                            },
+                            color = if (updateInfo?.hasUpdate == true) palette.primary else palette.textSecondary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        if (updateInfo != null) {
+                            val meta = buildList {
+                                formatReleaseDate(updateInfo.publishedAt)?.let {
+                                    add(stringResource(R.string.update_released_on, it))
+                                }
+                                formatApkSize(updateInfo.apkSizeBytes)?.let { add(it) }
+                            }
+                            if (meta.isNotEmpty()) {
+                                Text(
+                                    text = meta.joinToString("  ·  "),
+                                    color = palette.textSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(palette.surfaceVariant.copy(alpha = 0.4f))
+                                .border(
+                                    1.dp,
+                                    palette.outline.copy(alpha = 0.25f),
+                                    RoundedCornerShape(12.dp)
+                                )
                                 .clickable(enabled = !updateChecking) {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     onCheckForUpdates()
@@ -1900,11 +1994,33 @@ private fun UpdatesAndDataDialog(
                             )
                         }
 
-                        if (updateInfo != null && updateInfo.hasUpdate && updateInfo.changelog.isNotBlank()) {
-                            ChangelogSection(
-                                changelog = updateInfo.changelog,
-                                palette = palette
-                            )
+                        // Заметки к релизу — собственный рендер (HTML из GitHub вычищается)
+                        if (updateInfo != null && updateInfo.changelog.isNotBlank()) {
+                            val noteBlocks = remember(updateInfo.changelog) {
+                                ReleaseNotes.parse(updateInfo.changelog)
+                            }
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(palette.surfaceVariant.copy(alpha = 0.22f))
+                                    .border(
+                                        1.dp,
+                                        palette.outline.copy(alpha = 0.18f),
+                                        RoundedCornerShape(16.dp)
+                                    )
+                                    .padding(14.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.update_changelog_title).uppercase(),
+                                    color = palette.textSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.2.sp
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                ReleaseNotesView(blocks = noteBlocks, palette = palette)
+                            }
                         }
 
                         if (updateInfo != null && updateInfo.hasUpdate) {
@@ -2162,13 +2278,29 @@ private fun UpdatesAndDataDialog(
 }
 }
 
+// ============================================================
+// Форматирование метаданных релиза
+// ============================================================
+
+/** 2026-11-09T01:23:59Z -> 09.11.2026 (пусто, если строка битая) */
+private fun formatReleaseDate(iso: String): String? {
+    if (iso.length < 10) return null
+    val parts = iso.take(10).split("-")
+    if (parts.size != 3) return null
+    return "${parts[2]}.${parts[1]}.${parts[0]}"
+}
+
+/** Размер APK в мегабайтах (null, если неизвестен) */
+private fun formatApkSize(bytes: Long): String? {
+    if (bytes <= 0L) return null
+    return String.format(java.util.Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))
+}
 @Composable
 private fun VersionBadge(
     text: String,
     palette: EtherealPalette,
     isLatest: Boolean
-) {
-    Box(
+) {    Box(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .background(
@@ -2330,15 +2462,20 @@ private fun UpdateBadge(
     onOpenUpdateOverlay: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val hasUpdate = updateInfo.hasUpdate
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(palette.primary.copy(alpha = 0.15f))
+            .background(
+                if (hasUpdate) palette.primary.copy(alpha = 0.15f)
+                else palette.surfaceVariant.copy(alpha = 0.35f)
+            )
             .border(
                 width = 1.dp,
-                color = palette.primary.copy(alpha = 0.5f),
+                color = if (hasUpdate) palette.primary.copy(alpha = 0.5f)
+                else palette.outline.copy(alpha = 0.25f),
                 shape = RoundedCornerShape(14.dp)
             )
             .clickable {
@@ -2352,12 +2489,15 @@ private fun UpdateBadge(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(palette.primary.copy(alpha = 0.2f)),
+                .background(
+                    if (hasUpdate) palette.primary.copy(alpha = 0.2f)
+                    else palette.surfaceVariant.copy(alpha = 0.6f)
+                ),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "↓",
-                color = palette.primary,
+                text = if (hasUpdate) "↓" else "✓",
+                color = if (hasUpdate) palette.primary else palette.textSecondary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -2367,17 +2507,25 @@ private fun UpdateBadge(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(
-                    R.string.update_available_format,
-                    updateInfo.latestVersion.display()
-                ),
-                color = palette.primary,
+                text = if (hasUpdate) {
+                    stringResource(
+                        R.string.update_available_format,
+                        updateInfo.latestVersion.display()
+                    )
+                } else {
+                    stringResource(R.string.update_up_to_date)
+                },
+                color = if (hasUpdate) palette.primary else palette.textPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = stringResource(R.string.update_available_subtitle),
+                text = if (hasUpdate) {
+                    stringResource(R.string.update_available_subtitle)
+                } else {
+                    stringResource(R.string.update_open_center)
+                },
                 color = palette.textSecondary,
                 fontSize = 11.sp,
                 lineHeight = 15.sp
@@ -2386,7 +2534,7 @@ private fun UpdateBadge(
 
         Text(
             text = "›",
-            color = palette.primary,
+            color = if (hasUpdate) palette.primary else palette.textSecondary,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold
         )
@@ -2902,6 +3050,68 @@ private fun WallpaperThumb(
                 )
             }
         }
+    }
+}
+
+/**
+ * Карточка выбора сетки: мини-превью, точное число ячеек и подпись «Крупные/Средние/Мелкие».
+ * Превью рисуется настоящими ячейками, поэтому размер считывается мгновенно.
+ */
+@Composable
+private fun GridPresetCard(
+    spec: TileGridSpec,
+    label: String,
+    selected: Boolean,
+    palette: EtherealPalette,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(14.dp)
+    Column(
+        modifier = modifier
+            .clip(shape)
+            .background(
+                if (selected) palette.primary.copy(alpha = 0.16f)
+                else palette.surfaceVariant.copy(alpha = 0.35f)
+            )
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) palette.primary else palette.outline.copy(alpha = 0.35f),
+                shape = shape
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(minOf(3, spec.rows)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    repeat(minOf(4, spec.columns)) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    if (selected) palette.primary.copy(alpha = 0.9f)
+                                    else palette.textSecondary.copy(alpha = 0.45f)
+                                )
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = "${spec.columns} × ${spec.rows}",
+            color = if (selected) palette.primary else palette.textPrimary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = label,
+            color = palette.textSecondary,
+            fontSize = 10.sp
+        )
     }
 }
 

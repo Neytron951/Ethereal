@@ -15,8 +15,8 @@ android {
         applicationId = "com.neytron.ethereal"
         minSdk = 27
         targetSdk = 37
-        versionCode = 10
-        versionName = "1.6.0"
+        versionCode = 11
+        versionName = "1.6.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -59,6 +59,8 @@ import coil.compose.AsyncImage
 import java.io.File
 import com.neytron.ethereal.data.AnalyticsHelper
 import com.neytron.ethereal.data.AppInfo
+import com.neytron.ethereal.data.AppIconStore
+import com.neytron.ethereal.data.Notices
 import com.neytron.ethereal.data.AppRepository
 import com.neytron.ethereal.data.IconPackInfo
 import com.neytron.ethereal.data.IconPackRepository
@@ -70,6 +72,7 @@ import com.neytron.ethereal.data.UpdateRepository
 import com.neytron.ethereal.data.WallpaperRepository
 import com.neytron.ethereal.tiles.Tile
 import com.neytron.ethereal.tiles.TileGridMetrics
+import com.neytron.ethereal.tiles.TileGridSpec
 import com.neytron.ethereal.tiles.TileLayoutRepository
 import com.neytron.ethereal.tiles.TilesScreen
 import com.neytron.ethereal.tiles.TileType
@@ -80,6 +83,7 @@ import com.neytron.ethereal.tiles.editor.defaultPresets
 import com.neytron.ethereal.tiles.editor.rememberTileEditorState
 import com.neytron.ethereal.ui.DockBar
 import com.neytron.ethereal.ui.ESearchOverlay
+import com.neytron.ethereal.ui.NoticeOverlay
 import com.neytron.ethereal.ui.OnboardingOverlay
 import com.neytron.ethereal.ui.SettingsScreen
 import com.neytron.ethereal.ui.UpdateOverlay
@@ -200,6 +204,8 @@ fun EtherealApp() {
     var tileSpacing by remember { mutableStateOf(SettingsRepository.getTileSpacing(context)) }
     var tileRadius by remember { mutableStateOf(SettingsRepository.getTileRadius(context)) }
     var tileShape by remember { mutableStateOf(SettingsRepository.getTileShape(context)) }
+    var tileColumns by remember { mutableStateOf(SettingsRepository.getTileColumns(context)) }
+    var tileRows by remember { mutableStateOf(SettingsRepository.getTileRows(context)) }
     var resizeIndicatorEnabled by remember { mutableStateOf(SettingsRepository.getResizeIndicatorEnabled(context)) }
 
     var searchVisible by remember { mutableStateOf(false) }
@@ -241,6 +247,7 @@ fun EtherealApp() {
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     var updateChecking by remember { mutableStateOf(false) }
     var showUpdateOverlay by remember { mutableStateOf(false) }
+    var showNotice by remember { mutableStateOf(false) }
 
     val esearchPlaceholder = stringResource(R.string.esearch_placeholder)
     val backupExportSuccessMessage = stringResource(R.string.settings_backup_export_success)
@@ -298,8 +305,17 @@ fun EtherealApp() {
 
     // === Перезагрузка приложений при смене пакета иконок ===
     LaunchedEffect(iconPackPackage) {
+        AppIconStore.clear()
         apps = withContext(Dispatchers.IO) {
             AppRepository.getInstalledApps(context, iconPackPackage)
+        }
+    }
+
+    // === Разовое сообщение пользователям ===
+    // Показывается один раз за установку; текст задаётся в Notices.CURRENT.
+    LaunchedEffect(isSetupCompleted) {
+        if (isSetupCompleted && Notices.CURRENT != null && !SettingsRepository.isNoticeShown(context)) {
+            showNotice = true
         }
     }
 
@@ -312,6 +328,7 @@ fun EtherealApp() {
                     searchVisible ||
                     tileEditorState.editing.value ||
                     showUpdateOverlay ||
+                    showNotice ||
                     screenStack.canGoBack
 
             if (isAnyOverlayOpen) {
@@ -320,6 +337,10 @@ fun EtherealApp() {
                 settingsVisible = false
                 searchVisible = false
                 showUpdateOverlay = false
+                if (showNotice) {
+                    showNotice = false
+                    SettingsRepository.setNoticeShown(context, true)
+                }
                 if (tileEditorState.selectedTile.value != null) tileEditorState.select(null)
                 if (tileEditorState.editing.value) tileEditorState.exitEdit()
                 screenStack.resetToRoot()
@@ -440,6 +461,22 @@ fun EtherealApp() {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
 
+    // Три готовых варианта сетки под этот экран: крупные / средние / мелкие.
+    // Считаются из реальной доступной области, поэтому всегда влезают.
+    val gridOptions = remember(
+        configuration.screenWidthDp, configuration.screenHeightDp,
+        tileSpacing, dockIconSize, dockBottomPadding, isLandscape
+    ) {
+        val availW = TileGridMetrics.availableWidthDp(configuration.screenWidthDp.toFloat())
+        val availH = TileGridMetrics.availableHeightDp(
+            screenHeightDp = configuration.screenHeightDp.toFloat(),
+            dockIconSizeDp = dockIconSize,
+            dockBottomPaddingDp = dockBottomPadding,
+            isLandscape = isLandscape
+        )
+        TileGridMetrics.gridPresets(availW, availH, tileSpacing)
+    }
+
     LaunchedEffect(currentSpaceId, isLandscape) {
         tiles = emptyList()
 
@@ -459,7 +496,9 @@ fun EtherealApp() {
             spacingDp = tileSpacing,
             isLandscape = isLandscape,
             layoutColumns = 0,
-            layoutRows = 0
+            layoutRows = 0,
+            fixedColumns = tileColumns,
+            fixedRows = tileRows
         )
 
         tiles = withContext(Dispatchers.IO) {
@@ -578,6 +617,16 @@ fun EtherealApp() {
 
     val palette = if (paletteId == WallpaperPalette.id) wallpaperPalette else paletteById(paletteId)
 
+    // Прогреваем иконки заранее: к моменту открытия ESearch они уже лежат в кэше готовыми
+    // ImageBitmap, поэтому список не декодирует их на главном потоке и не роняет fps.
+    LaunchedEffect(apps, dockThemedIcons, palette.id) {
+        if (apps.isNotEmpty()) {
+            withContext(Dispatchers.Default) {
+                AppIconStore.prefetch(apps, dockThemedIcons, palette)
+            }
+        }
+    }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -641,11 +690,16 @@ fun EtherealApp() {
             searchVisible ||
             tileEditorState.editing.value ||
             showUpdateOverlay ||
+            showNotice ||
             screenStack.canGoBack
 
     BackHandler(enabled = true) {
         if (isAnyOverlayOpen) {
             when {
+                showNotice -> {
+                    showNotice = false
+                    SettingsRepository.setNoticeShown(context, true)
+                }
                 showUpdateOverlay -> showUpdateOverlay = false
                 showWidgetPickerSheet -> showWidgetPickerSheet = false
                 showCreateSpaceDialog -> showCreateSpaceDialog = false
@@ -789,6 +843,8 @@ fun EtherealApp() {
                     spacingDp = tileSpacing,
                     radiusDp = tileRadius,
                     tileShape = tileShape,
+                    fixedColumns = tileColumns,
+                    fixedRows = tileRows,
                     dockIconSizeDp = dockIconSize,
                     dockBottomPaddingDp = dockBottomPadding,
                     installedApps = apps,
@@ -1163,6 +1219,15 @@ fun EtherealApp() {
                             tileShape = v
                             SettingsRepository.setTileShape(context, v)
                         },
+                        tileColumns = tileColumns,
+                        tileRows = tileRows,
+                        gridOptions = gridOptions,
+                        onPickGrid = { cols, rows ->
+                            tileColumns = cols
+                            tileRows = rows
+                            SettingsRepository.setTileColumns(context, cols)
+                            SettingsRepository.setTileRows(context, rows)
+                        },
                         onResizeIndicatorEnabledChange = { v ->
                             resizeIndicatorEnabled = v
                             SettingsRepository.setResizeIndicatorEnabled(context, v)
@@ -1217,6 +1282,17 @@ fun EtherealApp() {
                 info = updateInfo,
                 palette = palette,
                 onDismiss = { showUpdateOverlay = false }
+            )
+
+            // === Разовое сообщение (анонс) ===
+            NoticeOverlay(
+                visible = showNotice,
+                notice = Notices.CURRENT,
+                palette = palette,
+                onDismiss = {
+                    SettingsRepository.setNoticeShown(context, true)
+                    showNotice = false
+                }
             )
 
             OnboardingOverlay(

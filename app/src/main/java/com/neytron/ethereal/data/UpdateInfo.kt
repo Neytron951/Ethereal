@@ -25,6 +25,12 @@ data class UpdateInfo(
     /** Дата публикации релиза (ISO 8601 из GitHub) */
     val publishedAt: String,
 
+    /** Имя релиза (поле name) — обычно совпадает с тегом */
+    val releaseName: String = "",
+
+    /** Размер APK-ассета в байтах (0, если неизвестен) */
+    val apkSizeBytes: Long = 0L,
+
     /** Когда мы последний раз проверяли (System.currentTimeMillis) */
     val checkedAt: Long
 ) {

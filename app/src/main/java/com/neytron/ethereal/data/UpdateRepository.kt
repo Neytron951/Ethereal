@@ -144,12 +144,14 @@ object UpdateRepository {
 
             val assets = obj.optJSONArray("assets")
             var apkUrl = ""
+            var apkSize = 0L
             if (assets != null) {
                 for (i in 0 until assets.length()) {
                     val asset = assets.getJSONObject(i)
                     val name = asset.optString("name", "")
                     if (name.endsWith(".apk", ignoreCase = true)) {
                         apkUrl = asset.optString("browser_download_url", "")
+                        apkSize = asset.optLong("size", 0L)
                         break
                     }
                 }
@@ -162,6 +164,8 @@ object UpdateRepository {
                 htmlUrl = obj.optString("html_url", ""),
                 apkUrl = apkUrl,
                 publishedAt = obj.optString("published_at", ""),
+                releaseName = obj.optString("name", ""),
+                apkSizeBytes = apkSize,
                 checkedAt = System.currentTimeMillis()
             )
         } catch (e: Exception) {
@@ -192,6 +196,8 @@ object UpdateRepository {
                 htmlUrl = obj.optString("htmlUrl", ""),
                 apkUrl = obj.optString("apkUrl", ""),
                 publishedAt = obj.optString("publishedAt", ""),
+                releaseName = obj.optString("releaseName", ""),
+                apkSizeBytes = obj.optLong("apkSizeBytes", 0L),
                 checkedAt = obj.optLong("checkedAt", 0L)
             )
         } catch (e: Exception) {
@@ -209,6 +215,8 @@ object UpdateRepository {
                 put("htmlUrl", info.htmlUrl)
                 put("apkUrl", info.apkUrl)
                 put("publishedAt", info.publishedAt)
+                put("releaseName", info.releaseName)
+                put("apkSizeBytes", info.apkSizeBytes)
                 put("checkedAt", info.checkedAt)
             }
             prefs(context).edit().putString(KEY_CACHE, obj.toString()).apply()

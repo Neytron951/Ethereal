@@ -72,6 +72,8 @@ fun TilesScreen(
     spacingDp: Float,
     radiusDp: Float,
     tileShape: TileShape = TileShape.ROUNDED,
+    fixedColumns: Int = 0,
+    fixedRows: Int = 0,
     dockIconSizeDp: Float,
     dockBottomPaddingDp: Float,
     installedApps: List<AppInfo>,
@@ -141,7 +143,7 @@ fun TilesScreen(
 
     val gridSpec = remember(
         availableWidthDp, availableHeightDp, tileSizeDp, spacingDp,
-        isLandscape, layoutColumns, layoutRows
+        isLandscape, layoutColumns, layoutRows, fixedColumns, fixedRows
     ) {
         TileGridMetrics.compute(
             availableWidthDp = availableWidthDp,
@@ -150,12 +152,15 @@ fun TilesScreen(
             spacingDp = spacingDp,
             isLandscape = isLandscape,
             layoutColumns = layoutColumns,
-            layoutRows = layoutRows
+            layoutRows = layoutRows,
+            fixedColumns = fixedColumns,
+            fixedRows = fixedRows
         )
     }
 
     val autoColumns = gridSpec.columns
     val autoRows = gridSpec.rows
+
     val tileSize: Dp = gridSpec.tileSizeDp.dp
     val spacing: Dp = spacingDp.dp
     val radius: Dp = radiusDp.dp

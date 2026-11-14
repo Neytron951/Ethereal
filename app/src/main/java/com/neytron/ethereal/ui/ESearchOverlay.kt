@@ -428,6 +428,14 @@ private fun ESearchPanel(
     val itemHeight = 52.dp
     val listMaxHeight = itemHeight * visibleItems
 
+    // Блюр стекла включаем только после анимации открытия: во время неё панель двигается
+    // и масштабируется, а размытие полноэкранных обоев каждый кадр — самая дорогая часть.
+    var allowBlur by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(280)
+        allowBlur = true
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth(widthFraction)
@@ -437,7 +445,7 @@ private fun ESearchPanel(
         color = Color.Transparent
     ) {
         FrostedGlassBox(
-            blur = blur,
+            blur = if (allowBlur) blur else 0f,
             opacity = opacity,
             backgroundColor = palette.surface,
             shape = RoundedCornerShape(20.dp),
@@ -626,24 +634,21 @@ private fun ESearchItem(
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val bmp = remember(app.packageName, themedIcons, palette.id) {
-            iconCache.getOrPut(app.packageName) {
-                if (themedIcons) {
-                    renderThemedIcon(app.icon, palette).asImageBitmap()
-                } else {
-                    app.icon.toImageBitmap()
-                }
+        val bmp = rememberAppIcon(app, themedIcons, palette)
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(palette.surfaceVariant.copy(alpha = if (bmp == null) 0.22f else 0f))
+                .onGloballyPositioned { launchCoordinates = it }
+        ) {
+            if (bmp != null) {
+                Image(
+                    bitmap = bmp,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
-        }
-        if (bmp != null) {
-            Image(
-                bitmap = bmp,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(28.dp)
-                    .onGloballyPositioned { launchCoordinates = it }
-                    .clip(RoundedCornerShape(6.dp))
-            )
         }
         Spacer(modifier = Modifier.width(14.dp))
         Text(
@@ -851,15 +856,7 @@ private fun GridSearchCell(
     val rootView = LocalView.current
     var coordinates by remember(app.packageName) { mutableStateOf<LayoutCoordinates?>(null) }
 
-    val bmp = remember(app.packageName, themedIcons, palette.id) {
-        iconCache.getOrPut(app.packageName) {
-            if (themedIcons) {
-                renderThemedIcon(app.icon, palette).asImageBitmap()
-            } else {
-                app.icon.toImageBitmap()
-            }
-        }
-    }
+    val bmp = rememberAppIcon(app, themedIcons, palette)
 
     Column(
         modifier = Modifier
@@ -873,14 +870,19 @@ private fun GridSearchCell(
             .padding(vertical = 8.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (bmp != null) {
-            Image(
-                bitmap = bmp,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            )
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(palette.surfaceVariant.copy(alpha = if (bmp == null) 0.22f else 0f))
+        ) {
+            if (bmp != null) {
+                Image(
+                    bitmap = bmp,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(

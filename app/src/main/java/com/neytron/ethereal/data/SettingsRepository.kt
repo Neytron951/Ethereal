@@ -64,13 +64,16 @@ object SettingsRepository {
     // === Tiles (сетка) ===
     private const val KEY_TILE_SIZE = "tile_size"
     private const val KEY_TILE_COLUMNS = "tile_columns"
+    private const val KEY_TILE_ROWS = "tile_rows"
     private const val KEY_TILE_SPACING = "tile_spacing"
     private const val KEY_TILE_RADIUS = "tile_radius"
     private const val KEY_TILE_SHAPE = "tile_shape"
+    private const val KEY_NOTICE_SHOWN = "notice_shown"
     private const val KEY_RESIZE_INDICATOR_ENABLED = "resize_indicator_enabled"
 
     private const val DEFAULT_TILE_SIZE = 64f
-    private const val DEFAULT_TILE_COLUMNS = 4
+    private const val DEFAULT_TILE_COLUMNS = 0
+    private const val DEFAULT_TILE_ROWS = 0
     private const val DEFAULT_TILE_SPACING = 8f
     private const val DEFAULT_TILE_RADIUS = 16f
 
@@ -313,10 +316,17 @@ object SettingsRepository {
         prefs(context).edit().putFloat(KEY_TILE_SIZE, value.coerceIn(32f, 96f)).apply()
     }
 
+    // 0 = авто (сетка подстраивается под раскладку), > 0 = жёстко зафиксирована пользователем
     fun getTileColumns(context: Context): Int =
         prefs(context).getInt(KEY_TILE_COLUMNS, DEFAULT_TILE_COLUMNS)
     fun setTileColumns(context: Context, value: Int) {
-        prefs(context).edit().putInt(KEY_TILE_COLUMNS, value.coerceIn(3, 6)).apply()
+        prefs(context).edit().putInt(KEY_TILE_COLUMNS, value.coerceIn(0, 12)).apply()
+    }
+
+    fun getTileRows(context: Context): Int =
+        prefs(context).getInt(KEY_TILE_ROWS, DEFAULT_TILE_ROWS)
+    fun setTileRows(context: Context, value: Int) {
+        prefs(context).edit().putInt(KEY_TILE_ROWS, value.coerceIn(0, 24)).apply()
     }
 
     fun getTileSpacing(context: Context): Float =
@@ -331,6 +341,17 @@ object SettingsRepository {
         prefs(context).edit().putFloat(KEY_TILE_RADIUS, value.coerceIn(0f, 32f)).apply()
     }
 
+    // ============================================================
+    // Разовое сообщение пользователям
+    // ============================================================
+
+    /** Показывалось ли разовое сообщение (один раз на установку). */
+    fun isNoticeShown(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_NOTICE_SHOWN, false)
+
+    fun setNoticeShown(context: Context, shown: Boolean) {
+        prefs(context).edit().putBoolean(KEY_NOTICE_SHOWN, shown).apply()
+    }
     fun getTileShape(context: Context): TileShape =
         TileShape.fromName(prefs(context).getString(KEY_TILE_SHAPE, TileShape.ROUNDED.name))
     fun setTileShape(context: Context, shape: TileShape) {

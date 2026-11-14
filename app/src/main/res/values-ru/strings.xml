@@ -353,6 +353,19 @@
     <string name="update_title">Обновление</string>
     <string name="update_available_format">Доступно %1$s</string>
     <string name="update_available_subtitle">Нажмите, чтобы посмотреть</string>
+    <string name="notice_got_it">Понятно</string>
+    <string name="notice_open_link">Открыть ссылку</string>
+    <string name="update_center">Центр обновлений</string>
+    <string name="update_center_subtitle">Обновления, резервные копии и восстановление</string>
+    <string name="update_center_no_data">Не удалось получить данные о релизе</string>
+    <string name="update_available_title">Доступно обновление</string>
+    <string name="update_up_to_date">У вас последняя версия</string>
+    <string name="update_open_center">Открыть центр обновлений</string>
+    <string name="update_released_on">Выпущено %1$s</string>
+    <string name="update_download">Скачать</string>
+    <string name="update_open_github">Открыть на GitHub</string>
+    <string name="update_later">Позже</string>
+    <string name="update_empty_notes">Заметок к релизу нет — подробности на странице релиза.</string>
     <string name="update_changelog_title">Что нового</string>
     <string name="update_no_changelog">Список изменений не указан</string>
     <string name="update_expand">Развернуть</string>
@@ -402,4 +415,15 @@
     <string name="editor_group_shape">Форма</string>
     <string name="settings_tile_shape">Форма плитки</string>
     <string name="settings_tile_shape_subtitle">Форма по умолчанию. У каждой плитки её можно переопределить в редакторе.</string>
+    <string name="settings_group_grid_size">Размер сетки</string>
+    <string name="settings_group_grid_size_subtitle">Зафиксируй сетку, чтобы плитки её не уменьшали</string>
+    <string name="settings_grid_auto">Авто · %1$d × %2$d</string>
+    <string name="settings_grid_auto_unknown">Авто — подстраивается под плитки</string>
+    <string name="settings_grid_fixed">Фиксирована · %1$d × %2$d</string>
+    <string name="settings_grid_explainer">Пока сетка авто, большая плитка, которая не влезает, уменьшает все плитки на экране. Зафиксируй размер, чтобы этого не происходило. При удалении плитки пустые строки сверху теперь убираются сами.</string>
+    <string name="settings_grid_pin">Зафиксировать %1$d × %2$d</string>
+    <string name="settings_grid_unpin">Вернуть авто-сетку</string>
+    <string name="settings_grid_compact">Уплотнить раскладку</string>
+    <string name="settings_grid_compact_subtitle">Убирает пустые строки сверху и возвращает размер плиток</string>
+    <string name="settings_grid_reset">Сбросить настройки сетки</string>
 </resources>

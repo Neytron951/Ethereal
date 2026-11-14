@@ -7,11 +7,24 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -27,34 +40,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.m3.markdownColor
-import com.mikepenz.markdown.m3.markdownTypography
 import com.neytron.ethereal.R
 import com.neytron.ethereal.data.UpdateInfo
 import com.neytron.ethereal.ui.theme.EtherealPalette
+import androidx.compose.ui.res.stringResource
 
 /**
- * Оверлей с информацией об обновлении.
+ * Центр обновлений.
  *
- * Показывает:
- *  1. Переход версий: vCURRENT → vLATEST
- *  2. Changelog (markdown, из GitHub release body)
- *     — свёрнут по умолчанию (~6 строк), кнопка "Развернуть"
- *     — раскрытый скроллится внутри, максимум ~60% высоты экрана
- *  3. Кнопки: [Обновить] → открывает html_url в браузере, [Закрыть]
- *
- * Рисуется как Surface поверх контента, с затемнением фона.
+ * Показывает бренд, переход версий, метаданные релиза (дата, размер APK) и заметки
+ * к релизу, отрисованные собственным мини-рендерером [ReleaseNotesView] — поэтому они
+ * видны всегда, в отличие от прежнего markdown-рендера, который падал на HTML-разметке.
  */
 @Composable
 fun UpdateOverlay(
@@ -67,21 +71,21 @@ fun UpdateOverlay(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(animationSpec = tween(220)) +
+        enter = fadeIn(animationSpec = tween(200)) +
                 slideInVertically(
-                    initialOffsetY = { it / 8 },
+                    initialOffsetY = { it / 12 },
                     animationSpec = tween(280)
                 ),
-        exit = fadeOut(animationSpec = tween(180)) +
+        exit = fadeOut(animationSpec = tween(160)) +
                 slideOutVertically(
-                    targetOffsetY = { it / 8 },
-                    animationSpec = tween(200)
+                    targetOffsetY = { it / 12 },
+                    animationSpec = tween(180)
                 )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.65f))
+                .background(Color.Black.copy(alpha = 0.72f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -92,44 +96,53 @@ fun UpdateOverlay(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .fillMaxHeight(0.82f)
+                    .fillMaxHeight(0.88f)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = {}
                     ),
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(28.dp),
                 color = palette.background.copy(alpha = 0.98f),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    palette.surfaceVariant
-                )
+                border = BorderStroke(1.dp, palette.surfaceVariant)
             ) {
+                var entered by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    entered = true
+                }
+
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(20.dp)
                 ) {
-                    UpdateHeader(
+                    UpdateHeader(palette = palette, onDismiss = onDismiss)
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    VersionHero(
                         info = info,
                         palette = palette,
-                        onDismiss = onDismiss
+                        modifier = Modifier.reveal(entered, 60)
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    ChangelogSection(
-                        changelog = info.changelog,
+                    NotesCard(
+                        info = info,
                         palette = palette,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .reveal(entered, 120)
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     UpdateButtons(
+                        info = info,
                         palette = palette,
-                        htmlUrl = info.htmlUrl,
-                        onDismiss = onDismiss
+                        onDismiss = onDismiss,
+                        modifier = Modifier.reveal(entered, 180)
                     )
                 }
             }
@@ -138,12 +151,30 @@ fun UpdateOverlay(
 }
 
 // ============================================================
-// Header: заголовок + переход версий
+// Появление с задержкой
+// ============================================================
+
+@Composable
+private fun Modifier.reveal(entered: Boolean, delayMs: Int): Modifier {
+    val alpha by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f,
+        animationSpec = tween(durationMillis = 300, delayMillis = delayMs),
+        label = "revealAlpha"
+    )
+    val offsetY by animateFloatAsState(
+        targetValue = if (entered) 0f else 16f,
+        animationSpec = tween(durationMillis = 320, delayMillis = delayMs),
+        label = "revealOffset"
+    )
+    return this.alpha(alpha).offset(y = offsetY.dp)
+}
+
+// ============================================================
+// Шапка: марка + название + закрыть
 // ============================================================
 
 @Composable
 private fun UpdateHeader(
-    info: UpdateInfo,
     palette: EtherealPalette,
     onDismiss: () -> Unit
 ) {
@@ -151,18 +182,33 @@ private fun UpdateHeader(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = stringResource(R.string.update_title),
-            color = palette.textPrimary,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f)
+        Image(
+            painter = androidx.compose.ui.res.painterResource(id = com.neytron.ethereal.R.drawable.ic_logo),
+            contentDescription = null,
+            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(palette.primary),
+            modifier = Modifier.size(34.dp)
         )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Ethereal",
+                color = palette.textPrimary,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = stringResource(R.string.update_center),
+                color = palette.textSecondary,
+                fontSize = 12.sp
+            )
+        }
 
         Box(
             modifier = Modifier
-                .size(32.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .size(34.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(palette.surfaceVariant.copy(alpha = 0.5f))
                 .clickable(onClick = onDismiss),
             contentAlignment = Alignment.Center
@@ -175,30 +221,68 @@ private fun UpdateHeader(
             )
         }
     }
+}
 
-    Spacer(modifier = Modifier.height(10.dp))
+// ============================================================
+// Версии + метаданные
+// ============================================================
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        VersionBadge(
-            text = info.currentVersion.display(),
-            palette = palette,
-            isLatest = false
-        )
+@Composable
+private fun VersionHero(
+    info: UpdateInfo,
+    palette: EtherealPalette,
+    modifier: Modifier = Modifier
+) {
+    val hasUpdate = info.hasUpdate
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            VersionBadge(
+                text = info.currentVersion.display(),
+                palette = palette,
+                highlighted = false
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = if (hasUpdate) "→" else "·",
+                color = palette.primary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            VersionBadge(
+                text = info.latestVersion.display(),
+                palette = palette,
+                highlighted = true
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
 
         Text(
-            text = "→",
-            color = palette.textSecondary,
-            fontSize = 14.sp
+            text = if (hasUpdate) {
+                stringResource(R.string.update_available_title)
+            } else {
+                stringResource(R.string.update_up_to_date)
+            },
+            color = if (hasUpdate) palette.primary else palette.textSecondary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
         )
 
-        VersionBadge(
-            text = info.latestVersion.display(),
-            palette = palette,
-            isLatest = true
-        )
+        val meta = buildList {
+            val date = formatDate(info.publishedAt)
+            if (date.isNotBlank()) add(stringResource(R.string.update_released_on, date))
+            val size = formatSize(info.apkSizeBytes)
+            if (size.isNotBlank()) add(size)
+        }
+        if (meta.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = meta.joinToString("  ·  "),
+                color = palette.textSecondary,
+                fontSize = 11.sp
+            )
+        }
     }
 }
 
@@ -206,189 +290,82 @@ private fun UpdateHeader(
 private fun VersionBadge(
     text: String,
     palette: EtherealPalette,
-    isLatest: Boolean
+    highlighted: Boolean
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(10.dp))
             .background(
-                if (isLatest) palette.primary.copy(alpha = 0.15f)
-                else palette.surfaceVariant.copy(alpha = 0.5f)
+                if (highlighted) palette.primary.copy(alpha = 0.16f)
+                else palette.surfaceVariant.copy(alpha = 0.4f)
             )
-            .border(
-                width = if (isLatest) 1.dp else 0.dp,
-                color = if (isLatest) palette.primary.copy(alpha = 0.5f) else Color.Transparent,
-                shape = RoundedCornerShape(8.dp)
-            )
-            .padding(horizontal = 10.dp, vertical = 5.dp)
+            .padding(horizontal = 12.dp, vertical = 7.dp)
     ) {
         Text(
             text = text,
-            color = if (isLatest) palette.primary else palette.textSecondary,
-            fontSize = 13.sp,
-            fontWeight = if (isLatest) FontWeight.Bold else FontWeight.Medium
+            color = if (highlighted) palette.primary else palette.textPrimary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold
         )
     }
 }
 
 // ============================================================
-// Changelog: markdown + свёрнутость
+// Заметки к релизу
 // ============================================================
 
 @Composable
-private fun ChangelogSection(
-    changelog: String,
+private fun NotesCard(
+    info: UpdateInfo,
     palette: EtherealPalette,
     modifier: Modifier = Modifier
 ) {
-    val trimmed = changelog.trim()
-
-    if (trimmed.isBlank()) {
-        Box(
-            modifier = modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = stringResource(R.string.update_no_changelog),
-                color = palette.textSecondary,
-                fontSize = 13.sp
-            )
-        }
-        return
-    }
-
-    var expanded by remember { mutableStateOf(false) }
+    val blocks = remember(info.changelog) { ReleaseNotes.parse(info.changelog) }
+    val scrollState = rememberScrollState()
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(palette.surfaceVariant.copy(alpha = 0.35f))
-            .border(
-                width = 1.dp,
-                color = palette.outline.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(16.dp)
-            )
+            .clip(RoundedCornerShape(18.dp))
+            .background(palette.surfaceVariant.copy(alpha = 0.22f))
             .padding(14.dp)
     ) {
-        Text(
-            text = stringResource(R.string.update_changelog_title),
-            color = palette.textPrimary,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        val maxCollapsedHeight = 140.dp
-        val scrollState = rememberScrollState()
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (expanded) {
-                        Modifier
-                            .fillMaxHeight(0.9f)
-                            .verticalScroll(scrollState)
-                    } else {
-                        Modifier
-                            .heightIn(max = maxCollapsedHeight)
-                            .verticalScroll(scrollState, enabled = false)
-                    }
-                )
-        ) {
-            Markdown(
-                content = trimmed,
-                colors = markdownColor(
-                    text = palette.textPrimary,
-                    codeText = palette.primary,
-                    codeBackground = palette.surface,
-                    inlineCodeBackground = palette.surface,
-                    dividerColor = palette.outline
-                ),
-                typography = markdownTypography(
-                    text = androidx.compose.ui.text.TextStyle(
-                        color = palette.textPrimary,
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp
-                    ),
-                    h1 = androidx.compose.ui.text.TextStyle(
-                        color = palette.primary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    h2 = androidx.compose.ui.text.TextStyle(
-                        color = palette.primary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    h3 = androidx.compose.ui.text.TextStyle(
-                        color = palette.textPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    paragraph = androidx.compose.ui.text.TextStyle(
-                        color = palette.textPrimary,
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp
-                    ),
-                    bullet = androidx.compose.ui.text.TextStyle(
-                        color = palette.textPrimary,
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp
-                    )
-                )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.update_changelog_title).uppercase(),
+                color = palette.textSecondary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.2.sp,
+                modifier = Modifier.weight(1f)
             )
+            if (blocks.isNotEmpty()) {
+                Text(
+                    text = "${blocks.size}",
+                    color = palette.textSecondary.copy(alpha = 0.6f),
+                    fontSize = 11.sp
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        ExpandToggle(
-            expanded = expanded,
-            palette = palette,
-            onClick = { expanded = !expanded }
-        )
-    }
-}
-
-@Composable
-private fun ExpandToggle(
-    expanded: Boolean,
-    palette: EtherealPalette,
-    onClick: () -> Unit
-) {
-    val arrowAlpha by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = tween(200),
-        label = "arrow"
-    )
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = if (expanded)
-                stringResource(R.string.update_collapse)
-            else
-                stringResource(R.string.update_expand),
-            color = palette.primary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = if (expanded) "▲" else "▼",
-            color = palette.primary,
-            fontSize = 11.sp,
-            modifier = Modifier.alpha(arrowAlpha)
-        )
+        if (blocks.isEmpty()) {
+            Text(
+                text = stringResource(R.string.update_empty_notes),
+                color = palette.textSecondary,
+                fontSize = 13.sp,
+                lineHeight = 19.sp
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+            ) {
+                ReleaseNotesView(blocks = blocks, palette = palette)
+            }
+        }
     }
 }
 
@@ -398,15 +375,21 @@ private fun ExpandToggle(
 
 @Composable
 private fun UpdateButtons(
+    info: UpdateInfo,
     palette: EtherealPalette,
-    htmlUrl: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val uriHandler = LocalUriHandler.current
     val haptic = LocalHapticFeedback.current
+    val target = if (info.hasUpdate) {
+        info.apkUrl.ifBlank { info.htmlUrl }
+    } else {
+        info.htmlUrl
+    }
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Box(
@@ -415,43 +398,68 @@ private fun UpdateButtons(
                 .clip(RoundedCornerShape(14.dp))
                 .background(palette.surfaceVariant.copy(alpha = 0.5f))
                 .clickable(onClick = onDismiss)
-                .padding(vertical = 14.dp),
+                .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = stringResource(R.string.close),
+                text = stringResource(R.string.update_later),
                 color = palette.textPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                maxLines = 1
             )
         }
 
         Box(
             modifier = Modifier
-                .weight(1.4f)
+                .weight(1.5f)
                 .clip(RoundedCornerShape(14.dp))
-                .background(palette.primary)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(palette.primary, palette.primary.copy(alpha = 0.82f))
+                    )
+                )
                 .clickable {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    if (htmlUrl.isNotBlank()) {
+                    if (target.isNotBlank()) {
                         try {
-                            uriHandler.openUri(htmlUrl)
-                        } catch (_: Exception) {}
+                            uriHandler.openUri(target)
+                        } catch (_: Exception) {
+                        }
                     }
                 }
-                .padding(vertical = 14.dp),
+                .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = stringResource(R.string.update_button),
+                text = if (info.hasUpdate) {
+                    stringResource(R.string.update_download)
+                } else {
+                    stringResource(R.string.update_open_github)
+                },
                 color = palette.background,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                maxLines = 1
             )
         }
     }
+}
+
+// ============================================================
+// Форматирование
+// ============================================================
+
+private fun formatDate(iso: String): String {
+    // 2026-11-09T01:23:59Z -> 09.11.2026
+    if (iso.length < 10) return ""
+    val parts = iso.take(10).split("-")
+    if (parts.size != 3) return ""
+    return "${parts[2]}.${parts[1]}.${parts[0]}"
+}
+
+private fun formatSize(bytes: Long): String {
+    if (bytes <= 0L) return ""
+    val mb = bytes / (1024.0 * 1024.0)
+    return String.format("%.1f MB", mb)
 }

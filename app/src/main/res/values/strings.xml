@@ -353,6 +353,19 @@
     <string name="update_title">Update</string>
     <string name="update_available_format">Available %1$s</string>
     <string name="update_available_subtitle">Tap to see what\'s new</string>
+    <string name="notice_got_it">Got it</string>
+    <string name="notice_open_link">Open link</string>
+    <string name="update_center">Update Center</string>
+    <string name="update_center_subtitle">Updates, backups and restore</string>
+    <string name="update_center_no_data">Could not load release info</string>
+    <string name="update_available_title">Update available</string>
+    <string name="update_up_to_date">You are up to date</string>
+    <string name="update_open_center">Open Update Center</string>
+    <string name="update_released_on">Released %1$s</string>
+    <string name="update_download">Download</string>
+    <string name="update_open_github">Open on GitHub</string>
+    <string name="update_later">Later</string>
+    <string name="update_empty_notes">Release notes are empty — open the release page for details.</string>
     <string name="update_changelog_title">What\'s new</string>
     <string name="update_no_changelog">No changelog provided</string>
     <string name="update_expand">Expand</string>
@@ -402,4 +415,10 @@
     <string name="editor_group_shape">Shape</string>
     <string name="settings_tile_shape">Tile shape</string>
     <string name="settings_tile_shape_subtitle">Default shape for tiles. Each tile can override it in the editor.</string>
+    <string name="settings_group_grid_size">Grid</string>
+    <string name="settings_group_grid_size_subtitle">Pick a size — it stays fixed</string>
+    <string name="settings_grid_preset_large">Large</string>
+    <string name="settings_grid_preset_medium">Medium</string>
+    <string name="settings_grid_preset_small">Small</string>
+    <string name="settings_grid_hint">New tiles no longer change the grid — it stays the size you picked.</string>
 </resources>
