@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -619,22 +620,43 @@ private fun AppLauncherContent(
         return
     }
 
-    val bmp = remember(app.packageName, app.icon, themedIcons, palette.id, foregroundOnlyIcon) {
-        when {
-            themedIcons -> renderThemedIcon(
-                app.icon,
-                palette,
-                drawBackground = !foregroundOnlyIcon
-            ).asImageBitmap()
-            foregroundOnlyIcon -> app.icon.toForegroundOnlyBitmap()
-            else -> app.icon.toImageBitmap()
+    // Иконка растеризуется в фоне и кэшируется в процессе: композиция не блокируется,
+    // а повторные входы в пространство берут готовый битмап.
+    val iconKey = com.neytron.ethereal.utils.AppIconBitmaps.key(
+        packageName = app.packageName,
+        themed = themedIcons,
+        paletteId = palette.id,
+        foregroundOnly = foregroundOnlyIcon
+    )
+    val bmp by produceState(
+        initialValue = com.neytron.ethereal.utils.AppIconBitmaps.get(iconKey),
+        key1 = iconKey
+    ) {
+        if (value == null) {
+            val rendered = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                when {
+                    themedIcons -> renderThemedIcon(
+                        app.icon,
+                        palette,
+                        drawBackground = !foregroundOnlyIcon
+                    ).asImageBitmap()
+                    foregroundOnlyIcon -> app.icon.toForegroundOnlyBitmap()
+                    else -> app.icon.toImageBitmap()
+                }
+            }
+            if (rendered != null) {
+                com.neytron.ethereal.utils.AppIconBitmaps.put(iconKey, rendered)
+            }
+            value = rendered
         }
     }
 
+    val iconBitmap = bmp
+
     if (tile.w == 1 && tile.h == 1) {
-        if (bmp != null) {
+        if (iconBitmap != null) {
             Image(
-                bitmap = bmp,
+                bitmap = iconBitmap,
                 contentDescription = app.label,
                 modifier = Modifier.size((tileSize.value * 0.65f * contentScale).dp)
             )
@@ -645,9 +667,9 @@ private fun AppLauncherContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(horizontal = 8.dp)
         ) {
-            if (bmp != null) {
+            if (iconBitmap != null) {
                 Image(
-                    bitmap = bmp,
+                    bitmap = iconBitmap,
                     contentDescription = app.label,
                     modifier = Modifier.size((tileSize.value * 0.45f * contentScale).dp)
                 )

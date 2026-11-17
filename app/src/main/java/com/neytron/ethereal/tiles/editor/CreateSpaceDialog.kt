@@ -7,7 +7,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -41,7 +43,7 @@ import java.io.File
 fun CreateSpaceDialog(
     palette: EtherealPalette,
     onDismiss: () -> Unit,
-    onCreate: (name: String, iconUri: String?, iconText: String?) -> Unit
+    onCreate: (name: String, iconUri: String?, iconText: String?, preset: SpacePreset) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -49,6 +51,7 @@ fun CreateSpaceDialog(
     var name by remember { mutableStateOf("") }
     var iconText by remember { mutableStateOf("") }
     var iconUri by remember { mutableStateOf<String?>(null) }
+    var preset by remember { mutableStateOf(SpacePreset.EMPTY) }
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -122,6 +125,65 @@ fun CreateSpaceDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // БЫСТРЫЕ ПРЕСЕТЫ: создают пространство и сразу наполняют его приложениями
+            Text(
+                text = stringResource(R.string.create_space_preset_label),
+                color = palette.textSecondary,
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(SpacePreset.values().toList()) { option ->
+                    val selected = preset == option
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                if (selected) palette.primary.copy(alpha = 0.18f)
+                                else palette.surfaceVariant.copy(alpha = 0.4f)
+                            )
+                            .border(
+                                1.dp,
+                                if (selected) palette.primary else Color.Transparent,
+                                RoundedCornerShape(10.dp)
+                            )
+                            .clickable {
+                                preset = option
+                                val label = context.getString(presetLabel(option))
+                                if (option != SpacePreset.EMPTY && name.isBlank()) name = label
+                                if (option != SpacePreset.EMPTY && iconText.isBlank()) {
+                                    iconText = when (option) {
+                                        SpacePreset.GAMES -> "🎮"
+                                        SpacePreset.TOOLS -> "🛠"
+                                        SpacePreset.SOCIAL -> "💬"
+                                        SpacePreset.MEDIA -> "🎬"
+                                        SpacePreset.PHOTOS -> "📷"
+                                        SpacePreset.WORK -> "💼"
+                                        SpacePreset.NEWS -> "📰"
+                                        SpacePreset.TRAVEL -> "🧭"
+                                        SpacePreset.COMMUNICATION -> "📞"
+                                        SpacePreset.ALL -> "📦"
+                                        else -> ""
+                                    }
+                                }
+                            }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(presetLabel(option)),
+                            color = if (selected) palette.primary else palette.textPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -253,7 +315,8 @@ fun CreateSpaceDialog(
                             onCreate(
                                 name.trim(),
                                 iconUri,
-                                iconText.trim().takeIf { it.isNotEmpty() }
+                                iconText.trim().takeIf { it.isNotEmpty() },
+                                preset
                             )
                         }
                         .padding(14.dp),
@@ -298,4 +361,20 @@ fun copySpaceIconToInternal(context: Context, uri: Uri): String? {
         e.printStackTrace()
         null
     }
+}
+
+/** Быстрый пресет при создании пространства. */
+enum class SpacePreset { EMPTY, GAMES, TOOLS, SOCIAL, MEDIA, PHOTOS, WORK, NEWS, TRAVEL, COMMUNICATION, ALL }
+private fun presetLabel(option: SpacePreset): Int = when (option) {
+    SpacePreset.EMPTY -> R.string.create_space_preset_empty
+    SpacePreset.GAMES -> R.string.create_space_preset_games
+    SpacePreset.TOOLS -> R.string.create_space_preset_tools
+    SpacePreset.SOCIAL -> R.string.create_space_preset_social
+    SpacePreset.MEDIA -> R.string.create_space_preset_media
+    SpacePreset.PHOTOS -> R.string.create_space_preset_photos
+    SpacePreset.WORK -> R.string.create_space_preset_work
+    SpacePreset.NEWS -> R.string.create_space_preset_news
+    SpacePreset.TRAVEL -> R.string.create_space_preset_travel
+    SpacePreset.COMMUNICATION -> R.string.create_space_preset_communication
+    SpacePreset.ALL -> R.string.create_space_preset_all
 }

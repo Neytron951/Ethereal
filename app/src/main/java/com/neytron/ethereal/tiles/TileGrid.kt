@@ -144,7 +144,7 @@ fun TileGrid(
             if (isTransitioning) {
                 if (isPop) {
                     // POP: Старые тайлы втягиваются в pivot
-                    val oldScale = 1f - transitionProgress * 0.8f
+                    val oldScale = 1f - transitionProgress * 0.28f
                     val oldAlpha = (1f - transitionProgress).coerceIn(0f, 1f)
                     Box(
                         modifier = Modifier
@@ -185,8 +185,8 @@ fun TileGrid(
                     }
 
                     // POP: Новые тайлы расширяются из pivot
-                    val newScale = 1.4f - transitionProgress * 0.4f
-                    val newAlpha = transitionProgress.coerceIn(0f, 1f)
+                    val newScale = 1.18f - transitionProgress * 0.18f
+                    val newAlpha = (transitionProgress * transitionProgress).coerceIn(0f, 1f)
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -226,8 +226,8 @@ fun TileGrid(
                     }
                 } else {
                     // PUSH: Старые тайлы разлетаются от pivot
-                    val oldScale = 1f + transitionProgress * 1.2f
-                    val oldAlpha = (1f - transitionProgress * 1.2f).coerceIn(0f, 1f)
+                    val oldScale = 1f + transitionProgress * 0.35f
+                    val oldAlpha = (1f - transitionProgress).coerceIn(0f, 1f)
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -267,8 +267,8 @@ fun TileGrid(
                     }
 
                     // PUSH: Новые тайлы вырастают из pivot
-                    val newScale = 0.2f + transitionProgress * 0.8f
-                    val newAlpha = transitionProgress.coerceIn(0f, 1f)
+                    val newScale = 0.72f + transitionProgress * 0.28f
+                    val newAlpha = (transitionProgress * transitionProgress).coerceIn(0f, 1f)
                     Box(
                         modifier = Modifier
                             .fillMaxSize()

@@ -86,6 +86,19 @@
 
     <!-- Create Space Dialog -->
     <string name="create_space_title">Новое пространство</string>
+    <string name="create_space_preset_label">Пресет</string>
+    <string name="create_space_preset_empty">Пустое</string>
+    <string name="create_space_preset_games">Игры</string>
+    <string name="create_space_preset_tools">Инструменты</string>
+    <string name="create_space_preset_social">Соцсети</string>
+    <string name="create_space_preset_media">Медиа</string>
+    <string name="create_space_preset_photos">Фото</string>
+    <string name="create_space_preset_work">Работа</string>
+    <string name="create_space_preset_news">Новости</string>
+    <string name="create_space_preset_travel">Поездки</string>
+    <string name="create_space_preset_communication">Контакты</string>
+    <string name="create_space_preset_all">Все приложения</string>
+    <string name="space_preset_more">Ещё</string>
     <string name="create_space_name_label">Название</string>
     <string name="create_space_name_hint">Например: Игры</string>
     <string name="create_space_icon_text_label">Иконка (эмодзи/символ)</string>
@@ -417,6 +430,10 @@
     <string name="settings_tile_shape_subtitle">Форма по умолчанию. У каждой плитки её можно переопределить в редакторе.</string>
     <string name="settings_group_grid_size">Размер сетки</string>
     <string name="settings_group_grid_size_subtitle">Зафиксируй сетку, чтобы плитки её не уменьшали</string>
+    <string name="settings_grid_preset_large">Крупная</string>
+    <string name="settings_grid_preset_medium">Средняя</string>
+    <string name="settings_grid_preset_small">Мелкая</string>
+    <string name="settings_grid_hint">Новые плитки больше не меняют сетку — она остаётся выбранного размера.</string>
     <string name="settings_grid_auto">Авто · %1$d × %2$d</string>
     <string name="settings_grid_auto_unknown">Авто — подстраивается под плитки</string>
     <string name="settings_grid_fixed">Фиксирована · %1$d × %2$d</string>
@@ -426,4 +443,25 @@
     <string name="settings_grid_compact">Уплотнить раскладку</string>
     <string name="settings_grid_compact_subtitle">Убирает пустые строки сверху и возвращает размер плиток</string>
     <string name="settings_grid_reset">Сбросить настройки сетки</string>
+    <string name="overview_orphans_badge">без привязки</string>
+    <string name="overview_orphans_title">Пространства без привязки</string>
+    <string name="overview_orphans_body">%1$d пространств недоступны ни из одного другого. Удалить их вместе со всем содержимым?</string>
+    <string name="overview_orphans_delete">Удалить</string>
+    <string name="overview_menu_open">Открыть</string>
+    <string name="overview_menu_delete">Удалить пространство</string>
+    <string name="onboarding_layout_title">Стартовая раскладка</string>
+    <string name="onboarding_layout_subtitle">Выбери, как будет выглядеть домашний экран при первом запуске. Всё можно изменить позже.</string>
+    <string name="onboarding_layout_empty">Пустая</string>
+    <string name="onboarding_layout_empty_desc">Чистый экран: только плитка настроек. Собери сам.</string>
+    <string name="onboarding_layout_minimal">Минимал</string>
+    <string name="onboarding_layout_minimal_desc">Плитка настроек и шесть приложений.</string>
+    <string name="onboarding_layout_everyday">Повседневная</string>
+    <string name="onboarding_layout_everyday_desc">Плитка настроек и двенадцать приложений — готово к работе.</string>
+    <string name="onboarding_grid_title">Размер сетки</string>
+    <string name="onboarding_grid_subtitle">Сколько иконок помещается в ряд. Больше колонок — меньше плитки.</string>
+    <string name="onboarding_layout_pick_apps">Приложения для Home — %1$d из %2$d</string>
+    <string name="onboarding_layout_pick_hint">Выбери приложения для первого экрана. Повторный тап убирает.</string>
+    <string name="overview_hint">Сведите пальцы, чтобы вернуться. Тапните карточку или откройте ближайшую.</string>
+    <string name="overview_open_space">Открыть «%1$s»</string>
+    <string name="overview_now">Сейчас</string>
 </resources>

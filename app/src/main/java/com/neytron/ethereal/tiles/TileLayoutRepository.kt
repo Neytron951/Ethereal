@@ -139,10 +139,24 @@ object TileLayoutRepository {
     fun getTiles(context: Context, spaceId: String): List<Tile> = getTiles(context, spaceId, isLandscape = false)
     fun setTiles(context: Context, spaceId: String, tiles: List<Tile>) = setTiles(context, spaceId, tiles, isLandscape = false)
 
+    /**
+     * Кэш раскладок в памяти: переключение пространств не должно каждый раз
+     * разбирать JSON заново. Инвалидируется при любом сохранении.
+     */
+    private val memoryCache = java.util.Collections.synchronizedMap(HashMap<String, List<Tile>>())
+
+    /** Сбрасывает кэш раскладок: обязательно после импорта бэкапа. */
+    fun invalidateMemoryCache() {
+        memoryCache.clear()
+    }
+
     private fun getTilesImpl(context: Context, key: String, spaceId: String): List<Tile> {
+        memoryCache[key]?.let { return it }
         val raw = prefs(context).getString(key, null)
         if (raw == null) {
-            return if (spaceId == ScreenStack.ROOT_ID) defaultTiles() else emptyList()
+            val fallback = if (spaceId == ScreenStack.ROOT_ID) defaultTiles() else emptyList()
+            memoryCache[key] = fallback
+            return fallback
         }
         return try {
             val arr = JSONArray(raw)
@@ -192,7 +206,7 @@ object TileLayoutRepository {
             }
             list.ifEmpty {
                 if (spaceId == ScreenStack.ROOT_ID) defaultTiles() else emptyList()
-            }
+            }.also { parsed -> memoryCache[key] = parsed }
         } catch (e: Exception) {
             e.printStackTrace()
             if (spaceId == ScreenStack.ROOT_ID) defaultTiles() else emptyList()
@@ -232,6 +246,7 @@ object TileLayoutRepository {
             arr.put(obj)
         }
         prefs(context).edit().putString(key, arr.toString()).apply()
+        memoryCache[key] = tiles
     }
 
     fun reflowTilesLeftToRight(tiles: List<Tile>, columns: Int): List<Tile> {
@@ -264,6 +279,7 @@ object TileLayoutRepository {
      * Для пространства — удаляет ключ.
      */
     fun clearTiles(context: Context, spaceId: String) {
+        memoryCache.keys.filter { it.contains(spaceId) }.forEach { memoryCache.remove(it) }
         if (spaceId == ScreenStack.ROOT_ID) {
             setTiles(context, spaceId, defaultTiles())
         } else {

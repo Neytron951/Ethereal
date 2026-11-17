@@ -25,6 +25,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
@@ -49,6 +52,7 @@ import com.neytron.ethereal.R
 import com.neytron.ethereal.data.AnalyticsHelper
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.tiles.editor.CreateSpaceDialog
+import com.neytron.ethereal.tiles.editor.SpacePreset
 import com.neytron.ethereal.tiles.editor.TileEditorPanel
 import com.neytron.ethereal.tiles.editor.TileEditorState
 import com.neytron.ethereal.tiles.editor.defaultPresets
@@ -94,6 +98,8 @@ fun TilesScreen(
     onOpenSpace: (String) -> Unit,
     showCreateSpaceDialog: Boolean,
     onShowCreateSpaceDialogChange: (Boolean) -> Unit,
+    onRequestSpacesOverview: () -> Unit = {},
+    swipeUpEnabled: Boolean = true,
     introReveal: Boolean = false,
     isIntroActive: Boolean = false,
     onPresetClickReady: ((TilePreset) -> Unit) -> Unit = {},
@@ -182,7 +188,7 @@ fun TilesScreen(
     var targetProgress by remember { mutableStateOf(0f) }
     val transitionProgress by animateFloatAsState(
         targetValue = targetProgress,
-        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 340, easing = FastOutSlowInEasing),
         finishedListener = { value ->
             if (value == 1f && isTransitioning) {
                 isTransitioning = false
@@ -202,7 +208,9 @@ fun TilesScreen(
             previousSpaceId = currentSpaceId
 
             if (!isTransitioning) {
-                val newTiles = TileLayoutRepository.getTiles(context, currentSpaceId, isLandscape, gridSpec)
+                val newTiles = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    TileLayoutRepository.getTiles(context, currentSpaceId, isLandscape, gridSpec)
+                }
                 incomingTilesState = newTiles
 
                 val matchingTile = newTiles.firstOrNull { it.type == TileType.SPACE && it.payload == oldSpaceId }
@@ -384,30 +392,9 @@ fun TilesScreen(
     }
 
     val handleDeleteTile: (Tile) -> Unit = { tile ->
+        // Удаляем пространство вместе со всеми вложенными: иначе остаются «сироты»
         if (tile.type == TileType.SPACE && !tile.payload.isNullOrEmpty()) {
-            val spaceId = tile.payload!!
-            val innerTiles = TileLayoutRepository.getTiles(context, spaceId, isLandscape)
-            innerTiles.forEach { inner ->
-                if (inner.type == TileType.WIDGET) {
-                    val wid = EtherealAppWidgetHost.decodeWidgetId(inner.config)
-                    if (wid != null) {
-                        WidgetHostManager.removeWidget(context, wid)
-                    }
-                }
-                if (inner.type == TileType.APP_LAUNCHER || inner.type == TileType.SETTINGS) {
-                    val cfg = AppLauncherConfig.fromJson(inner.config)
-                    cfg.imageUri?.let { path ->
-                        try { File(path).delete() } catch (e: Exception) { e.printStackTrace() }
-                    }
-                }
-                if (inner.type == TileType.SPACE) {
-                    val innerSpaceCfg = SpaceConfig.fromJson(inner.config)
-                    innerSpaceCfg.iconUri?.let { path ->
-                        try { File(path).delete() } catch (e: Exception) { e.printStackTrace() }
-                    }
-                }
-            }
-            SpaceRepository.deleteSpace(context, spaceId)
+            SpaceRepository.deleteSpaceRecursive(context, tile.payload!!)
         }
 
         val widgetId = EtherealAppWidgetHost.decodeWidgetId(tile.config)
@@ -722,7 +709,34 @@ fun TilesScreen(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    val requestOverviewState by rememberUpdatedState(onRequestSpacesOverview)
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                // Жест «отдаление»: сводим два пальца — открываем обзор пространств.
+                // Срабатывает только на явный pinch, чтобы не мешать drag плиток.
+                var accumulated = 1f
+                awaitEachGesture {
+                    accumulated = 1f
+                    do {
+                        val event = awaitPointerEvent()
+                        val pressed = event.changes.count { it.pressed }
+                        if (pressed >= 2) {
+                            val zoom = event.calculateZoom()
+                            if (zoom != 1f) {
+                                accumulated *= zoom
+                                if (accumulated < 0.78f) {
+                                    accumulated = 1f
+                                    requestOverviewState()
+                                }
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -744,14 +758,30 @@ fun TilesScreen(
                         }
                     )
                 }
-                .pointerInput(isEditing) {
-                    if (!isEditing) {
-                        var totalDrag = 0f
-                        detectVerticalDragGestures(
-                            onDragStart = { totalDrag = 0f },
-                            onDragEnd = { if (totalDrag < -150f) onSwipeUp() },
-                            onVerticalDrag = { _, dragAmount -> totalDrag += dragAmount }
-                        )
+                .pointerInput(isEditing, swipeUpEnabled) {
+                    // Свайп вверх открывает ESearch только для одного пальца:
+                    // иначе pinch-«отдаление» или пан в обзоре улетали в поиск.
+                    if (!isEditing && swipeUpEnabled) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            var totalY = 0f
+                            var totalX = 0f
+                            var multiTouch = false
+                            do {
+                                val event = awaitPointerEvent()
+                                if (event.changes.count { it.pressed } > 1) multiTouch = true
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                if (change != null && change.pressed) {
+                                    totalY += change.position.y - change.previousPosition.y
+                                    totalX += change.position.x - change.previousPosition.x
+                                }
+                            } while (event.changes.any { it.pressed })
+
+                            val vertical = kotlin.math.abs(totalY) > kotlin.math.abs(totalX) * 1.5f
+                            if (!multiTouch && vertical && totalY < -150f) {
+                                onSwipeUp()
+                            }
+                        }
                     }
                 }
         ) {
@@ -921,7 +951,7 @@ fun TilesScreen(
             CreateSpaceDialog(
                 palette = palette,
                 onDismiss = { onShowCreateSpaceDialogChange(false) },
-                onCreate = { name, iconUri, iconText ->
+                onCreate = { name, iconUri, iconText, preset ->
                     val newId = SpaceRepository.createSpace(
                         context = context,
                         name = name,
@@ -966,10 +996,158 @@ fun TilesScreen(
                         }
                     }
 
+                    // Пресет сразу наполняет новое пространство, затем раскладываем канвас,
+                    // чтобы карточка встала рядом с родителем, а не «где-то на home».
+                    fillSpaceWithPreset(
+                        context = context,
+                        apps = installedApps,
+                        spaceId = newId,
+                        columns = currentColumns,
+                        rows = currentRows,
+                        preset = preset
+                    )
+                    // Раскладываем канвас сразу: новое пространство встанет рядом с родителем
+                    SpaceRepository.ensureCanvasPositions(context)
+
                     onShowCreateSpaceDialogChange(false)
                 }
             )
         }
+    }
+}
+
+/**
+ * Наполняет только что созданное пространство приложениями по пресету.
+ *
+ * Если подходящих приложений больше, чем ячеек в сетке, лишние не теряются:
+ * в последней ячейке создаётся вложенное пространство «Ещё», куда они переезжают.
+ * Глубина вложенности ограничена, чтобы не уйти в бесконечность.
+ */
+private fun fillSpaceWithPreset(
+    context: android.content.Context,
+    apps: List<AppInfo>,
+    spaceId: String,
+    columns: Int,
+    rows: Int,
+    preset: SpacePreset
+) {
+    if (preset == SpacePreset.EMPTY || apps.isEmpty()) return
+
+    val matching = apps
+        .filter { matchesPreset(context, it, preset) }
+        .sortedBy { it.label.lowercase() }
+    if (matching.isEmpty()) return
+
+    val capacity = (columns * rows).coerceAtLeast(1)
+    var currentSpaceId = spaceId
+    var remaining = matching
+    var depth = 0
+
+    while (remaining.isNotEmpty() && depth < 4) {
+        val fits = remaining.size <= capacity
+        val direct = if (fits) remaining else remaining.take((capacity - 1).coerceAtLeast(1))
+        val rest = remaining.drop(direct.size)
+
+        val tiles = mutableListOf<Tile>()
+        var x = 0
+        var y = 0
+        direct.forEach { app ->
+            tiles.add(appTile(app, x, y))
+            x++
+            if (x >= columns) {
+                x = 0
+                y++
+            }
+        }
+
+        if (rest.isNotEmpty() && depth < 3) {
+            val moreName = context.getString(R.string.space_preset_more)
+            val childId = SpaceRepository.createSpace(
+                context = context,
+                name = moreName,
+                iconUri = null,
+                iconText = "…"
+            )
+            tiles.add(
+                Tile(
+                    id = java.util.UUID.randomUUID().toString(),
+                    x = x,
+                    y = y,
+                    w = 1,
+                    h = 1,
+                    type = TileType.SPACE,
+                    payload = childId,
+                    locked = false,
+                    clickable = true,
+                    config = SpaceConfig(name = moreName, iconText = "…").toJson()
+                )
+            )
+            TileLayoutRepository.setTiles(context, currentSpaceId, tiles)
+            currentSpaceId = childId
+            remaining = rest
+            depth++
+        } else {
+            TileLayoutRepository.setTiles(context, currentSpaceId, tiles)
+            break
+        }
+    }
+}
+
+private fun appTile(app: AppInfo, x: Int, y: Int): Tile = Tile(
+    id = java.util.UUID.randomUUID().toString(),
+    x = x,
+    y = y,
+    w = 1,
+    h = 1,
+    type = TileType.APP_LAUNCHER,
+    payload = app.packageName,
+    locked = false,
+    clickable = true,
+    config = AppLauncherConfig(packageName = app.packageName).toJson()
+)
+
+/** Категория из PackageManager + запасные ключевые слова: категории на устройстве часто пустые. */
+private fun matchesPreset(
+    context: android.content.Context,
+    app: AppInfo,
+    preset: SpacePreset
+): Boolean {
+    val category = try {
+        context.packageManager.getApplicationInfo(app.packageName, 0).category
+    } catch (_: Exception) {
+        android.content.pm.ApplicationInfo.CATEGORY_UNDEFINED
+    }
+    val label = app.label.lowercase()
+    fun has(vararg words: String) = words.any { label.contains(it) }
+
+    return when (preset) {
+        SpacePreset.GAMES -> category == android.content.pm.ApplicationInfo.CATEGORY_GAME ||
+            has("game", "игр")
+        SpacePreset.SOCIAL -> category == android.content.pm.ApplicationInfo.CATEGORY_SOCIAL ||
+            has("telegram", "whatsapp", "instagram", "vk", "discord", "reddit", "twitter", "tiktok", "snapchat", "threads", "телеграм", "вконтакте")
+        SpacePreset.MEDIA -> category == android.content.pm.ApplicationInfo.CATEGORY_AUDIO ||
+            category == android.content.pm.ApplicationInfo.CATEGORY_VIDEO ||
+            has("youtube", "spotify", "netflix", "music", "player", "vlc", "twitch", "kinopoisk", "музык", "видео")
+        SpacePreset.PHOTOS -> category == android.content.pm.ApplicationInfo.CATEGORY_IMAGE ||
+            has("photo", "gallery", "camera", "фото", "галере", "камер")
+        SpacePreset.WORK -> category == android.content.pm.ApplicationInfo.CATEGORY_PRODUCTIVITY ||
+            has("slack", "notion", "docs", "sheets", "calendar", "office", "trello", "jira", "почт", "mail", "заметк", "notes")
+        SpacePreset.NEWS -> category == android.content.pm.ApplicationInfo.CATEGORY_NEWS ||
+            has("news", "rss", "новост")
+        SpacePreset.TRAVEL -> category == android.content.pm.ApplicationInfo.CATEGORY_MAPS ||
+            has("maps", "taxi", "travel", "booking", "airbnb", "карт", "такси", "путешеств")
+        SpacePreset.COMMUNICATION -> has(
+            "phone", "dialer", "messages", "sms", "contacts", "телефон", "сообщени", "контакт", "звон"
+        )
+        SpacePreset.TOOLS -> category == android.content.pm.ApplicationInfo.CATEGORY_PRODUCTIVITY ||
+            category == android.content.pm.ApplicationInfo.CATEGORY_UNDEFINED ||
+            has(
+                "калькул", "calculator", "заметк", "notes", "файл", "files", "настройк", "settings",
+                "часы", "clock", "камер", "camera", "диктофон", "recorder", "терминал", "terminal",
+                "ssh", "конверт", "convert", "сканер", "scanner", "qr"
+            )
+        SpacePreset.ALL -> true
+        SpacePreset.EMPTY -> false
     }
 }
 

@@ -27,6 +27,12 @@ import java.util.UUID
 object BackupRepository {
 
     /**
+     * Ключи, которые не переносим с бэкапом: это состояние конкретной установки,
+     * а не пользовательские настройки.
+     */
+    private val SKIP_PREF_KEYS = setOf("setup_completed", "notice_shown")
+
+    /**
      * Экспортирует настройки, список пространств и все тайлы в JSON-строку.
      */
     fun exportToJson(
@@ -79,6 +85,25 @@ object BackupRepository {
 
                 put("wallpaper_scale_mode", SettingsRepository.getWallpaperScaleMode(context))
                 put("analytics_enabled", SettingsRepository.getAnalyticsEnabled(context))
+
+                // Полный снимок настроек: так в бэкап попадает всё, включая новые ключи,
+                // которые появились уже после этой версии формата.
+                val prefsObj = JSONObject()
+                val allPrefs = context
+                    .getSharedPreferences("ethereal_settings", Context.MODE_PRIVATE)
+                    .all
+                allPrefs.forEach { (key, value) ->
+                    if (key in SKIP_PREF_KEYS) return@forEach
+                    when (value) {
+                        is Boolean -> prefsObj.put(key, value)
+                        is Int -> prefsObj.put(key, value)
+                        is Long -> prefsObj.put(key, value)
+                        is Float -> prefsObj.put(key, value.toDouble())
+                        is String -> prefsObj.put(key, value)
+                        is Set<*> -> prefsObj.put(key, JSONArray(value.map { it.toString() }))
+                    }
+                }
+                put("prefs", prefsObj)
             }
             root.put("settings", settingsObj)
         } else {
@@ -171,6 +196,29 @@ object BackupRepository {
                 }
             }
 
+            // Полный снимок настроек (новый формат): применяем после старого,
+            // чтобы он перекрывал устаревшие поля.
+            if (includeSettings && root.has("prefs")) {
+                val prefsJson = root.getJSONObject("prefs")
+                val keys = prefsJson.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    if (key in SKIP_PREF_KEYS) continue
+                    when (val value = prefsJson.get(key)) {
+                        is Boolean -> editor.putBoolean(key, value)
+                        is Int -> editor.putInt(key, value)
+                        is Long -> editor.putLong(key, value)
+                        is Double -> editor.putFloat(key, value.toFloat())
+                        is String -> editor.putString(key, value)
+                        is JSONArray -> {
+                            val set = HashSet<String>()
+                            for (i in 0 until value.length()) set.add(value.get(i).toString())
+                            editor.putStringSet(key, set)
+                        }
+                    }
+                }
+            }
+
             if (includeSpacesAndLayouts && root.has("spaces") && root.has("layouts")) {
                 val spacesArray = root.getJSONArray("spaces")
                 val spaces = parseSpaces(spacesArray)
@@ -196,6 +244,9 @@ object BackupRepository {
                 false
             } else {
                 transaction?.finish()
+                // Кэш раскладок живёт в процессе: без сброса после импорта
+                // на экране остаются старые плитки, а не восстановленные.
+                com.neytron.ethereal.tiles.TileLayoutRepository.invalidateMemoryCache()
                 true
             }
         } catch (e: Exception) {
@@ -672,7 +723,10 @@ object BackupRepository {
                 name = item.optString("name", "Space").ifBlank { "Space" },
                 iconUri = item.optString("iconUri", "").takeIf { it.isNotEmpty() },
                 iconText = item.optString("iconText", "").takeIf { it.isNotEmpty() },
-                createdAt = item.optLong("createdAt", System.currentTimeMillis())
+                createdAt = item.optLong("createdAt", System.currentTimeMillis()),
+                canvasX = item.optDouble("canvasX", Double.NaN).toFloat(),
+                canvasY = item.optDouble("canvasY", Double.NaN).toFloat(),
+                canvasManual = item.optBoolean("canvasManual", false)
             )
         }
         return spaces
@@ -725,6 +779,12 @@ object BackupRepository {
                     put("iconUri", space.iconUri ?: "")
                     put("iconText", space.iconText ?: "")
                     put("createdAt", space.createdAt)
+                    // Позиция на канвасе обзора — часть раскладки пользователя
+                    if (!space.canvasX.isNaN() && !space.canvasY.isNaN()) {
+                        put("canvasX", space.canvasX.toDouble())
+                        put("canvasY", space.canvasY.toDouble())
+                    }
+                    if (space.canvasManual) put("canvasManual", true)
                 })
             }
         }

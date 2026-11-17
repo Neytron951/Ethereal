@@ -125,13 +125,13 @@ object SettingsRepository {
     }
 
     fun getDockUseOverride(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_DOCK_USE_OVERRIDE, false)
+        prefs(context).getBoolean(KEY_DOCK_USE_OVERRIDE, true)
     fun setDockUseOverride(context: Context, value: Boolean) {
         prefs(context).edit().putBoolean(KEY_DOCK_USE_OVERRIDE, value).apply()
     }
 
     fun getDockOpacity(context: Context): Float =
-        prefs(context).getFloat(KEY_DOCK_OPACITY, 0.95f)
+        prefs(context).getFloat(KEY_DOCK_OPACITY, 0f)
     fun setDockOpacity(context: Context, value: Float) {
         prefs(context).edit().putFloat(KEY_DOCK_OPACITY, value.coerceIn(0f, 1.0f)).apply()
     }

@@ -72,6 +72,7 @@ import com.neytron.ethereal.data.UpdateRepository
 import com.neytron.ethereal.data.WallpaperRepository
 import com.neytron.ethereal.tiles.Tile
 import com.neytron.ethereal.tiles.TileGridMetrics
+import com.neytron.ethereal.tiles.SpaceRepository
 import com.neytron.ethereal.tiles.TileGridSpec
 import com.neytron.ethereal.tiles.TileLayoutRepository
 import com.neytron.ethereal.tiles.TilesScreen
@@ -84,7 +85,11 @@ import com.neytron.ethereal.tiles.editor.rememberTileEditorState
 import com.neytron.ethereal.ui.DockBar
 import com.neytron.ethereal.ui.ESearchOverlay
 import com.neytron.ethereal.ui.NoticeOverlay
+import com.neytron.ethereal.ui.SpacePreview
+import com.neytron.ethereal.ui.SpacesOverview
 import com.neytron.ethereal.ui.OnboardingOverlay
+import com.neytron.ethereal.ui.StarterLayout
+import com.neytron.ethereal.ui.applyStarterLayout
 import com.neytron.ethereal.ui.SettingsScreen
 import com.neytron.ethereal.ui.UpdateOverlay
 import com.neytron.ethereal.ui.AppLaunchAnimation
@@ -185,6 +190,11 @@ fun EtherealApp() {
         mutableStateOf(SettingsRepository.isSetupCompleted(context))
     }
 
+    // Пресет стартовой раскладки: по умолчанию пустой, как и просили
+    var starterLayout by remember { mutableStateOf(StarterLayout.EMPTY) }
+    var gridColumns by remember { mutableStateOf(SettingsRepository.getTileColumns(context)) }
+    var starterPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
+
     var analyticsEnabled by remember {
         mutableStateOf(SettingsRepository.getAnalyticsEnabled(context))
     }
@@ -248,6 +258,9 @@ fun EtherealApp() {
     var updateChecking by remember { mutableStateOf(false) }
     var showUpdateOverlay by remember { mutableStateOf(false) }
     var showNotice by remember { mutableStateOf(false) }
+    var showSpacesOverview by remember { mutableStateOf(false) }
+    var overviewRefresh by remember { mutableStateOf(0) }
+    var spacePreviews by remember { mutableStateOf<List<SpacePreview>>(emptyList()) }
 
     val esearchPlaceholder = stringResource(R.string.esearch_placeholder)
     val backupExportSuccessMessage = stringResource(R.string.settings_backup_export_success)
@@ -319,6 +332,72 @@ fun EtherealApp() {
         }
     }
 
+    // === Обзор пространств ===
+    // Карточки показываем сразу из метаданных и кэша, а раскладки догружаем по одной:
+    // так открытие не ждёт разбора всех JSON и не дёргает анимацию.
+    val previewTilesCache = remember { mutableStateMapOf<String, List<Tile>>() }
+
+    LaunchedEffect(showSpacesOverview, overviewRefresh) {
+        if (showSpacesOverview) {
+            // Обзор открывается поверх — поиск не должен оставаться висеть
+            searchVisible = false
+
+            val metas = withContext(Dispatchers.IO) { SpaceRepository.ensureCanvasPositions(context) }
+
+            // 1. Мгновенный кадр: карточки без миниатюр (или с тем, что уже в кэше)
+            spacePreviews = buildList {
+                add(
+                    SpacePreview(
+                        id = ScreenStack.ROOT_ID,
+                        name = "Home",
+                        iconText = null,
+                        tiles = previewTilesCache[ScreenStack.ROOT_ID].orEmpty(),
+                        canvasX = 0f,
+                        canvasY = 0f,
+                        isRoot = true,
+                        parentId = null
+                    )
+                )
+                metas.forEach { meta ->
+                    add(
+                        SpacePreview(
+                            id = meta.id,
+                            name = meta.name,
+                            iconText = meta.iconText,
+                            tiles = previewTilesCache[meta.id].orEmpty(),
+                            canvasX = meta.canvasX,
+                            canvasY = meta.canvasY,
+                            parentId = null
+                        )
+                    )
+                }
+            }
+
+            // 2. Догружаем раскладки: обновляем миниатюры и находим родителей для ниток
+            val parentOf = HashMap<String, String>()
+            val ids = listOf(ScreenStack.ROOT_ID) + metas.map { it.id }
+
+            ids.forEach { ownerId ->
+                val tiles = previewTilesCache[ownerId] ?: withContext(Dispatchers.IO) {
+                    TileLayoutRepository.getTiles(context, ownerId)
+                }.also { previewTilesCache[ownerId] = it }
+
+                tiles.filter { it.type == TileType.SPACE && !it.payload.isNullOrBlank() }
+                    .forEach { tile -> parentOf.putIfAbsent(tile.payload!!, ownerId) }
+
+                spacePreviews = spacePreviews.map { preview ->
+                    if (preview.id == ownerId) {
+                        preview.copy(tiles = tiles, parentId = parentOf[preview.id])
+                    } else if (parentOf.containsKey(preview.id)) {
+                        preview.copy(parentId = parentOf[preview.id])
+                    } else {
+                        preview
+                    }
+                }
+            }
+        }
+    }
+
     // === Перехват кнопки Домой (Home) ===
     DisposableEffect(activity) {
         activity?.onHomePressed = {
@@ -329,9 +408,11 @@ fun EtherealApp() {
                     tileEditorState.editing.value ||
                     showUpdateOverlay ||
                     showNotice ||
+                    showSpacesOverview ||
                     screenStack.canGoBack
 
             if (isAnyOverlayOpen) {
+                showSpacesOverview = false
                 showWidgetPickerSheet = false
                 showCreateSpaceDialog = false
                 settingsVisible = false
@@ -478,7 +559,8 @@ fun EtherealApp() {
     }
 
     LaunchedEffect(currentSpaceId, isLandscape) {
-        tiles = emptyList()
+        // Не сбрасываем плитки в пустоту: старые остаются на экране, пока не придут новые.
+        // Иначе при переключении мелькает пустая сетка и анимация стартует с задержкой.
 
         tileEditorState.exitEdit()
         tileEditorState.select(null)
@@ -503,6 +585,13 @@ fun EtherealApp() {
 
         tiles = withContext(Dispatchers.IO) {
             TileLayoutRepository.getTiles(context, currentSpaceId, isLandscape, grid)
+        }
+
+        // Прогреваем раскладки вложенных пространств: переход в них будет мгновенным
+        launch(Dispatchers.IO) {
+            val cached = tiles
+            cached.filter { it.type == TileType.SPACE && !it.payload.isNullOrBlank() }
+                .forEach { tile -> TileLayoutRepository.getTiles(context, tile.payload!!, isLandscape, grid) }
         }
         if (isSetupCompleted && !hasAnimatedStartup) {
             hasAnimatedStartup = true
@@ -691,11 +780,13 @@ fun EtherealApp() {
             tileEditorState.editing.value ||
             showUpdateOverlay ||
             showNotice ||
+            showSpacesOverview ||
             screenStack.canGoBack
 
     BackHandler(enabled = true) {
         if (isAnyOverlayOpen) {
             when {
+                showSpacesOverview -> showSpacesOverview = false
                 showNotice -> {
                     showNotice = false
                     SettingsRepository.setNoticeShown(context, true)
@@ -854,6 +945,8 @@ fun EtherealApp() {
                     tiles = tiles,
                     onTilesChange = { newTiles ->
                         tiles = newTiles
+                        // держим кэш миниатюр обзора свежим
+                        previewTilesCache[currentSpaceId] = newTiles
                         TileLayoutRepository.setTiles(context, currentSpaceId, newTiles, isLandscape)
                     },
                     openWidgetPickerRequest = openWidgetPickerRequest,
@@ -877,6 +970,8 @@ fun EtherealApp() {
                     onOpenSpace = { spaceId ->
                         screenStack.push(spaceId)
                     },
+                    onRequestSpacesOverview = { showSpacesOverview = true },
+                    swipeUpEnabled = !showSpacesOverview,
                     showCreateSpaceDialog = showCreateSpaceDialog,
                     onShowCreateSpaceDialogChange = { v -> showCreateSpaceDialog = v },
                     introReveal = isTilesRevealing,
@@ -1295,6 +1390,51 @@ fun EtherealApp() {
                 }
             )
 
+            // === Обзор пространств ===
+            SpacesOverview(
+                visible = showSpacesOverview,
+                spaces = spacePreviews,
+                currentSpaceId = currentSpaceId,
+                palette = palette,
+                onOpenSpace = { spaceId ->
+                    showSpacesOverview = false
+                    screenStack.resetToRoot()
+                    if (spaceId != ScreenStack.ROOT_ID) screenStack.push(spaceId)
+                },
+                onMoveSpace = { spaceId, x, y ->
+                    spacePreviews = spacePreviews.map {
+                        if (it.id == spaceId) it.copy(canvasX = x, canvasY = y) else it
+                    }
+                },
+                onCommitSpace = { spaceId, x, y ->
+                    appScope.launch(Dispatchers.IO) {
+                        SpaceRepository.updateCanvasPosition(context, spaceId, x, y)
+                    }
+                },
+                onDeleteOrphans = { ids ->
+                    appScope.launch(Dispatchers.IO) {
+                        ids.forEach { id ->
+                            SpaceRepository.deleteSpaceRecursive(context, id)
+                            previewTilesCache.remove(id)
+                        }
+                        SpaceRepository.ensureCanvasPositions(context)
+                        overviewRefresh++
+                    }
+                },
+                onDeleteSpace = { id ->
+                    appScope.launch(Dispatchers.IO) {
+                        SpaceRepository.deleteSpaceRecursive(context, id)
+                        previewTilesCache.remove(id)
+                        SpaceRepository.ensureCanvasPositions(context)
+                        withContext(Dispatchers.Main) {
+                            if (currentSpaceId == id) screenStack.resetToRoot()
+                            overviewRefresh++
+                        }
+                    }
+                },
+                onDismiss = { showSpacesOverview = false }
+            )
+
             OnboardingOverlay(
                 visible = !isSetupCompleted,
                 apps = apps,
@@ -1315,7 +1455,47 @@ fun EtherealApp() {
                     dockPackages = newDock
                     SettingsRepository.setDockPackages(context, newDock)
                 },
+                starterLayout = starterLayout,
+                onStarterLayoutChange = { starterLayout = it },
+                starterPackages = starterPackages,
+                onStarterPackagesChange = { starterPackages = it },
+                gridColumns = gridColumns,
+                onGridColumnsChange = { newColumns ->
+                    gridColumns = newColumns
+                    tileColumns = newColumns
+                    SettingsRepository.setTileColumns(context, newColumns)
+                    TileLayoutRepository.setColumns(context, newColumns)
+                },
                 onComplete = {
+                    // Считаем реальную сетку экрана: иначе пресет упирается в дефолт
+                    // и на Home появляется всего пара приложений.
+                    val starterGrid = TileGridMetrics.compute(
+                        availableWidthDp = TileGridMetrics.availableWidthDp(
+                            configuration.screenWidthDp.toFloat()
+                        ),
+                        availableHeightDp = TileGridMetrics.availableHeightDp(
+                            screenHeightDp = configuration.screenHeightDp.toFloat(),
+                            dockIconSizeDp = dockIconSize,
+                            dockBottomPaddingDp = dockBottomPadding,
+                            isLandscape = isLandscape
+                        ),
+                        desiredTileSizeDp = tileSize,
+                        spacingDp = tileSpacing,
+                        isLandscape = isLandscape,
+                        layoutColumns = 0,
+                        layoutRows = 0,
+                        fixedColumns = tileColumns,
+                        fixedRows = tileRows
+                    )
+                    applyStarterLayout(
+                        context = context,
+                        apps = apps,
+                        layout = starterLayout,
+                        columns = starterGrid.columns,
+                        rows = starterGrid.rows,
+                        chosenPackages = starterPackages.toList()
+                    )?.let { applied -> tiles = applied }
+
                     SettingsRepository.setSetupCompleted(context, true)
                     isSetupCompleted = true
                     isIntroActive = true

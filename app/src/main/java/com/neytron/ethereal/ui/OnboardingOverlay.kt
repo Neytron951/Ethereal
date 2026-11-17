@@ -92,6 +92,12 @@ fun OnboardingOverlay(
     onPaletteChange: (String) -> Unit,
     onFontChange: (String) -> Unit,
     onDockPackagesChange: (Set<String>) -> Unit,
+    starterLayout: StarterLayout = StarterLayout.EMPTY,
+    onStarterLayoutChange: (StarterLayout) -> Unit = {},
+    starterPackages: Set<String> = emptySet(),
+    onStarterPackagesChange: (Set<String>) -> Unit = {},
+    gridColumns: Int = 5,
+    onGridColumnsChange: (Int) -> Unit = {},
     onComplete: () -> Unit
 ) {
     if (!visible) return
@@ -150,6 +156,12 @@ fun OnboardingOverlay(
                         onPaletteChange = onPaletteChange,
                         onFontChange = onFontChange,
                         onDockPackagesChange = onDockPackagesChange,
+                        starterLayout = starterLayout,
+                        onStarterLayoutChange = onStarterLayoutChange,
+                        starterPackages = starterPackages,
+                        onStarterPackagesChange = onStarterPackagesChange,
+                        gridColumns = gridColumns,
+                        onGridColumnsChange = onGridColumnsChange,
                         onWizardFinish = {
                             currentPhase = OnboardingPhase.EXPAND_AND_HOLD
                         }
@@ -404,13 +416,19 @@ private fun OnboardingWizard(
     onPaletteChange: (String) -> Unit,
     onFontChange: (String) -> Unit,
     onDockPackagesChange: (Set<String>) -> Unit,
+    starterLayout: StarterLayout = StarterLayout.EMPTY,
+    onStarterLayoutChange: (StarterLayout) -> Unit = {},
+    starterPackages: Set<String> = emptySet(),
+    onStarterPackagesChange: (Set<String>) -> Unit = {},
+    gridColumns: Int = 5,
+    onGridColumnsChange: (Int) -> Unit = {},
     onWizardFinish: () -> Unit
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val totalSteps = 4
+    val totalSteps = 6
     var currentStep by rememberSaveable { mutableIntStateOf(1) }
 
     var isLauncherDefault by remember { mutableStateOf(isDefaultLauncher(context)) }
@@ -572,6 +590,19 @@ private fun OnboardingWizard(
                         palette = palette,
                         selectedDockApps = dockPackages,
                         onDockPackagesChange = onDockPackagesChange
+                    )
+                    5 -> StepGrid(
+                        palette = palette,
+                        columns = gridColumns,
+                        onColumnsChange = onGridColumnsChange
+                    )
+                    6 -> StepStartLayout(
+                        palette = palette,
+                        selected = starterLayout,
+                        onSelect = onStarterLayoutChange,
+                        apps = apps,
+                        selectedPackages = starterPackages,
+                        onPackagesChange = onStarterPackagesChange
                     )
                 }
             }
@@ -1355,4 +1386,237 @@ private fun triggerSuccessVibration(
     } catch (_: Exception) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
     }
+}
+// === ШАГ 6: СТАРТОВАЯ РАСКЛАДКА + ВЫБОР ПРИЛОЖЕНИЙ ===
+@Composable
+private fun StepStartLayout(
+    palette: EtherealPalette,
+    selected: StarterLayout,
+    onSelect: (StarterLayout) -> Unit,
+    apps: List<AppInfo>,
+    selectedPackages: Set<String>,
+    onPackagesChange: (Set<String>) -> Unit
+) {
+    val limit = when (selected) {
+        StarterLayout.MINIMAL -> 6
+        StarterLayout.EVERYDAY -> 12
+        StarterLayout.EMPTY -> 0
+    }
+
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        item {
+            Column {
+                Text(
+                    text = stringResource(R.string.onboarding_layout_title),
+                    color = palette.textPrimary,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.onboarding_layout_subtitle),
+                    color = palette.textSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+
+        items(StarterLayout.values().toList()) { option ->
+            val isSelected = option == selected
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        if (isSelected) palette.primary.copy(alpha = 0.14f)
+                        else palette.surfaceVariant.copy(alpha = 0.35f)
+                    )
+                    .border(
+                        1.5.dp,
+                        if (isSelected) palette.primary else Color.Transparent,
+                        RoundedCornerShape(14.dp)
+                    )
+                    .clickable {
+                        onSelect(option)
+                        if (option == StarterLayout.EMPTY) onPackagesChange(emptySet())
+                    }
+                    .padding(14.dp)
+            ) {
+                Column {
+                    Text(
+                        text = stringResource(starterLayoutTitle(option)),
+                        color = palette.textPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = stringResource(starterLayoutDescription(option)),
+                        color = palette.textSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+        }
+
+        if (selected != StarterLayout.EMPTY) {
+            item {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.onboarding_layout_pick_apps, selectedPackages.size, limit),
+                    color = palette.primary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.onboarding_layout_pick_hint),
+                    color = palette.textSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
+            }
+
+            items(apps.sortedBy { it.label.lowercase() }) { app ->
+                val checked = app.packageName in selectedPackages
+                val canToggle = checked || selectedPackages.size < limit
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (checked) palette.primary.copy(alpha = 0.12f)
+                            else palette.surfaceVariant.copy(alpha = 0.3f)
+                        )
+                        .clickable(enabled = canToggle) {
+                            onPackagesChange(
+                                if (checked) selectedPackages - app.packageName
+                                else selectedPackages + app.packageName
+                            )
+                        }
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = app.label,
+                        color = if (canToggle) palette.textPrimary else palette.textSecondary,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (checked) palette.primary
+                                else palette.surfaceVariant
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (checked) {
+                            Text(
+                                text = "✓",
+                                color = palette.background,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+// === ШАГ 5: РАЗМЕР СЕТКИ ===
+@Composable
+private fun StepGrid(
+    palette: EtherealPalette,
+    columns: Int,
+    onColumnsChange: (Int) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text(
+            text = stringResource(R.string.onboarding_grid_title),
+            color = palette.textPrimary,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = stringResource(R.string.onboarding_grid_subtitle),
+            color = palette.textSecondary,
+            fontSize = 13.sp,
+            lineHeight = 18.sp
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            listOf(4, 5, 6).forEach { count ->
+                val isSelected = count == columns
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            if (isSelected) palette.primary.copy(alpha = 0.18f)
+                            else palette.surfaceVariant.copy(alpha = 0.35f)
+                        )
+                        .border(
+                            if (isSelected) 2.dp else 1.dp,
+                            if (isSelected) palette.primary else Color.Transparent,
+                            RoundedCornerShape(16.dp)
+                        )
+                        .clickable { onColumnsChange(count) }
+                        .padding(vertical = 18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        repeat(3) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                repeat(count) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (isSelected) palette.primary
+                                                else palette.textSecondary.copy(alpha = 0.5f)
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "$count",
+                        color = palette.textPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun starterLayoutTitle(option: StarterLayout): Int = when (option) {
+    StarterLayout.EMPTY -> R.string.onboarding_layout_empty
+    StarterLayout.MINIMAL -> R.string.onboarding_layout_minimal
+    StarterLayout.EVERYDAY -> R.string.onboarding_layout_everyday
+}
+
+private fun starterLayoutDescription(option: StarterLayout): Int = when (option) {
+    StarterLayout.EMPTY -> R.string.onboarding_layout_empty_desc
+    StarterLayout.MINIMAL -> R.string.onboarding_layout_minimal_desc
+    StarterLayout.EVERYDAY -> R.string.onboarding_layout_everyday_desc
 }

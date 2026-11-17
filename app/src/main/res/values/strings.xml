@@ -86,6 +86,19 @@
 
     <!-- Create Space Dialog -->
     <string name="create_space_title">New space</string>
+    <string name="create_space_preset_label">Preset</string>
+    <string name="create_space_preset_empty">Empty</string>
+    <string name="create_space_preset_games">Games</string>
+    <string name="create_space_preset_tools">Tools</string>
+    <string name="create_space_preset_social">Social</string>
+    <string name="create_space_preset_media">Media</string>
+    <string name="create_space_preset_photos">Photos</string>
+    <string name="create_space_preset_work">Work</string>
+    <string name="create_space_preset_news">News</string>
+    <string name="create_space_preset_travel">Travel</string>
+    <string name="create_space_preset_communication">Contacts</string>
+    <string name="create_space_preset_all">All apps</string>
+    <string name="space_preset_more">More</string>
     <string name="create_space_name_label">Name</string>
     <string name="create_space_name_hint">For example: Games</string>
     <string name="create_space_icon_text_label">Icon (emoji/symbol)</string>
@@ -421,4 +434,34 @@
     <string name="settings_grid_preset_medium">Medium</string>
     <string name="settings_grid_preset_small">Small</string>
     <string name="settings_grid_hint">New tiles no longer change the grid — it stays the size you picked.</string>
+    <string name="settings_grid_auto">Auto · %1$d × %2$d</string>
+    <string name="settings_grid_auto_unknown">Auto — adjusts to tiles</string>
+    <string name="settings_grid_fixed">Fixed · %1$d × %2$d</string>
+    <string name="settings_grid_explainer">While grid is auto, large tiles that do not fit will shrink all tiles on screen. Fix the size to prevent this. When deleting a tile, empty top rows are now removed automatically.</string>
+    <string name="settings_grid_pin">Fix %1$d × %2$d</string>
+    <string name="settings_grid_unpin">Return to auto grid</string>
+    <string name="settings_grid_compact">Compact layout</string>
+    <string name="settings_grid_compact_subtitle">Removes empty rows at the top and restores tile size</string>
+    <string name="settings_grid_reset">Reset grid settings</string>
+    <string name="overview_orphans_badge">unlinked</string>
+    <string name="overview_orphans_title">Unlinked spaces</string>
+    <string name="overview_orphans_body">%1$d spaces are not reachable from any other space. Delete them along with everything inside?</string>
+    <string name="overview_orphans_delete">Delete</string>
+    <string name="overview_menu_open">Open space</string>
+    <string name="overview_menu_delete">Delete space</string>
+    <string name="onboarding_layout_title">Start layout</string>
+    <string name="onboarding_layout_subtitle">Pick how your home screen looks on first launch. You can change everything later.</string>
+    <string name="onboarding_layout_empty">Empty</string>
+    <string name="onboarding_layout_empty_desc">Clean canvas: only the settings tile. Build it yourself.</string>
+    <string name="onboarding_layout_minimal">Minimal</string>
+    <string name="onboarding_layout_minimal_desc">Settings tile plus six apps.</string>
+    <string name="onboarding_layout_everyday">Everyday</string>
+    <string name="onboarding_layout_everyday_desc">Settings tile plus twelve apps, ready to use.</string>
+    <string name="onboarding_grid_title">Grid size</string>
+    <string name="onboarding_grid_subtitle">How many icons fit in a row. More columns — smaller tiles.</string>
+    <string name="onboarding_layout_pick_apps">Apps for Home — %1$d of %2$d</string>
+    <string name="onboarding_layout_pick_hint">Pick the apps you want on the first screen. Tap again to remove.</string>
+    <string name="overview_hint">Pinch to go back. Tap a card or open the nearest one.</string>
+    <string name="overview_open_space">Open “%1$s”</string>
+    <string name="overview_now">Now</string>
 </resources>
