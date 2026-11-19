@@ -56,7 +56,7 @@ object SpaceRepository {
                         createdAt = obj.optLong("createdAt", 0L),
                         canvasX = obj.optDouble("canvasX", Double.NaN).toFloat(),
                         canvasY = obj.optDouble("canvasY", Double.NaN).toFloat(),
-                        canvasManual = obj.optBoolean("canvasManual", false)
+                        canvasManual = obj.optBoolean("canvasManual", false),
                     )
                 )
             }

@@ -78,9 +78,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.neytron.ethereal.ui.theme.DesignPreset
 import com.neytron.ethereal.ui.theme.EtherealFont
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.ESearchStyle
+import com.neytron.ethereal.ui.theme.ThemeTabs
 import com.neytron.ethereal.ui.theme.TileShape
 import com.neytron.ethereal.ui.theme.UiStyle
 import com.neytron.ethereal.tiles.TileGridSpec
@@ -109,6 +111,19 @@ fun SettingsScreen(
     onOpacityChange: (Float) -> Unit,
     onBlurChange: (Float) -> Unit,
     onFontScaleChange: (Float) -> Unit,
+    wallpaperPalette: EtherealPalette = com.neytron.ethereal.ui.theme.WallpaperPalette,
+    dockBackground: Boolean = false,
+    dockIconBorder: TileBorderStyle = TileBorderStyle.LIQUID_GLASS,
+    onDockIconBorderChange: (TileBorderStyle) -> Unit = {},
+    dockIconBgOpacity: Float = 0.5f,
+    onDockIconBgOpacityChange: (Float) -> Unit = {},
+    dockIconBorderWidth: Float = 1f,
+    dockIconBorderOpacity: Float = 0.55f,
+    onDockIconBorderWidthChange: (Float) -> Unit = {},
+    onDockIconBorderOpacityChange: (Float) -> Unit = {},
+    onDockBackgroundChange: (Boolean) -> Unit = {},
+    designPreset: DesignPreset = DesignPreset.LIQUID_GLASS,
+    onDesignPresetChange: (DesignPreset) -> Unit = {},
     uiStyle: UiStyle = UiStyle.GLASS,
     onUiStyleChange: (UiStyle) -> Unit = {},
     fontFamilyName: String,
@@ -142,6 +157,10 @@ fun SettingsScreen(
     onESearchBorderStyleChange: (TileBorderStyle) -> Unit,
     onESearchBorderWidthChange: (Float) -> Unit,
     onESearchBorderOpacityChange: (Float) -> Unit,
+    esearchFilterMode: String = "NONE",
+    esearchFilterPackages: Set<String> = emptySet(),
+    onESearchFilterModeChange: (String) -> Unit = {},
+    onESearchFilterPackagesChange: (Set<String>) -> Unit = {},
     dockIconSize: Float,
     dockBottomPadding: Float,
     dockUseOverride: Boolean,
@@ -207,7 +226,8 @@ fun SettingsScreen(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        color = currentPalette.background.copy(alpha = if (appearance.isFlat) 1f else appearance.opacity)
+        // Окно настроек всегда непрозрачное: сквозь него не должно быть видно обои
+        color = currentPalette.background
     ) {
         if (isLandscape) {
             Row(
@@ -269,6 +289,9 @@ fun SettingsScreen(
                         )
                         SettingsTab.APPEARANCE -> AppearanceTab(
                             currentPalette = currentPalette,
+                            wallpaperPalette = wallpaperPalette,
+                            designPreset = designPreset,
+                            onDesignPresetChange = onDesignPresetChange,
                             onPaletteChange = onPaletteChange,
                             onOpacityChange = onOpacityChange,
                             onBlurChange = onBlurChange,
@@ -322,7 +345,12 @@ fun SettingsScreen(
                             onStyleChange = onESearchStyleChange,
                             onBorderStyleChange = onESearchBorderStyleChange,
                             onBorderWidthChange = onESearchBorderWidthChange,
-                            onBorderOpacityChange = onESearchBorderOpacityChange
+                            onBorderOpacityChange = onESearchBorderOpacityChange,
+                            apps = apps,
+                            esearchFilterMode = esearchFilterMode,
+                            esearchFilterPackages = esearchFilterPackages,
+                            onFilterModeChange = onESearchFilterModeChange,
+                            onFilterPackagesChange = onESearchFilterPackagesChange,
                         )
                         SettingsTab.DOCK -> DockTab(
                             apps = apps,
@@ -348,7 +376,17 @@ fun SettingsScreen(
                             onBlurChange = onDockBlurChange,
                             onScrollableChange = onDockScrollableChange,
                             onIconShapeChange = onDockIconShapeChange,
-                            onShowIconBackgroundChange = onDockShowIconBackgroundChange
+                            onShowIconBackgroundChange = onDockShowIconBackgroundChange,
+                            panelBackground = dockBackground,
+                            dockIconBorder = dockIconBorder,
+                            onDockIconBorderChange = onDockIconBorderChange,
+                            dockIconBorderWidth = dockIconBorderWidth,
+                            dockIconBgOpacity = dockIconBgOpacity,
+                            onDockIconBgOpacityChange = onDockIconBgOpacityChange,
+                            dockIconBorderOpacity = dockIconBorderOpacity,
+                            onDockIconBorderWidthChange = onDockIconBorderWidthChange,
+                            onDockIconBorderOpacityChange = onDockIconBorderOpacityChange,
+                            onPanelBackgroundChange = onDockBackgroundChange,
                         )
                         SettingsTab.ABOUT -> AboutTab(
                             palette = currentPalette,
@@ -430,6 +468,9 @@ fun SettingsScreen(
                             )
                             SettingsTab.APPEARANCE -> AppearanceTab(
                                 currentPalette = currentPalette,
+                                wallpaperPalette = wallpaperPalette,
+                                designPreset = designPreset,
+                                onDesignPresetChange = onDesignPresetChange,
                                 onPaletteChange = onPaletteChange,
                                 onOpacityChange = onOpacityChange,
                                 onBlurChange = onBlurChange,
@@ -483,7 +524,12 @@ fun SettingsScreen(
                                 onStyleChange = onESearchStyleChange,
                                 onBorderStyleChange = onESearchBorderStyleChange,
                                 onBorderWidthChange = onESearchBorderWidthChange,
-                                onBorderOpacityChange = onESearchBorderOpacityChange
+                                onBorderOpacityChange = onESearchBorderOpacityChange,
+                                apps = apps,
+                                esearchFilterMode = esearchFilterMode,
+                                esearchFilterPackages = esearchFilterPackages,
+                                onFilterModeChange = onESearchFilterModeChange,
+                                onFilterPackagesChange = onESearchFilterPackagesChange,
                             )
                             SettingsTab.DOCK -> DockTab(
                                 apps = apps,
@@ -509,7 +555,17 @@ fun SettingsScreen(
                                 onBlurChange = onDockBlurChange,
                                 onScrollableChange = onDockScrollableChange,
                                 onIconShapeChange = onDockIconShapeChange,
-                                onShowIconBackgroundChange = onDockShowIconBackgroundChange
+                                onShowIconBackgroundChange = onDockShowIconBackgroundChange,
+                                panelBackground = dockBackground,
+                                dockIconBorder = dockIconBorder,
+                                onDockIconBorderChange = onDockIconBorderChange,
+                                dockIconBorderWidth = dockIconBorderWidth,
+                                dockIconBgOpacity = dockIconBgOpacity,
+                                onDockIconBgOpacityChange = onDockIconBgOpacityChange,
+                                dockIconBorderOpacity = dockIconBorderOpacity,
+                                onDockIconBorderWidthChange = onDockIconBorderWidthChange,
+                                onDockIconBorderOpacityChange = onDockIconBorderOpacityChange,
+                                onPanelBackgroundChange = onDockBackgroundChange,
                             )
                             SettingsTab.ABOUT -> AboutTab(
                                 palette = currentPalette,
@@ -596,6 +652,9 @@ fun SettingsScreen(
 @Composable
 private fun AppearanceTab(
     currentPalette: EtherealPalette,
+    wallpaperPalette: EtherealPalette,
+    designPreset: DesignPreset,
+    onDesignPresetChange: (DesignPreset) -> Unit,
     onPaletteChange: (EtherealPalette) -> Unit,
     onOpacityChange: (Float) -> Unit,
     onBlurChange: (Float) -> Unit,
@@ -623,22 +682,18 @@ private fun AppearanceTab(
                 subtitle = stringResource(R.string.settings_group_design_subtitle),
                 palette = currentPalette
             ) {
-                UiStyleOption(
-                    title = stringResource(R.string.ui_style_glass),
-                    description = stringResource(R.string.ui_style_glass_desc),
-                    selected = uiStyle == UiStyle.GLASS,
-                    palette = currentPalette,
-                    isFlatPreview = false,
-                    onClick = { onUiStyleChange(UiStyle.GLASS) }
-                )
-                UiStyleOption(
-                    title = stringResource(R.string.ui_style_flat),
-                    description = stringResource(R.string.ui_style_flat_desc),
-                    selected = uiStyle == UiStyle.FLAT,
-                    palette = currentPalette,
-                    isFlatPreview = true,
-                    onClick = { onUiStyleChange(UiStyle.FLAT) }
-                )
+                // Пресеты оформления: переключают всё сразу — панели, блюр,
+                // прозрачность плиток, рамки, док и поиск.
+                DesignPreset.values().forEach { preset ->
+                    UiStyleOption(
+                        title = stringResource(designPresetTitle(preset)),
+                        description = stringResource(designPresetDescription(preset)),
+                        selected = designPreset == preset,
+                        palette = currentPalette,
+                        isFlatPreview = preset != DesignPreset.LIQUID_GLASS,
+                        onClick = { onDesignPresetChange(preset) }
+                    )
+                }
             }
         }
         item {
@@ -649,7 +704,8 @@ private fun AppearanceTab(
             ) {
                 ThemeDropdown(
                     currentPalette = currentPalette,
-                    onPaletteChange = onPaletteChange
+                    onPaletteChange = onPaletteChange,
+                    wallpaperPalette = wallpaperPalette
                 )
                 FontDropdown(
                     currentPalette = currentPalette,
@@ -1055,7 +1111,12 @@ private fun ESearchTab(
     onStyleChange: (ESearchStyle) -> Unit,
     onBorderStyleChange: (TileBorderStyle) -> Unit,
     onBorderWidthChange: (Float) -> Unit,
-    onBorderOpacityChange: (Float) -> Unit
+    onBorderOpacityChange: (Float) -> Unit,
+    apps: List<AppInfo>,
+    esearchFilterMode: String,
+    esearchFilterPackages: Set<String>,
+    onFilterModeChange: (String) -> Unit,
+    onFilterPackagesChange: (Set<String>) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1287,6 +1348,97 @@ private fun ESearchTab(
                 )
             }
         }
+        item {
+            SettingsGroup(
+                groupKey = "esearch.filter",
+                title = stringResource(R.string.settings_esearch_filter),
+                palette = palette,
+                defaultExpanded = false
+            ) {
+                val modes = listOf(
+                    Triple("NONE", R.string.esearch_filter_off, R.string.esearch_filter_off_desc),
+                    Triple("WHITELIST", R.string.esearch_filter_whitelist, R.string.esearch_filter_whitelist_desc),
+                    Triple("BLACKLIST", R.string.esearch_filter_blacklist, R.string.esearch_filter_blacklist_desc)
+                )
+                modes.forEach { (mode, titleRes, descRes) ->
+                    val selected = esearchFilterMode == mode
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                if (selected) palette.primary.copy(alpha = 0.18f)
+                                else palette.surfaceVariant.copy(alpha = 0.35f)
+                            )
+                            .clickable { onFilterModeChange(mode) }
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = stringResource(titleRes),
+                            color = if (selected) palette.primary else palette.textPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                        )
+                        Text(
+                            text = stringResource(descRes),
+                            color = palette.textSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+            }
+        }
+
+        if (esearchFilterMode != "NONE") {
+            item {
+                Text(
+                    text = stringResource(R.string.esearch_filter_pick, esearchFilterPackages.size),
+                    color = palette.textSecondary,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+            items(apps.sortedBy { it.label.lowercase() }) { app ->
+                val checked = app.packageName in esearchFilterPackages
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            if (checked) palette.primary.copy(alpha = 0.12f)
+                            else palette.surfaceVariant.copy(alpha = 0.25f)
+                        )
+                        .clickable {
+                            onFilterPackagesChange(
+                                if (checked) esearchFilterPackages - app.packageName
+                                else esearchFilterPackages + app.packageName
+                            )
+                        }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = app.label,
+                        color = palette.textPrimary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(if (checked) palette.primary else palette.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (checked) {
+                            Text("✓", color = palette.background, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
         item { Spacer(modifier = Modifier.height(20.dp)) }
     }
 }
@@ -1316,7 +1468,17 @@ private fun DockTab(
     onBlurChange: (Float) -> Unit,
     onScrollableChange: (Boolean) -> Unit,
     onIconShapeChange: (String) -> Unit,
-    onShowIconBackgroundChange: (Boolean) -> Unit
+    onShowIconBackgroundChange: (Boolean) -> Unit,
+    panelBackground: Boolean,
+    onPanelBackgroundChange: (Boolean) -> Unit,
+    dockIconBorder: TileBorderStyle,
+    onDockIconBorderChange: (TileBorderStyle) -> Unit,
+    dockIconBgOpacity: Float,
+    onDockIconBgOpacityChange: (Float) -> Unit,
+    dockIconBorderWidth: Float,
+    dockIconBorderOpacity: Float,
+    onDockIconBorderWidthChange: (Float) -> Unit,
+    onDockIconBorderOpacityChange: (Float) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1391,6 +1553,38 @@ private fun DockTab(
                 palette = currentPalette,
                 defaultExpanded = false
             ) {
+                DockBorderSelector(
+                    palette = currentPalette,
+                    selected = dockIconBorder,
+                    onChange = onDockIconBorderChange
+                )
+                if (dockIconBorder != TileBorderStyle.NONE) {
+                    SettingsSlider(
+                        title = stringResource(R.string.settings_dock_border_width),
+                        subtitle = stringResource(R.string.settings_dock_border_width_subtitle),
+                        value = dockIconBorderWidth,
+                        range = 0.5f..4f,
+                        palette = currentPalette,
+                        onValueChange = onDockIconBorderWidthChange,
+                        format = { String.format("%.1f dp", it) }
+                    )
+                    SettingsSlider(
+                        title = stringResource(R.string.settings_dock_border_opacity),
+                        subtitle = stringResource(R.string.settings_dock_border_opacity_subtitle),
+                        value = dockIconBorderOpacity,
+                        range = 0f..1f,
+                        palette = currentPalette,
+                        onValueChange = onDockIconBorderOpacityChange,
+                        format = { "${(it * 100).toInt()}%" }
+                    )
+                }
+                SettingsToggle(
+                    title = stringResource(R.string.settings_dock_panel),
+                    subtitle = stringResource(R.string.settings_dock_panel_subtitle),
+                    checked = panelBackground,
+                    palette = currentPalette,
+                    onCheckedChange = onPanelBackgroundChange
+                )
                 SettingsToggle(
                     title = stringResource(R.string.settings_dock_show_bg),
                     subtitle = stringResource(R.string.settings_dock_show_bg_subtitle),
@@ -1398,6 +1592,17 @@ private fun DockTab(
                     palette = currentPalette,
                     onCheckedChange = onShowIconBackgroundChange
                 )
+                if (showIconBackground) {
+                    SettingsSlider(
+                        title = stringResource(R.string.settings_dock_icon_bg_opacity),
+                        subtitle = stringResource(R.string.settings_dock_icon_bg_opacity_subtitle),
+                        value = dockIconBgOpacity,
+                        range = 0f..1f,
+                        palette = currentPalette,
+                        onValueChange = onDockIconBgOpacityChange,
+                        format = { "${(it * 100).toInt()}%" }
+                    )
+                }
                 SettingsToggle(
                     title = stringResource(R.string.settings_dock_scrollable),
                     subtitle = stringResource(R.string.settings_dock_scrollable_subtitle),
@@ -3142,10 +3347,9 @@ private fun SettingsButton(
 @Composable
 private fun ThemeDropdown(
     currentPalette: EtherealPalette,
-    onPaletteChange: (EtherealPalette) -> Unit
+    onPaletteChange: (EtherealPalette) -> Unit,
+    wallpaperPalette: EtherealPalette
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -3165,89 +3369,12 @@ private fun ThemeDropdown(
             color = currentPalette.textSecondary,
             fontSize = 11.sp
         )
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Box {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(currentPalette.surface)
-                    .clickable { expanded = true }
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    PaletteDot(currentPalette.background)
-                    PaletteDot(currentPalette.surface)
-                    PaletteDot(currentPalette.primary)
-                    PaletteDot(currentPalette.secondary)
-                    PaletteDot(currentPalette.textPrimary)
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = if (currentPalette.id == "wallpaper") {
-                        stringResource(R.string.settings_theme_wallpaper)
-                    } else {
-                        currentPalette.name
-                    },
-                    color = currentPalette.textPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "▼",
-                    color = currentPalette.textSecondary,
-                    fontSize = 12.sp
-                )
-            }
-
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier
-                    .background(currentPalette.surface)
-                    .heightIn(max = 400.dp)
-            ) {
-                AllPalettes.forEach { palette ->
-                    DropdownMenuItem(
-                        text = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    PaletteDot(palette.background)
-                                    PaletteDot(palette.surface)
-                                    PaletteDot(palette.primary)
-                                    PaletteDot(palette.secondary)
-                                    PaletteDot(palette.textPrimary)
-                                }
-                                Text(
-                                    text = if (palette.id == "wallpaper") {
-                                        stringResource(R.string.settings_theme_wallpaper)
-                                    } else {
-                                        palette.name
-                                    },
-                                    color = if (palette.id == currentPalette.id)
-                                        currentPalette.primary
-                                    else currentPalette.textPrimary,
-                                    fontSize = 14.sp,
-                                    fontWeight = if (palette.id == currentPalette.id)
-                                        FontWeight.SemiBold
-                                    else FontWeight.Normal
-                                )
-                            }
-                        },
-                        onClick = {
-                            onPaletteChange(palette)
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
+        Spacer(modifier = Modifier.height(12.dp))
+        ThemeTabs(
+            currentPalette = currentPalette,
+            onPaletteChange = onPaletteChange,
+            wallpaperPalette = wallpaperPalette
+        )
     }
 }
 
@@ -3350,6 +3477,70 @@ private fun FontDropdown(
                     )
                 }
             }
+        }
+    }
+}
+private fun designPresetTitle(preset: DesignPreset): Int = when (preset) {
+    DesignPreset.LIQUID_GLASS -> R.string.design_preset_glass
+    DesignPreset.MATERIAL -> R.string.design_preset_material
+    DesignPreset.WINDOWS_PHONE -> R.string.design_preset_windows_phone
+    DesignPreset.NONE -> R.string.design_preset_none
+}
+
+private fun designPresetDescription(preset: DesignPreset): Int = when (preset) {
+    DesignPreset.LIQUID_GLASS -> R.string.design_preset_glass_desc
+    DesignPreset.MATERIAL -> R.string.design_preset_material_desc
+    DesignPreset.WINDOWS_PHONE -> R.string.design_preset_windows_phone_desc
+    DesignPreset.NONE -> R.string.design_preset_none_desc
+}
+@Composable
+private fun DockBorderSelector(
+    palette: EtherealPalette,
+    selected: TileBorderStyle,
+    onChange: (TileBorderStyle) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(palette.surfaceVariant.copy(alpha = 0.4f))
+            .padding(12.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.settings_dock_border),
+            color = palette.textPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        val options = listOf(
+            TileBorderStyle.NONE to R.string.editor_border_none,
+            TileBorderStyle.OUTLINE to R.string.editor_border_outline,
+            TileBorderStyle.LIQUID_GLASS to R.string.editor_border_liquid_glass,
+            TileBorderStyle.ACCENT to R.string.editor_border_accent
+        )
+        options.forEach { (style, labelRes) ->
+            val isSelected = style == selected
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (isSelected) palette.primary.copy(alpha = 0.18f)
+                        else palette.surfaceVariant.copy(alpha = 0.3f)
+                    )
+                    .clickable { onChange(style) }
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = stringResource(labelRes),
+                    color = if (isSelected) palette.primary else palette.textPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }

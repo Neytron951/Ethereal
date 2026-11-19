@@ -2,6 +2,7 @@ package com.neytron.ethereal.ui.theme
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -74,6 +75,11 @@ fun FrostedGlassBox(
     val wallpaperScaleMode = LocalWallpaperScaleMode.current
     val wallpaperContainerCoords = LocalWallpaperContainerCoordinates.current
     val imageFile = remember(wallpaperPath) { wallpaperPath?.let { File(it) } }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // Системные обои: если файла нет, стекло размывает обои из WallpaperManager
+    val systemWallpaper = remember(imageFile?.absolutePath) {
+        if (imageFile == null || !imageFile.exists()) SystemWallpaperCache.get(context) else null
+    }
 
     val uiStyle = LocalAppearance.current.style
     val isFlat = uiStyle == UiStyle.FLAT
@@ -83,11 +89,9 @@ fun FrostedGlassBox(
     val effectiveBlur = if (isFlat) 0f else blur
     val effectiveOpacity = if (isFlat) flatPanelOpacity(opacity) else opacity
 
-    val blurAlpha by animateFloatAsState(
-        targetValue = if (effectiveBlur > 0f) 1f else 0f,
-        animationSpec = tween(durationMillis = 200),
-        label = "blurFadeIn"
-    )
+    // Блюр применяем сразу: раньше альфа анимировалась 0 → 1 и панель успевала
+    // показаться чёткой, а потом «прыгала» в размытую (заметно в ESearch и доке).
+    val blurAlpha = 1f
 
     val contentScaleMode = when (wallpaperScaleMode) {
         "FIT" -> ContentScale.Fit
@@ -135,6 +139,15 @@ fun FrostedGlassBox(
                         if (imageFile != null && imageFile.exists()) {
                             AsyncImage(
                                 model = imageFile,
+                                contentDescription = null,
+                                contentScale = contentScaleMode,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else if (systemWallpaper != null) {
+                            // Обычные системные обои: размываем их же, иначе стекло
+                            // было просто полупрозрачной заливкой без блюра.
+                            Image(
+                                bitmap = systemWallpaper,
                                 contentDescription = null,
                                 contentScale = contentScaleMode,
                                 modifier = Modifier.fillMaxSize()

@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
@@ -627,28 +628,33 @@ private fun AppLauncherContent(
         themed = themedIcons,
         paletteId = palette.id,
         foregroundOnly = foregroundOnlyIcon
-    )
+    ) + "#" + com.neytron.ethereal.utils.AppIconBitmaps.epoch
     val bmp by produceState(
         initialValue = com.neytron.ethereal.utils.AppIconBitmaps.get(iconKey),
         key1 = iconKey
     ) {
-        if (value == null) {
-            val rendered = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                when {
-                    themedIcons -> renderThemedIcon(
-                        app.icon,
-                        palette,
-                        drawBackground = !foregroundOnlyIcon
-                    ).asImageBitmap()
-                    foregroundOnlyIcon -> app.icon.toForegroundOnlyBitmap()
-                    else -> app.icon.toImageBitmap()
-                }
-            }
-            if (rendered != null) {
-                com.neytron.ethereal.utils.AppIconBitmaps.put(iconKey, rendered)
-            }
-            value = rendered
+        // ВАЖНО: не проверяем value == null. При смене темы ключ меняется,
+        // но состояние ещё держит старый битмап — из-за этого иконка «залипала».
+        val ready = com.neytron.ethereal.utils.AppIconBitmaps.get(iconKey)
+        if (ready != null) {
+            value = ready
+            return@produceState
         }
+        val rendered = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            when {
+                themedIcons -> renderThemedIcon(
+                    app.icon,
+                    palette,
+                    drawBackground = !foregroundOnlyIcon
+                ).asImageBitmap()
+                foregroundOnlyIcon -> app.icon.toForegroundOnlyBitmap()
+                else -> app.icon.toImageBitmap()
+            }
+        }
+        if (rendered != null) {
+            com.neytron.ethereal.utils.AppIconBitmaps.put(iconKey, rendered)
+        }
+        value = rendered
     }
 
     val iconBitmap = bmp
@@ -832,6 +838,25 @@ private fun tileBorderForShape(
     val rounded = shape as? RoundedCornerShape
     if (rounded != null) {
         return Modifier.tileBorder(style, palette, rounded, tilt)
+    }
+
+    // Стеклянная рамка на нестандартных формах: светлый градиент, как у «жидкого стекла».
+    // Раньше здесь рисовался palette.outline — на тёмной теме это выглядело чёрной обводкой.
+    if (style.borderStyle == TileBorderStyle.LIQUID_GLASS ||
+        style.borderStyle == TileBorderStyle.LIQUID_GLASS_SENSORS
+    ) {
+        val a = style.borderOpacity.coerceIn(0f, 1f).coerceAtLeast(0.2f)
+        return Modifier.border(
+            width = style.borderWidth.coerceAtLeast(1f).dp,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = (0.95f * a).coerceIn(0f, 1f)),
+                    Color.White.copy(alpha = (0.22f * a).coerceIn(0f, 1f)),
+                    Color.White.copy(alpha = (0.55f * a).coerceIn(0f, 1f))
+                )
+            ),
+            shape = shape
+        )
     }
 
     val color = when (style.borderStyle) {

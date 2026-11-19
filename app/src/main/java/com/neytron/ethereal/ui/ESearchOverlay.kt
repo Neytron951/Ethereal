@@ -11,6 +11,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -120,23 +121,20 @@ fun ESearchOverlay(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
+        // Пружинное появление самой панели: выезд с overshoot.
+        // Без scale — масштаб ломает размытый фон внутри стекла.
+        enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
                 slideInVertically(
-                    initialOffsetY = { it / 3 },
-                    animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioLowBouncy)
-                ) +
-                scaleIn(
-                    initialScale = 0.92f,
-                    animationSpec = spring(stiffness = Spring.StiffnessLow)
+                    initialOffsetY = { it / 5 },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
                 ),
-        exit = fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing)) +
+        exit = fadeOut(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
                 slideOutVertically(
-                    targetOffsetY = { it / 3 },
-                    animationSpec = tween(200, easing = FastOutSlowInEasing)
-                ) +
-                scaleOut(
-                    targetScale = 0.95f,
-                    animationSpec = tween(200, easing = FastOutSlowInEasing)
+                    targetOffsetY = { it / 6 },
+                    animationSpec = tween(180, easing = FastOutSlowInEasing)
                 )
     ) {
         Box(
@@ -180,23 +178,15 @@ fun ESearchOverlay(
 
     AnimatedVisibility(
         visible = isContextVisible,
-        enter = fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+        enter = fadeIn(animationSpec = tween(200, easing = FastOutSlowInEasing)) +
                 slideInVertically(
                     initialOffsetY = { it / 8 },
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioMediumBouncy)
-                ) +
-                scaleIn(
-                    initialScale = 0.90f,
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                    animationSpec = tween(220, easing = FastOutSlowInEasing)
                 ),
-        exit = fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+        exit = fadeOut(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
                 slideOutVertically(
                     targetOffsetY = { it / 8 },
-                    animationSpec = tween(180, easing = FastOutSlowInEasing)
-                ) +
-                scaleOut(
-                    targetScale = 0.93f,
-                    animationSpec = tween(180, easing = FastOutSlowInEasing)
+                    animationSpec = tween(160, easing = FastOutSlowInEasing)
                 )
     ) {
         displayedContextApp?.let { app ->
@@ -428,14 +418,6 @@ private fun ESearchPanel(
     val itemHeight = 52.dp
     val listMaxHeight = itemHeight * visibleItems
 
-    // Блюр стекла включаем только после анимации открытия: во время неё панель двигается
-    // и масштабируется, а размытие полноэкранных обоев каждый кадр — самая дорогая часть.
-    var allowBlur by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(280)
-        allowBlur = true
-    }
-
     Surface(
         modifier = Modifier
             .fillMaxWidth(widthFraction)
@@ -445,7 +427,7 @@ private fun ESearchPanel(
         color = Color.Transparent
     ) {
         FrostedGlassBox(
-            blur = if (allowBlur) blur else 0f,
+            blur = blur,
             opacity = opacity,
             backgroundColor = palette.surface,
             shape = RoundedCornerShape(20.dp),

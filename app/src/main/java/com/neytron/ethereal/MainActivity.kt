@@ -184,6 +184,12 @@ fun EtherealApp() {
     var blur by remember { mutableStateOf(SettingsRepository.getBlur(context)) }
     var fontScale by remember { mutableStateOf(SettingsRepository.getFontScale(context)) }
     var uiStyle by remember { mutableStateOf(SettingsRepository.getUiStyle(context)) }
+    var designPreset by remember {
+        mutableStateOf(
+            runCatching { com.neytron.ethereal.ui.theme.DesignPreset.valueOf(SettingsRepository.getDesignPreset(context)) }
+                .getOrDefault(com.neytron.ethereal.ui.theme.DesignPreset.LIQUID_GLASS)
+        )
+    }
     var fontFamilyName by remember { mutableStateOf(SettingsRepository.getFont(context)) }
 
     var isSetupCompleted by remember {
@@ -206,6 +212,8 @@ fun EtherealApp() {
     var esearchVisibleItems by remember { mutableStateOf(SettingsRepository.getESearchVisibleItems(context)) }
     var esearchAutoKeyboard by remember { mutableStateOf(SettingsRepository.getESearchAutoKeyboard(context)) }
     var esearchStyle by remember { mutableStateOf(SettingsRepository.getESearchStyle(context)) }
+    var esearchFilterMode by remember { mutableStateOf(SettingsRepository.getESearchFilterMode(context)) }
+    var esearchFilterPackages by remember { mutableStateOf(SettingsRepository.getESearchFilterPackages(context)) }
     var esearchBorderStyle by remember { mutableStateOf(SettingsRepository.getESearchBorderStyle(context)) }
     var esearchBorderWidth by remember { mutableStateOf(SettingsRepository.getESearchBorderWidth(context)) }
     var esearchBorderOpacity by remember { mutableStateOf(SettingsRepository.getESearchBorderOpacity(context)) }
@@ -240,6 +248,11 @@ fun EtherealApp() {
     var dockIconSize by remember { mutableStateOf(SettingsRepository.getDockIconSize(context)) }
     var dockBottomPadding by remember { mutableStateOf(SettingsRepository.getDockBottomPadding(context)) }
     var dockUseOverride by remember { mutableStateOf(SettingsRepository.getDockUseOverride(context)) }
+    var dockBackground by remember { mutableStateOf(SettingsRepository.getDockBackgroundVisible(context)) }
+    var dockIconBorder by remember { mutableStateOf(SettingsRepository.getDockIconBorderStyle(context)) }
+    var dockIconBorderWidth by remember { mutableStateOf(SettingsRepository.getDockIconBorderWidth(context)) }
+    var dockIconBorderOpacity by remember { mutableStateOf(SettingsRepository.getDockIconBorderOpacity(context)) }
+    var dockIconBgOpacity by remember { mutableStateOf(SettingsRepository.getDockIconBackgroundOpacity(context)) }
     var dockOpacity by remember { mutableStateOf(SettingsRepository.getDockOpacity(context)) }
     var dockBlur by remember { mutableStateOf(SettingsRepository.getDockBlur(context)) }
     var dockScrollable by remember { mutableStateOf(SettingsRepository.getDockScrollable(context)) }
@@ -706,6 +719,15 @@ fun EtherealApp() {
 
     val palette = if (paletteId == WallpaperPalette.id) wallpaperPalette else paletteById(paletteId)
 
+    // Фильтр приложений в поиске: белый/чёрный список из настроек
+    val esearchFilteredApps = remember(apps, esearchFilterMode, esearchFilterPackages) {
+        when (esearchFilterMode) {
+            "WHITELIST" -> apps.filter { it.packageName in esearchFilterPackages }
+            "BLACKLIST" -> apps.filter { it.packageName !in esearchFilterPackages }
+            else -> apps
+        }
+    }
+
     // Прогреваем иконки заранее: к моменту открытия ESearch они уже лежат в кэше готовыми
     // ImageBitmap, поэтому список не декодирует их на главном потоке и не роняет fps.
     LaunchedEffect(apps, dockThemedIcons, palette.id) {
@@ -994,6 +1016,11 @@ fun EtherealApp() {
                     DockBar(
                         apps = dockApps,
                         palette = palette,
+                        panelBackground = dockBackground,
+                        iconBorderStyle = dockIconBorder,
+                        iconBorderWidth = dockIconBorderWidth,
+                        iconBorderOpacity = dockIconBorderOpacity,
+                        iconBackgroundOpacity = dockIconBgOpacity,
                         onAppClick = { app, sourceBounds ->
                             SettingsRepository.recordLaunch(context, app.packageName)
                             launchApp(app.packageName, sourceBounds, true, true, false, dockShowIconBackground, null, 1f, 4f, false)
@@ -1059,7 +1086,7 @@ fun EtherealApp() {
 
                 ESearchOverlay(
                     visible = searchVisible,
-                    apps = apps,
+                    apps = esearchFilteredApps,
                     palette = palette,
                     onAppClick = { app, sourceBounds ->
                         SettingsRepository.recordLaunch(context, app.packageName)
@@ -1112,9 +1139,83 @@ fun EtherealApp() {
                         apps = apps,
                         currentPalette = palette,
                         currentDock = dockPackages,
+                        wallpaperPalette = wallpaperPalette,
+                        esearchFilterMode = esearchFilterMode,
+                        esearchFilterPackages = esearchFilterPackages,
+                        onESearchFilterModeChange = { mode ->
+                            esearchFilterMode = mode
+                            SettingsRepository.setESearchFilterMode(context, mode)
+                        },
+                        onESearchFilterPackagesChange = { packages ->
+                            esearchFilterPackages = packages
+                            SettingsRepository.setESearchFilterPackages(context, packages)
+                        },
+                        dockBackground = dockBackground,
+                        dockIconBorder = dockIconBorder,
+                        dockIconBorderWidth = dockIconBorderWidth,
+                        dockIconBorderOpacity = dockIconBorderOpacity,
+                        dockIconBgOpacity = dockIconBgOpacity,
+                        onDockIconBgOpacityChange = { value ->
+                            dockIconBgOpacity = value
+                            SettingsRepository.setDockIconBackgroundOpacity(context, value)
+                        },
+                        onDockIconBorderWidthChange = { value ->
+                            dockIconBorderWidth = value
+                            SettingsRepository.setDockIconBorderWidth(context, value)
+                        },
+                        onDockIconBorderOpacityChange = { value ->
+                            dockIconBorderOpacity = value
+                            SettingsRepository.setDockIconBorderOpacity(context, value)
+                        },
+                        onDockIconBorderChange = { style ->
+                            dockIconBorder = style
+                            SettingsRepository.setDockIconBorderStyle(context, style)
+                        },
+                        onDockBackgroundChange = { visible ->
+                            dockBackground = visible
+                            SettingsRepository.setDockBackgroundVisible(context, visible)
+                        },
+                        designPreset = designPreset,
+                        onDesignPresetChange = { preset ->
+                            designPreset = preset
+                            appScope.launch(Dispatchers.IO) {
+                                com.neytron.ethereal.ui.theme.applyDesignPreset(context, preset)
+                                withContext(Dispatchers.Main) {
+                                    // Пресет меняет кучу настроек — перечитываем их разом
+                                    opacity = SettingsRepository.getOpacity(context)
+                                    blur = SettingsRepository.getBlur(context)
+                                    uiStyle = SettingsRepository.getUiStyle(context)
+                                    tileRadius = SettingsRepository.getTileRadius(context)
+                                    dockUseOverride = SettingsRepository.getDockUseOverride(context)
+                                    dockOpacity = SettingsRepository.getDockOpacity(context)
+                                    dockBlur = SettingsRepository.getDockBlur(context)
+                                    dockIconBgOpacity = SettingsRepository.getDockIconBackgroundOpacity(context)
+                                    dockIconBorder = SettingsRepository.getDockIconBorderStyle(context)
+                                    dockIconBorderWidth = SettingsRepository.getDockIconBorderWidth(context)
+                                    dockIconBorderOpacity = SettingsRepository.getDockIconBorderOpacity(context)
+                                    dockIconShape = SettingsRepository.getDockIconShape(context)
+                                    tileShape = SettingsRepository.getTileShape(context)
+                                    dockShowIconBackground = SettingsRepository.getDockShowIconBackground(context)
+                                    esearchUseOverride = SettingsRepository.getESearchUseOverride(context)
+                                    esearchOpacity = SettingsRepository.getESearchOpacity(context)
+                                    esearchBlur = SettingsRepository.getESearchBlur(context)
+                                    esearchBorderStyle = SettingsRepository.getESearchBorderStyle(context)
+                                    esearchBorderWidth = SettingsRepository.getESearchBorderWidth(context)
+                                    esearchBorderOpacity = SettingsRepository.getESearchBorderOpacity(context)
+                                    tiles = TileLayoutRepository.getTiles(
+                                        context,
+                                        currentSpaceId,
+                                        isLandscape
+                                    )
+                                }
+                            }
+                        },
                         onPaletteChange = { newPalette ->
                             paletteId = newPalette.id
                             SettingsRepository.setPaletteId(context, newPalette.id)
+                            // иконки перекрашиваются темой: сбрасываем растровые кэши
+                            com.neytron.ethereal.utils.AppIconBitmaps.clear()
+                            com.neytron.ethereal.data.AppIconStore.clear()
                             AnalyticsHelper.logPaletteSelected(context, newPalette.id)
                         },
                         onDockChange = { newDock ->

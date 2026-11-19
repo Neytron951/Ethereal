@@ -27,27 +27,29 @@ data class EtherealPalette(
 val EtherealGreenPalette = EtherealPalette(
     id = "ethereal_green",
     name = "Ethereal",
-    background = Color(0xFF0A0F0A),
-    surface = Color(0xFF131A13),
-    surfaceVariant = Color(0xFF1C261C),
-    primary = Color(0xFFB8FF3D),
-    secondary = Color(0xFF7DDF64),
-    outline = Color(0xFF2A352A),
-    textPrimary = Color(0xFFE8F0E8),
-    textSecondary = Color(0xFF8FA38F)
+    // Сгенерировано в OKLCH (база Dark, акцент Green, насыщенность Normal):
+    // фон подкрашен в оттенок акцента, а не нейтральный серый
+    background = Color(0xFF090C09),
+    surface = Color(0xFF131914),
+    surfaceVariant = Color(0xFF1E251E),
+    primary = Color(0xFF87EC98),
+    secondary = Color(0xFF8BC593),
+    outline = Color(0xFF364037),
+    textPrimary = Color(0xFFE8F1E9),
+    textSecondary = Color(0xFF9BA99C)
 )
 
 val WallpaperPalette = EtherealPalette(
     id = "wallpaper",
     name = "Wallpaper",
-    background = Color(0xFF0A0F0A),
-    surface = Color(0xFF131A13),
-    surfaceVariant = Color(0xFF1C261C),
-    primary = Color(0xFFB8FF3D),
-    secondary = Color(0xFF7DDF64),
-    outline = Color(0xFF2A352A),
-    textPrimary = Color(0xFFE8F0E8),
-    textSecondary = Color(0xFF8FA38F)
+    background = Color(0xFF090C09),
+    surface = Color(0xFF131914),
+    surfaceVariant = Color(0xFF1E251E),
+    primary = Color(0xFF87EC98),
+    secondary = Color(0xFF8BC593),
+    outline = Color(0xFF364037),
+    textPrimary = Color(0xFFE8F1E9),
+    textSecondary = Color(0xFF9BA99C)
 )
 
 val ObsidianPalette = EtherealPalette(
@@ -438,4 +440,6 @@ val AllPalettes: List<EtherealPalette> = listOf(
 )
 
 fun paletteById(id: String): EtherealPalette =
-    AllPalettes.find { it.id == id } ?: EtherealGreenPalette
+    parseSimpleTheme(id)?.let { buildSimpleTheme(it) }
+        ?: AllPalettes.find { it.id == id }
+        ?: EtherealGreenPalette

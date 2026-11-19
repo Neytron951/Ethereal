@@ -94,6 +94,12 @@ object SettingsRepository {
     // Palette
     // ============================================================
 
+    fun getThemeTab(context: Context): Int =
+        prefs(context).getInt("theme_tab", 0)
+    fun setThemeTab(context: Context, value: Int) {
+        prefs(context).edit().putInt("theme_tab", value.coerceIn(0, 2)).apply()
+    }
+
     fun getPaletteId(context: Context): String =
         prefs(context).getString(KEY_PALETTE, "ethereal_green") ?: "ethereal_green"
 
@@ -122,6 +128,50 @@ object SettingsRepository {
         prefs(context).getFloat(KEY_DOCK_BOTTOM_PADDING, DEFAULT_DOCK_BOTTOM_PADDING)
     fun setDockBottomPadding(context: Context, value: Float) {
         prefs(context).edit().putFloat(KEY_DOCK_BOTTOM_PADDING, value.coerceIn(0f, 80f)).apply()
+    }
+
+    fun getDockIconBorderStyle(context: Context): com.neytron.ethereal.tiles.TileBorderStyle {
+        val name = prefs(context).getString("dock_icon_border", "LIQUID_GLASS") ?: "LIQUID_GLASS"
+        return try {
+            com.neytron.ethereal.tiles.TileBorderStyle.valueOf(name)
+        } catch (_: Exception) {
+            com.neytron.ethereal.tiles.TileBorderStyle.LIQUID_GLASS
+        }
+    }
+    fun setDockIconBorderStyle(context: Context, style: com.neytron.ethereal.tiles.TileBorderStyle) {
+        prefs(context).edit().putString("dock_icon_border", style.name).apply()
+    }
+
+    /**
+     * Плотность подложки иконок дока. По умолчанию зависит от дизайна:
+     * Material — плотная плашка, Liquid Glass — прозрачная.
+     */
+    fun getDockIconBackgroundOpacity(context: Context): Float {
+        val stored = prefs(context).getFloat("dock_icon_bg_opacity", -1f)
+        if (stored >= 0f) return stored
+        return if (getUiStyle(context) == UiStyle.FLAT) 0.90f else 0.50f
+    }
+    fun setDockIconBackgroundOpacity(context: Context, value: Float) {
+        prefs(context).edit().putFloat("dock_icon_bg_opacity", value.coerceIn(0f, 1f)).apply()
+    }
+
+    fun getDockIconBorderWidth(context: Context): Float =
+        prefs(context).getFloat("dock_icon_border_width", 1f)
+    fun setDockIconBorderWidth(context: Context, value: Float) {
+        prefs(context).edit().putFloat("dock_icon_border_width", value.coerceIn(0.5f, 4f)).apply()
+    }
+
+    fun getDockIconBorderOpacity(context: Context): Float =
+        prefs(context).getFloat("dock_icon_border_opacity", 0.55f)
+    fun setDockIconBorderOpacity(context: Context, value: Float) {
+        prefs(context).edit().putFloat("dock_icon_border_opacity", value.coerceIn(0f, 1f)).apply()
+    }
+
+    /** Фон дока по умолчанию выключен: пресеты его не включают. */
+    fun getDockBackgroundVisible(context: Context): Boolean =
+        prefs(context).getBoolean("dock_background", false)
+    fun setDockBackgroundVisible(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean("dock_background", value).apply()
     }
 
     fun getDockUseOverride(context: Context): Boolean =
@@ -209,6 +259,18 @@ object SettingsRepository {
         prefs(context).edit().putString(KEY_FONT, value).apply()
     }
 
+    /**
+     * Пресет оформления. У старых установок ключа нет — выводим его из ui_style,
+     * иначе в Design подсвечивался бы Liquid Glass при плоском интерфейсе.
+     */
+    fun getDesignPreset(context: Context): String =
+        // У обновившихся пресета ещё нет: показываем NONE — он ничего не меняет,
+        // их собственный дизайн остаётся как был.
+        prefs(context).getString("design_preset", null) ?: "NONE"
+    fun setDesignPreset(context: Context, preset: com.neytron.ethereal.ui.theme.DesignPreset) {
+        prefs(context).edit().putString("design_preset", preset.name).apply()
+    }
+
     fun getUiStyle(context: Context): UiStyle =
         UiStyle.fromName(prefs(context).getString(KEY_UI_STYLE, UiStyle.GLASS.name))
     fun setUiStyle(context: Context, style: UiStyle) {
@@ -238,6 +300,19 @@ object SettingsRepository {
     // ============================================================
     // ESearch
     // ============================================================
+
+    /** Фильтр приложений в поиске: NONE / WHITELIST / BLACKLIST. */
+    fun getESearchFilterMode(context: Context): String =
+        prefs(context).getString("esearch_filter_mode", "NONE") ?: "NONE"
+    fun setESearchFilterMode(context: Context, mode: String) {
+        prefs(context).edit().putString("esearch_filter_mode", mode).apply()
+    }
+
+    fun getESearchFilterPackages(context: Context): Set<String> =
+        prefs(context).getStringSet("esearch_filter_packages", emptySet()) ?: emptySet()
+    fun setESearchFilterPackages(context: Context, packages: Set<String>) {
+        prefs(context).edit().putStringSet("esearch_filter_packages", packages).apply()
+    }
 
     fun getESearchUseOverride(context: Context): Boolean =
         prefs(context).getBoolean(KEY_ESEARCH_USE_OVERRIDE, false)

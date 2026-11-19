@@ -28,10 +28,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -57,6 +61,7 @@ import androidx.compose.ui.zIndex
 import com.neytron.ethereal.R
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.data.SettingsRepository
+import com.neytron.ethereal.tiles.TileBorderStyle
 import com.neytron.ethereal.tiles.TilePreset
 import com.neytron.ethereal.ui.theme.EtherealPalette
 import com.neytron.ethereal.ui.theme.FrostedGlassBox
@@ -82,6 +87,12 @@ fun DockBar(
     onCreateSpaceClick: () -> Unit = {},
     onMultiAppsClick: () -> Unit = {},
     introFlyIn: Boolean = false,
+    /** Фон панели дока: выключен — иконки висят на обоях. */
+    panelBackground: Boolean = true,
+    iconBorderStyle: TileBorderStyle = TileBorderStyle.LIQUID_GLASS,
+    iconBorderWidth: Float = 1f,
+    iconBorderOpacity: Float = 0.55f,
+    iconBackgroundOpacity: Float = 0.5f,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -146,8 +157,9 @@ fun DockBar(
     if (!showPresets && order.isEmpty()) return
 
     FrostedGlassBox(
-        blur = effectiveBlur,
-        opacity = effectiveOpacity,
+        // Фон панели можно выключить целиком — остаются только иконки
+        blur = if (panelBackground) effectiveBlur else 0f,
+        opacity = if (panelBackground) effectiveOpacity else 0f,
         backgroundColor = palette.background,
         shape = RoundedCornerShape(24.dp),
         modifier = modifier
@@ -178,7 +190,10 @@ fun DockBar(
                         onPresetClick = onPresetClick,
                         onSystemWidgetClick = onSystemWidgetClick,
                         onCreateSpaceClick = onCreateSpaceClick,
-                        onMultiAppsClick = onMultiAppsClick
+                        onMultiAppsClick = onMultiAppsClick,
+                        iconBorderStyle = iconBorderStyle,
+                        iconBorderWidth = iconBorderWidth,
+                        iconBorderOpacity = iconBorderOpacity
                     )
                 } else {
                     AppsRow(
@@ -187,6 +202,10 @@ fun DockBar(
                         iconSize = iconSize,
                         spacing = spacing,
                         config = config,
+                        iconBorderStyle = iconBorderStyle,
+                        iconBorderWidth = iconBorderWidth,
+                        iconBorderOpacity = iconBorderOpacity,
+                        iconBackgroundOpacity = iconBackgroundOpacity,
                         introFlyIn = introFlyIn,
                         onAppClick = onAppClick,
                         onOrderChange = { newOrder -> order = newOrder },
@@ -205,6 +224,10 @@ private fun AppsRow(
     iconSize: Dp,
     spacing: Dp,
     config: com.neytron.ethereal.ui.theme.DockConfig,
+    iconBorderStyle: TileBorderStyle = TileBorderStyle.LIQUID_GLASS,
+    iconBorderWidth: Float = 1f,
+    iconBorderOpacity: Float = 0.55f,
+    iconBackgroundOpacity: Float = 0.5f,
     introFlyIn: Boolean = false,
     onAppClick: (AppInfo, Rect?) -> Unit,
     onOrderChange: (List<AppInfo>) -> Unit,
@@ -262,6 +285,10 @@ private fun AppsRow(
                             draggingIndex = draggingIndex,
                             themedIcons = config.themedIcons,
                             showBackground = config.showIconBackground,
+                            iconBorderStyle = iconBorderStyle,
+                            iconBorderWidth = iconBorderWidth,
+                            iconBorderOpacity = iconBorderOpacity,
+                            iconBackgroundOpacity = iconBackgroundOpacity,
                             targetIndex = targetIndex,
                             dragOffsetX = dragOffsetX,
                             introFlyIn = introFlyIn,
@@ -317,7 +344,10 @@ private fun PresetsRow(
     onPresetClick: (TilePreset) -> Unit,
     onSystemWidgetClick: () -> Unit,
     onCreateSpaceClick: () -> Unit,
-    onMultiAppsClick: () -> Unit
+    onMultiAppsClick: () -> Unit,
+    iconBorderStyle: TileBorderStyle = TileBorderStyle.LIQUID_GLASS,
+    iconBorderWidth: Float = 1f,
+    iconBorderOpacity: Float = 0.55f
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
@@ -355,6 +385,9 @@ private fun PresetsRow(
                     iconSize = chipIconSize,
                     fontSize = chipFontSize,
                     plusFontSize = plusFontSize,
+                    iconBorderStyle = iconBorderStyle,
+                    iconBorderWidth = iconBorderWidth,
+                    iconBorderOpacity = iconBorderOpacity,
                     onClick = onSystemWidgetClick
                 )
             }
@@ -366,6 +399,9 @@ private fun PresetsRow(
                     chipSize = chipSize,
                     iconSize = chipIconSize,
                     fontSize = chipFontSize,
+                    iconBorderStyle = iconBorderStyle,
+                    iconBorderWidth = iconBorderWidth,
+                    iconBorderOpacity = iconBorderOpacity,
                     onClick = onCreateSpaceClick
                 )
             }
@@ -377,6 +413,9 @@ private fun PresetsRow(
                     chipSize = chipSize,
                     iconSize = chipIconSize,
                     fontSize = chipFontSize,
+                    iconBorderStyle = iconBorderStyle,
+                    iconBorderWidth = iconBorderWidth,
+                    iconBorderOpacity = iconBorderOpacity,
                     onClick = onMultiAppsClick
                 )
             }
@@ -439,17 +478,22 @@ private fun SystemWidgetChip(
     iconSize: Dp,
     fontSize: TextUnit,
     plusFontSize: TextUnit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    iconBorderStyle: TileBorderStyle = TileBorderStyle.LIQUID_GLASS,
+    iconBorderWidth: Float = 1f,
+    iconBorderOpacity: Float = 0.55f
 ) {
     Column(
         modifier = Modifier
             .requiredSize(width = chipSize, height = chipSize)
             .clip(RoundedCornerShape(14.dp))
             .background(palette.primary.copy(alpha = 0.15f))
-            .border(
-                width = 1.dp,
-                color = palette.primary.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(14.dp)
+            .dockElementBorder(
+                style = iconBorderStyle,
+                palette = palette,
+                shape = RoundedCornerShape(14.dp),
+                width = iconBorderWidth,
+                opacity = iconBorderOpacity
             )
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -477,17 +521,22 @@ private fun SpaceChip(
     chipSize: Dp,
     iconSize: Dp,
     fontSize: TextUnit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    iconBorderStyle: TileBorderStyle = TileBorderStyle.LIQUID_GLASS,
+    iconBorderWidth: Float = 1f,
+    iconBorderOpacity: Float = 0.55f
 ) {
     Column(
         modifier = Modifier
             .requiredSize(width = chipSize, height = chipSize)
             .clip(RoundedCornerShape(14.dp))
             .background(palette.primary.copy(alpha = 0.15f))
-            .border(
-                width = 1.dp,
-                color = palette.primary.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(14.dp)
+            .dockElementBorder(
+                style = iconBorderStyle,
+                palette = palette,
+                shape = RoundedCornerShape(14.dp),
+                width = iconBorderWidth,
+                opacity = iconBorderOpacity
             )
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -515,17 +564,22 @@ private fun MultiAppsChip(
     chipSize: Dp,
     iconSize: Dp,
     fontSize: TextUnit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    iconBorderStyle: TileBorderStyle = TileBorderStyle.LIQUID_GLASS,
+    iconBorderWidth: Float = 1f,
+    iconBorderOpacity: Float = 0.55f
 ) {
     Column(
         modifier = Modifier
             .requiredSize(width = chipSize, height = chipSize)
             .clip(RoundedCornerShape(14.dp))
             .background(palette.primary.copy(alpha = 0.15f))
-            .border(
-                width = 1.dp,
-                color = palette.primary.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(14.dp)
+            .dockElementBorder(
+                style = iconBorderStyle,
+                palette = palette,
+                shape = RoundedCornerShape(14.dp),
+                width = iconBorderWidth,
+                opacity = iconBorderOpacity
             )
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -618,6 +672,10 @@ private fun DockItem(
     iconShape: IconShape,
     showBackground: Boolean,
     themedIcons: Boolean,
+    iconBorderStyle: TileBorderStyle = TileBorderStyle.LIQUID_GLASS,
+    iconBorderWidth: Float = 1f,
+    iconBorderOpacity: Float = 0.55f,
+    iconBackgroundOpacity: Float = 0.5f,
     draggingIndex: Int?,
     targetIndex: Int?,
     dragOffsetX: Float,
@@ -671,9 +729,17 @@ private fun DockItem(
 
     val offsetX = if (isDragging) dragOffsetX else with(density) { shift.toPx() }
 
-    val bmp = remember(app.packageName, app.icon, themedIcons, palette.id) {
+    val bmp = remember(
+        app.packageName,
+        app.icon,
+        themedIcons,
+        palette.id,
+        palette.primary,
+        com.neytron.ethereal.utils.AppIconBitmaps.epoch
+    ) {
         if (themedIcons) {
-            renderThemedIcon(app.icon, palette).asImageBitmap()
+            // Только foreground: без «запечённой» подложки, иначе стекло не читается
+            renderThemedIcon(app.icon, palette, drawBackground = false).asImageBitmap()
         } else {
             app.icon.toImageBitmap()
         }
@@ -720,15 +786,34 @@ private fun DockItem(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(shape)
-                    .background(palette.surfaceVariant.copy(alpha = 0.6f))
-                    .border(
-                        width = 1.dp,
-                        color = palette.outline.copy(alpha = 0.6f),
-                        shape = shape
+                    .shadow(
+                        elevation = 8.dp,
+                        shape = shape,
+                        clip = false,
+                        ambientColor = Color.Black.copy(alpha = 0.45f),
+                        spotColor = Color.Black.copy(alpha = 0.45f)
                     )
+                    .clip(shape)
+                    // Подложка в цвете темы: в Material даёт тональную плашку,
+                    // в Liquid Glass — лёгкое стекло. Цвет берём из палитры, не белый.
+                    // Монолитный цвет темы, без градиентов и вуалей
+                    .background(palette.surface.copy(alpha = iconBackgroundOpacity.coerceIn(0f, 1f)))
             )
         }
+
+        // Рамка — общая настройка: стиль + толщина + прозрачность
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(shape)
+                .dockElementBorder(
+                    style = iconBorderStyle,
+                    palette = palette,
+                    shape = shape,
+                    width = iconBorderWidth,
+                    opacity = iconBorderOpacity
+                )
+        )
 
         Box(
             modifier = Modifier
@@ -756,5 +841,36 @@ private fun DockItem(
                 }
             }
         }
+    }
+}
+/**
+ * Рамка элемента дока: стиль + толщина + прозрачность.
+ * Компонент общий для иконок приложений и чипов пресетов, поэтому
+ * настройка влияет на весь док, а не только на приложения.
+ */
+private fun Modifier.dockElementBorder(
+    style: TileBorderStyle,
+    palette: EtherealPalette,
+    shape: Shape,
+    width: Float,
+    opacity: Float
+): Modifier {
+    if (style == TileBorderStyle.NONE) return this
+    val alpha = opacity.coerceIn(0f, 1f)
+    if (alpha <= 0f) return this
+    val stroke = width.coerceIn(0.5f, 4f).dp
+    return when (style) {
+        TileBorderStyle.OUTLINE -> border(stroke, palette.outline.copy(alpha = alpha), shape)
+        TileBorderStyle.ACCENT -> border(stroke, palette.primary.copy(alpha = alpha), shape)
+        else -> border(
+            width = stroke,
+            brush = Brush.verticalGradient(
+                listOf(
+                    palette.textPrimary.copy(alpha = alpha),
+                    palette.textPrimary.copy(alpha = alpha * 0.18f)
+                )
+            ),
+            shape = shape
+        )
     }
 }

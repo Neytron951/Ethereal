@@ -497,6 +497,7 @@ fun SpacesOverview(
                             )
                         }
 
+
                         if (!target.isRoot) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Box(
@@ -538,6 +539,8 @@ fun SpacesOverview(
                     }
                 }
             }
+
+
         }
     }
 }

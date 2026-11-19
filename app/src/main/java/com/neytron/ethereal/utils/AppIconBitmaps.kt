@@ -1,6 +1,9 @@
 package com.neytron.ethereal.utils
 
 import android.util.LruCache
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 
 /**
@@ -18,6 +21,14 @@ object AppIconBitmaps {
     // ~96 иконок по 256×256×4 байта ≈ 24 МБ верхняя граница, LruCache сам вытесняет
     private val cache = LruCache<String, ImageBitmap>(96)
 
+    /**
+     * Версия кэша. Увеличивается при сбросе, чтобы композиция гарантированно
+     * пересоздала иконки: одного очищения LRU недостаточно — состояние
+     * `produceState` в плитке продолжает держать старый битмап.
+     */
+    var epoch by mutableIntStateOf(0)
+        private set
+
     fun key(packageName: String, themed: Boolean, paletteId: String, foregroundOnly: Boolean): String =
         "$packageName|$themed|$paletteId|$foregroundOnly"
 
@@ -29,5 +40,6 @@ object AppIconBitmaps {
 
     fun clear() {
         cache.evictAll()
+        epoch++
     }
 }
