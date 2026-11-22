@@ -753,8 +753,19 @@ fun TilesScreen(
                                 editorState.select(null)
                             }
                         },
-                        onLongPress = {
-                            if (!isEditing) editorState.enterEdit()
+                        onLongPress = { offset ->
+                            // Режим редактирования включаем только на пустом месте:
+                            // иначе long-press по плитке одновременно открывал и редактор,
+                            // и контекстное меню плитки.
+                            if (!isEditing) {
+                                val col = (offset.x / cellSizePx).toInt()
+                                val row = (offset.y / cellSizePx).toInt()
+                                val onTile = tiles.any { tile ->
+                                    col >= tile.x && col < tile.x + tile.w &&
+                                        row >= tile.y && row < tile.y + tile.h
+                                }
+                                if (!onTile) editorState.enterEdit()
+                            }
                         }
                     )
                 }
@@ -811,6 +822,7 @@ fun TilesScreen(
                     if (isEditing) editorState.select(tile)
                     else handleTileClick(tile, sourceBounds)
                 },
+                // Долгое нажатие НЕ открывает настройки плитки: цель — сразу перетаскивание
                 onTileLongClick = { },
                 onDragStart = { tile ->
                     val latestTile = tiles.firstOrNull { it.id == tile.id } ?: tile

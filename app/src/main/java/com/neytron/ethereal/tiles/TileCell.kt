@@ -120,6 +120,7 @@ fun TileCell(
     val rootView = LocalView.current
     var launchCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var contextMenuExpanded by remember(tile.id) { mutableStateOf(false) }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
     val widthDp = tileSize * tile.w + spacing * (tile.w - 1)
     val heightDp = tileSize * tile.h + spacing * (tile.h - 1)
@@ -242,7 +243,9 @@ fun TileCell(
                 IntOffset(offsetX.roundToInt(), offsetY.roundToInt())
             }
             .onGloballyPositioned { launchCoordinates = it }
-            .pointerInput(tile.id, tile.clickable, isEditing) {
+            // НЕ включаем isEditing в ключ: иначе вход в режим редактирования во время
+            // жеста пересоздаёт pointerInput и перетаскивание обрывается.
+            .pointerInput(tile.id, tile.clickable) {
                 awaitEachGesture {
                     val down = awaitFirstDown(
                         requireUnconsumed = false,
@@ -288,55 +291,78 @@ fun TileCell(
                             if (dragStarted) currentOnDragEnd.value()
                         }
                     } else {
+                        var longPressed = false
+                        var dragStarted = false
                         var moved = false
-                        val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                            while (true) {
-                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                                val change = event.changes.firstOrNull { it.id == down.id }
-                                if (change == null || !change.pressed) break
-                                if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
-                                    moved = true
+                        val longPressMs = viewConfiguration.longPressTimeoutMillis
+                        val downTime = down.uptimeMillis
+
+                        try {
+                            // Фаза 1: long-press считаем по РЕАЛЬНОМУ времени.
+                            // Если палец не двигается, события не приходят — поэтому
+                            // ждём событие с таймаутом, а не «время между событиями».
+                            while (!longPressed && !moved) {
+                                val held = android.os.SystemClock.uptimeMillis() - downTime
+                                val remaining = longPressMs - held
+                                if (remaining <= 0) {
+                                    longPressed = true
                                     break
                                 }
+                                val event = withTimeoutOrNull(remaining) {
+                                    awaitPointerEvent(PointerEventPass.Initial)
+                                }
+                                if (event == null) {
+                                    // Время вышло — палец держится, это long-press
+                                    longPressed = true
+                                    break
+                                }
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) {
+                                    break
+                                }
+                                totalDrag += change.position - change.previousPosition
+                                if (totalDrag.getDistance() > viewConfiguration.touchSlop * 2f) {
+                                    moved = true
+                                }
                             }
-                            false
-                        } ?: true
 
-                        if (longPressed) {
-                            contextMenuExpanded = true
-                            currentOnLongClick.value()
-                            try {
+                            if (longPressed) {
+                                haptic.performHapticFeedback(
+                                    androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress
+                                )
+                                // Меню (non-focusable) — сразу, жест не отменяется
+                                contextMenuExpanded = true
+                                currentOnLongClick.value()
+
+                                // Фаза 2: ждём движение или отпускание
                                 while (true) {
                                     val event = awaitPointerEvent(PointerEventPass.Initial)
-                                    val change = event.changes.firstOrNull { it.id == down.id }
-                                    if (change == null || !change.pressed) break
-                                    val delta = change.position - change.previousPosition
-                                    if (delta != Offset.Zero) {
-                                        totalDrag += delta
-                                        if (!dragStarted && totalDrag.getDistance() > viewConfiguration.touchSlop) {
-                                            dragStarted = true
-                                            contextMenuExpanded = false
-                                            if (!currentEditorState.value.editing.value) {
-                                                currentEditorState.value.enterEdit()
-                                            }
-                                            currentOnDragStart.value(currentTile.value)
-                                        }
-                                        if (dragStarted) {
-                                            currentOnDrag.value(totalDrag)
-                                            change.consume()
-                                        }
+                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                    if (!change.pressed) break
+                                    totalDrag += change.position - change.previousPosition
+                                    if (!dragStarted &&
+                                        totalDrag.getDistance() > viewConfiguration.touchSlop * 0.4f
+                                    ) {
+                                        dragStarted = true
+                                        contextMenuExpanded = false
+                                        // Без входа в режим редактирования: иначе док
+                                        // переключается на пресеты и сетка пересчитывается
+                                        currentOnDragStart.value(currentTile.value)
+                                    }
+                                    if (dragStarted) {
+                                        change.consume()
+                                        currentOnDrag.value(totalDrag)
                                     }
                                 }
                                 if (dragStarted) currentOnDragEnd.value()
-                            } catch (_: Exception) {
-                                if (dragStarted) currentOnDragEnd.value()
+                            } else if (!moved &&
+                                tile.clickable &&
+                                !(tile.type == TileType.WIDGET && tile.payload == "appwidget")
+                            ) {
+                                currentOnClick.value(launchCoordinates?.screenBounds(rootView))
                             }
-                        } else if (
-                            !moved &&
-                            tile.clickable &&
-                            !(tile.type == TileType.WIDGET && tile.payload == "appwidget")
-                        ) {
-                            currentOnClick.value(launchCoordinates?.screenBounds(rootView))
+                        } catch (_: Exception) {
+                            if (dragStarted) currentOnDragEnd.value()
                         }
                     }
                 }
@@ -534,6 +560,9 @@ fun TileCell(
         Box(Modifier.align(Alignment.TopEnd)) {
             DropdownMenu(
                 expanded = contextMenuExpanded,
+                // non-focusable: попап не забирает фокус и не отменяет начатый жест,
+                // поэтому после долгого нажатия плитку можно тянуть тем же пальцем
+                properties = androidx.compose.ui.window.PopupProperties(focusable = false),
                 onDismissRequest = { contextMenuExpanded = false }
             ) {
                 if (appPackage != null) {
