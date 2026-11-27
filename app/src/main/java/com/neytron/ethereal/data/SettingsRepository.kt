@@ -78,7 +78,6 @@ object SettingsRepository {
     private const val DEFAULT_TILE_RADIUS = 16f
 
 
-    private const val KEY_ANALYTICS_ENABLED = "analytics_enabled"
 
 
     // === Virtual Apps (законсервировано) ===
@@ -485,14 +484,4 @@ object SettingsRepository {
     fun setLastSpaceId(context: Context, spaceId: String) {
         prefs(context).edit().putString(KEY_LAST_SPACE_ID, spaceId).apply()
     }
-
-
-    fun getAnalyticsEnabled(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_ANALYTICS_ENABLED, true)   // дефолт ВКЛ
-
-    fun setAnalyticsEnabled(context: Context, value: Boolean) {
-        prefs(context).edit().putBoolean(KEY_ANALYTICS_ENABLED, value).apply()
-    }
-
-
 }

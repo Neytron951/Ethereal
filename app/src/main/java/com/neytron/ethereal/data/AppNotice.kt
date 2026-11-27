@@ -41,9 +41,9 @@ object Notices {
             ## Feedback
             - If you like Ethereal, please **star it on GitHub** — it's the main place for rating and stars really matter there.
             - If something is missing in Ethereal or feels "weak", **open an issue on GitHub**. It's not hard — no strict reporting or formatting required.
-            - The project uses **Firebase Crashlytics**, but the info there doesn't always capture the full picture of a problem.
+            - Please describe the problem in as much detail as possible — the launcher no longer sends any telemetry, so your report is the only source.
 
-            *P.S. If Firebase bothers you, you can disable it on the About page.*
+            *P.S. Ethereal does not collect any analytics: no Firebase, no Crashlytics, no AdMob.*
 
             ---
 

@@ -186,6 +186,9 @@ inline fun Float.scaled(): Float = this
 /**
  * Плотность поверхности в плоском стиле: почти непрозрачная, но ноль остаётся нулём
  * (так «плитки-иконки» без фона продолжают жить без подложки).
+ *
+ * Не private: обзор пространств обязан считать прозрачность миниатюр ровно так же,
+ * иначе превью и живой экран расходятся.
  */
-private fun flatPanelOpacity(opacity: Float): Float =
+internal fun flatPanelOpacity(opacity: Float): Float =
     if (opacity <= 0.01f) 0f else maxOf(opacity, 0.92f)

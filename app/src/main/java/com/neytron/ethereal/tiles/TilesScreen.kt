@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.neytron.ethereal.R
-import com.neytron.ethereal.data.AnalyticsHelper
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.tiles.editor.CreateSpaceDialog
 import com.neytron.ethereal.tiles.editor.SpacePreset
@@ -98,7 +97,18 @@ fun TilesScreen(
     onOpenSpace: (String) -> Unit,
     showCreateSpaceDialog: Boolean,
     onShowCreateSpaceDialogChange: (Boolean) -> Unit,
-    onRequestSpacesOverview: () -> Unit = {},
+    /**
+     * Живой жест «отдаление»: отдаём прямо в камеру мира, чтобы домашний экран
+     * уменьшался под пальцами, а не открывался оверлеем после порога.
+     */
+    onSpaceZoom: (focalPx: Offset, spanPx: Float) -> Unit = { _, _ -> },
+    onSpaceZoomEnd: () -> Unit = {},
+    /**
+     * Следующая смена пространства пришла из мира (камера уже привела в него),
+     * поэтому внутренний переход PUSH/POP не нужен — иначе анимация двойная.
+     */
+    instantSpaceSwitch: Boolean = false,
+    onInstantSpaceSwitchConsumed: () -> Unit = {},
     swipeUpEnabled: Boolean = true,
     introReveal: Boolean = false,
     isIntroActive: Boolean = false,
@@ -206,6 +216,16 @@ fun TilesScreen(
         if (currentSpaceId != previousSpaceId) {
             val oldSpaceId = previousSpaceId
             previousSpaceId = currentSpaceId
+
+            if (instantSpaceSwitch) {
+                // Вход из мира: камера уже показала этот экран, переход не играем.
+                isTransitioning = false
+                oldTilesState = emptyList()
+                incomingTilesState = emptyList()
+                targetProgress = 0f
+                onInstantSpaceSwitchConsumed()
+                return@LaunchedEffect
+            }
 
             if (!isTransitioning) {
                 val newTiles = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -602,7 +622,6 @@ fun TilesScreen(
                 )
                 updated?.let {
                     onTilesChange(it)
-                    AnalyticsHelper.logWidgetAdded(context)
                 } ?: scope.launch {
                     snackbarHostState.showSnackbar(noSpaceMsg)
                 }
@@ -635,7 +654,6 @@ fun TilesScreen(
                 )
                 updated?.let {
                     onTilesChange(it)
-                    AnalyticsHelper.logWidgetAdded(context)
                 }
             }
         } else {
@@ -650,7 +668,6 @@ fun TilesScreen(
             )
             updated?.let {
                 onTilesChange(it)
-                AnalyticsHelper.logWidgetAdded(context)
             } ?: scope.launch {
                 snackbarHostState.showSnackbar(noSpaceMsg)
             }
@@ -709,31 +726,42 @@ fun TilesScreen(
         }
     }
 
-    val requestOverviewState by rememberUpdatedState(onRequestSpacesOverview)
+    val onSpaceZoomState by rememberUpdatedState(onSpaceZoom)
+    val onSpaceZoomEndState by rememberUpdatedState(onSpaceZoomEnd)
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                // Жест «отдаление»: сводим два пальца — открываем обзор пространств.
-                // Срабатывает только на явный pinch, чтобы не мешать drag плиток.
-                var accumulated = 1f
+                // Жест «отдаление» отдаём камере непрерывно, пальцы ведут масштаб.
+                // Панорамирование в камеру уходит только вместе с зумом, иначе
+                // двухпальцевый пан на домашнем экране сдвигал бы его с места.
                 awaitEachGesture {
-                    accumulated = 1f
+                    var lastSpan = 0f
+                    var lastCentroid: Offset? = null
+                    var zoomed = false
                     do {
                         val event = awaitPointerEvent()
-                        val pressed = event.changes.count { it.pressed }
-                        if (pressed >= 2) {
-                            val zoom = event.calculateZoom()
-                            if (zoom != 1f) {
-                                accumulated *= zoom
-                                if (accumulated < 0.78f) {
-                                    accumulated = 1f
-                                    requestOverviewState()
-                                }
+                        val pressed = event.changes.filter { it.pressed }
+                        if (pressed.size >= 2) {
+                            val centroid = pressed
+                                .map { it.position }
+                                .reduce { a, b -> a + b } / pressed.size.toFloat()
+                            val span = (pressed[0].position - pressed[1].position).getDistance()
+                            // Отдаём «сырые» величину и центр: перевод в экранные
+                            // координаты делает камера, иначе масштаб зацикливается сам на себя.
+                            if (lastCentroid != null && lastSpan > 1f) {
+                                zoomed = true
+                                onSpaceZoomState(centroid, span)
                             }
+                            lastCentroid = centroid
+                            lastSpan = span
+                        } else {
+                            lastCentroid = null
+                            lastSpan = 0f
                         }
                     } while (event.changes.any { it.pressed })
+                    if (zoomed) onSpaceZoomEndState()
                 }
             }
     ) {
@@ -971,7 +999,6 @@ fun TilesScreen(
                         iconText = iconText
                     )
 
-                    AnalyticsHelper.logSpaceCreated(context)
 
                     val spaceMeta = SpaceRepository.getSpace(context, newId)
                     if (spaceMeta != null) {
@@ -1018,8 +1045,12 @@ fun TilesScreen(
                         rows = currentRows,
                         preset = preset
                     )
-                    // Раскладываем канвас сразу: новое пространство встанет рядом с родителем
-                    SpaceRepository.ensureCanvasPositions(context)
+                    // Раскладываем мир сразу: новое пространство встанет рядом с родителем
+                    SpaceRepository.ensureCanvasPositions(
+                        context,
+                        configuration.screenWidthDp.toFloat(),
+                        configuration.screenHeightDp.toFloat()
+                    )
 
                     onShowCreateSpaceDialogChange(false)
                 }

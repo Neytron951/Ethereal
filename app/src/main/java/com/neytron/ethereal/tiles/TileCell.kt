@@ -396,7 +396,7 @@ fun TileCell(
                     .resizeCornerIndicator(isEditing, canResizeTile, palette, radius),
                 contentModifier = Modifier
                     .fillMaxSize()
-                    .then(if (flat) Modifier else Modifier.tileTexture(tile.style, palette))
+                    .tileTexture(tile.style, palette)
             ) {
                 when (tile.type) {
                     TileType.EMPTY -> { }
@@ -449,7 +449,7 @@ fun TileCell(
                     }
 
                     TileType.APP_LAUNCHER -> {
-                        AppLauncherContent(
+                        TileAppIconContent(
                             tile = tile,
                             tileSize = tileSize,
                             palette = palette,
@@ -609,8 +609,12 @@ fun TileCell(
 // APP_LAUNCHER
 // ============================================================
 
+/**
+ * Иконка и подпись APP_LAUNCHER-плитки. Вынесена из TileCell, чтобы обзор
+ * пространств рисовал те же иконки тем же кэшем, а не собственную заглушку.
+ */
 @Composable
-private fun AppLauncherContent(
+internal fun TileAppIconContent(
     tile: Tile,
     tileSize: Dp,
     palette: EtherealPalette,
@@ -726,7 +730,7 @@ private fun AppLauncherContent(
 // ============================================================
 
 @Composable
-private fun ClockTileContent(tileSize: Dp, palette: EtherealPalette, contentScale: Float) {
+internal fun ClockTileContent(tileSize: Dp, palette: EtherealPalette, contentScale: Float) {
     // Сами часы не перерисовываются: без тика время «замерзает» на моменте
     // первой композиции (например, показывает 12:37 в два часа ночи).
     val nowMs = rememberMinuteTick()
@@ -763,7 +767,7 @@ private fun ClockTileContent(tileSize: Dp, palette: EtherealPalette, contentScal
 }
 
 @Composable
-private fun WeatherTileContent(
+internal fun WeatherTileContent(
     context: android.content.Context,
     tile: Tile,
     tileSize: Dp,
@@ -815,7 +819,7 @@ private fun WeatherTileContent(
 }
 
 @Composable
-private fun SearchTileContent(tileSize: Dp, palette: EtherealPalette, contentScale: Float) {
+internal fun SearchTileContent(tileSize: Dp, palette: EtherealPalette, contentScale: Float) {
     val searchLabel = stringResource(R.string.tile_search)
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -858,7 +862,7 @@ private fun rememberMinuteTick(): Long {
  * Рамка под произвольную форму: «жидкое стекло» умеет только скруглённый прямоугольник,
  * для остальных форм рисуем аккуратный контур по пути.
  */
-private fun tileBorderForShape(
+internal fun tileBorderForShape(
     style: TileStyle,
     palette: EtherealPalette,
     shape: Shape,

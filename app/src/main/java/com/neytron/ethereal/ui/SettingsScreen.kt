@@ -3,7 +3,10 @@ package com.neytron.ethereal.ui
 import android.content.Context
 import android.os.Build
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -52,6 +55,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import com.neytron.ethereal.BuildConfig
 import com.neytron.ethereal.R
+import com.neytron.ethereal.data.CustomFontRepository
 import com.neytron.ethereal.tiles.TileBorderStyle
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.data.IconPackInfo
@@ -197,8 +201,6 @@ fun SettingsScreen(
     onPickGrid: (Int, Int) -> Unit = { _, _ -> },
     onResizeIndicatorEnabledChange: (Boolean) -> Unit,
     onResetTiles: () -> Unit,
-    analyticsEnabled: Boolean,
-    onAnalyticsEnabledChange: (Boolean) -> Unit,
     updateInfo: UpdateInfo?,
     updateChecking: Boolean,
     onCheckForUpdates: () -> Unit,
@@ -391,8 +393,6 @@ fun SettingsScreen(
                         SettingsTab.ABOUT -> AboutTab(
                             palette = currentPalette,
                             onRestartOnboarding = onRestartOnboarding,
-                            analyticsEnabled = analyticsEnabled,
-                            onAnalyticsEnabledChange = onAnalyticsEnabledChange,
                             updateInfo = updateInfo,
                             updateChecking = updateChecking,
                             onCheckForUpdates = onCheckForUpdates,
@@ -570,8 +570,6 @@ fun SettingsScreen(
                             SettingsTab.ABOUT -> AboutTab(
                                 palette = currentPalette,
                                 onRestartOnboarding = onRestartOnboarding,
-                                analyticsEnabled = analyticsEnabled,
-                                onAnalyticsEnabledChange = onAnalyticsEnabledChange,
                                 updateInfo = updateInfo,
                                 updateChecking = updateChecking,
                                 onCheckForUpdates = onCheckForUpdates,
@@ -1756,8 +1754,6 @@ private fun DockAppRow(
 private fun AboutTab(
     palette: EtherealPalette,
     onRestartOnboarding: (() -> Unit)? = null,
-    analyticsEnabled: Boolean,
-    onAnalyticsEnabledChange: (Boolean) -> Unit,
     updateInfo: UpdateInfo?,
     updateChecking: Boolean,
     onCheckForUpdates: () -> Unit,
@@ -1923,47 +1919,6 @@ private fun AboutTab(
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(palette.surfaceVariant.copy(alpha = 0.4f))
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.settings_analytics_title),
-                        color = palette.textPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(R.string.settings_analytics_subtitle),
-                        color = palette.textSecondary,
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Switch(
-                    checked = analyticsEnabled,
-                    onCheckedChange = onAnalyticsEnabledChange,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = palette.primary,
-                        checkedTrackColor = palette.primary.copy(alpha = 0.4f),
-                        uncheckedThumbColor = palette.textSecondary,
-                        uncheckedTrackColor = palette.outline
-                    )
-                )
-            }
-        }
 
         item {
             Text(
@@ -3395,12 +3350,31 @@ private fun FontDropdown(
     fontFamilyName: String,
     onFontFamilyChange: (String) -> Unit
 ) {
+    val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
 
-    val currentFont = try {
-        EtherealFont.valueOf(fontFamilyName)
-    } catch (e: Exception) {
-        EtherealFont.DEFAULT
+    val fontPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            val savedFont = CustomFontRepository.saveCustomFont(context, uri)
+            if (savedFont != null) {
+                onFontFamilyChange(savedFont.id)
+                Toast.makeText(context, R.string.settings_font_upload_success, Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, R.string.settings_font_upload_error, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val currentDisplayName = remember(fontFamilyName) {
+        CustomFontRepository.getDisplayName(context, fontFamilyName)
+    }
+    val currentFontFamily = remember(fontFamilyName) {
+        CustomFontRepository.getFontFamily(context, fontFamilyName)
+    }
+    val customFonts = remember(fontFamilyName, expanded) {
+        CustomFontRepository.getCustomFonts(context)
     }
 
     Column(
@@ -3435,10 +3409,10 @@ private fun FontDropdown(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = currentFont.displayName,
+                    text = currentDisplayName,
                     color = currentPalette.textPrimary,
                     fontSize = 14.sp,
-                    fontFamily = fontFamilyFor(currentFont),
+                    fontFamily = currentFontFamily,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
@@ -3455,17 +3429,66 @@ private fun FontDropdown(
                     .background(currentPalette.surface)
                     .heightIn(max = 400.dp)
             ) {
+                if (customFonts.isNotEmpty()) {
+                    customFonts.forEach { customFont ->
+                        val isSelected = fontFamilyName == customFont.id
+                        val fontFm = remember(customFont.id) {
+                            CustomFontRepository.getFontFamily(context, customFont.id)
+                        }
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "✦ ${customFont.displayName}",
+                                        color = if (isSelected) currentPalette.primary else currentPalette.textPrimary,
+                                        fontSize = 14.sp,
+                                        fontFamily = fontFm,
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .clickable {
+                                                CustomFontRepository.deleteCustomFont(context, customFont.id)
+                                                if (isSelected) {
+                                                    onFontFamilyChange(EtherealFont.DEFAULT.name)
+                                                }
+                                                expanded = false
+                                            }
+                                            .padding(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "✕",
+                                            color = currentPalette.textSecondary,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                onFontFamilyChange(customFont.id)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+
                 EtherealFont.values().forEach { font ->
+                    val isSelected = fontFamilyName == font.name
                     DropdownMenuItem(
                         text = {
                             Text(
                                 text = font.displayName,
-                                color = if (font == currentFont)
+                                color = if (isSelected)
                                     currentPalette.primary
                                 else currentPalette.textPrimary,
                                 fontSize = 14.sp,
                                 fontFamily = fontFamilyFor(font),
-                                fontWeight = if (font == currentFont)
+                                fontWeight = if (isSelected)
                                     FontWeight.SemiBold
                                 else FontWeight.Normal
                             )
@@ -3477,6 +3500,39 @@ private fun FontDropdown(
                     )
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(currentPalette.primary.copy(alpha = 0.15f))
+                .clickable {
+                    fontPickerLauncher.launch(
+                        arrayOf(
+                            "font/ttf",
+                            "font/otf",
+                            "font/sfnt",
+                            "application/x-font-ttf",
+                            "application/x-font-otf",
+                            "application/x-font-truetype",
+                            "application/octet-stream",
+                            "*/*"
+                        )
+                    )
+                }
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "＋ " + stringResource(R.string.settings_font_upload),
+                color = currentPalette.primary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }

@@ -66,6 +66,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.neytron.ethereal.R
 import com.neytron.ethereal.call.SoundWavePair
 import com.neytron.ethereal.data.AppInfo
+import com.neytron.ethereal.data.CustomFontRepository
 import com.neytron.ethereal.ui.theme.AllPalettes
 import com.neytron.ethereal.ui.theme.EtherealFont
 import com.neytron.ethereal.ui.theme.EtherealPalette
@@ -1094,12 +1095,9 @@ private fun SeamlessExpandAndHoldScene(
     var showHint by remember { mutableStateOf(false) }
     var isHoldingGlobal by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
     val ownFontFamily = remember(fontFamilyName) {
-        try {
-            fontFamilyFor(EtherealFont.valueOf(fontFamilyName))
-        } catch (_: Exception) {
-            null
-        }
+        CustomFontRepository.getFontFamily(context, fontFamilyName)
     }
 
     LaunchedEffect(Unit) {

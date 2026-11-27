@@ -29,10 +29,6 @@
         android:localeConfig="@xml/locales_config"
         android:theme="@style/Theme.Ethereal">
 
-        <!-- Firebase: не собираем рекламный ID -->
-        <meta-data
-            android:name="google_analytics_adid_collection_enabled"
-            android:value="false" />
 
         <!-- Launcher -->
         <activity

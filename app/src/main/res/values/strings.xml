@@ -137,6 +137,10 @@
     <string name="settings_theme_wallpaper">Wallpaper colors</string>
     <string name="settings_font">Font</string>
     <string name="settings_font_subtitle">Font family</string>
+    <string name="settings_font_upload">Upload Custom Font (.ttf / .otf)</string>
+    <string name="settings_font_upload_success">Font loaded successfully</string>
+    <string name="settings_font_upload_error">Failed to load font file</string>
+    <string name="settings_font_custom_header">Custom Fonts</string>
     <string name="settings_panel_opacity">Panel opacity</string>
     <string name="settings_panel_opacity_subtitle">Transparency for ESearch, Dock and Settings</string>
     <string name="settings_panel_blur">Panel blur</string>
@@ -229,9 +233,6 @@
     <string name="settings_about_developed_by">Developed by</string>
     <string name="settings_about_license">GNU General Public License v3.0</string>
 
-    <!-- Settings: About - Analytics toggle -->
-    <string name="settings_analytics_title">Help improve Ethereal</string>
-    <string name="settings_analytics_subtitle">We only receive anonymous stats: which themes are popular, how many people use search. No names, apps or location.</string>
 
     <!-- Widgets -->
     <string name="widget_clock_description">Clock</string>
@@ -462,6 +463,7 @@
     <string name="onboarding_layout_pick_apps">Apps for Home — %1$d of %2$d</string>
     <string name="onboarding_layout_pick_hint">Pick the apps you want on the first screen. Tap again to remove.</string>
     <string name="overview_hint">Pinch to go back. Tap a card or open the nearest one.</string>
+    <string name="world_hint">Tap a space to enter. Pinch to pull the camera back.</string>
     <string name="overview_open_space">Open “%1$s”</string>
     <string name="overview_now">Now</string>
     <string name="settings_theme_custom_title">Custom palette</string>

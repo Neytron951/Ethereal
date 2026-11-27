@@ -137,6 +137,10 @@
     <string name="settings_theme_wallpaper">Цвета обоев</string>
     <string name="settings_font">Шрифт</string>
     <string name="settings_font_subtitle">Семейство шрифта</string>
+    <string name="settings_font_upload">Загрузить свой шрифт (.ttf / .otf)</string>
+    <string name="settings_font_upload_success">Шрифт успешно загружен</string>
+    <string name="settings_font_upload_error">Не удалось загрузить файл шрифта</string>
+    <string name="settings_font_custom_header">Пользовательские шрифты</string>
     <string name="settings_panel_opacity">Непрозрачность панелей</string>
     <string name="settings_panel_opacity_subtitle">Прозрачность ESearch, Dock и настроек</string>
     <string name="settings_panel_blur">Размытие панелей</string>
@@ -229,9 +233,6 @@
     <string name="settings_about_developed_by">Developed by</string>
     <string name="settings_about_license">GNU General Public License v3.0</string>
 
-    <!-- Settings: About - Analytics toggle -->
-    <string name="settings_analytics_title">Помогать улучшать Ethereal</string>
-    <string name="settings_analytics_subtitle">Делимся только анонимной статистикой. Какие темы популярны, сколько людей пользуется поиском. Без имён, приложений и местоположения.</string>
 
     <!-- Widgets -->
     <string name="widget_clock_description">Часы</string>
@@ -462,6 +463,7 @@
     <string name="onboarding_layout_pick_apps">Приложения для Home — %1$d из %2$d</string>
     <string name="onboarding_layout_pick_hint">Выбери приложения для первого экрана. Повторный тап убирает.</string>
     <string name="overview_hint">Сведите пальцы, чтобы вернуться. Тапните карточку или откройте ближайшую.</string>
+    <string name="world_hint">Тапните пространство, чтобы войти. Сведите пальцы — камера отъедет назад.</string>
     <string name="overview_open_space">Открыть «%1$s»</string>
     <string name="overview_now">Сейчас</string>
     <string name="settings_theme_custom_title">Своя палитра</string>

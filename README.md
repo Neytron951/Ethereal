@@ -103,7 +103,7 @@ The first launch walks you through theme, font, dock, grid size and a starter la
 ## Tech Stack & Requirements
 
 - **Requirements:** Android 8.1+ (API 27+), target SDK 37. No Google Play Services required.
-- **Stack:** 100% Kotlin, Jetpack Compose (Material 3), Coil, WorkManager, Firebase Analytics/Crashlytics (optional, off by default).
+- **Stack:** 100% Kotlin, Jetpack Compose (Material 3), Coil, WorkManager. No analytics, crash reporting or ad SDKs.
 - **Toolchain:** AGP 9.4.1, Kotlin 2.2.10, Gradle 9.6.0.
 
 ```bash
@@ -118,4 +118,4 @@ cd Ethereal
 ## License & Privacy
 
 - **License:** [GPL-3.0 License](LICENSE.txt).
-- **Privacy:** Optional, anonymous analytics (can be disabled anytime in Settings). No search history, package names, or location data collected. Backups are plain JSON files that never leave your device unless you share them.
+- **Privacy:** No analytics, no trackers, no crash reporting — nothing is collected or sent. No search history, package names, or location data leaves the device. Backups are plain JSON files that never leave your device unless you share them.

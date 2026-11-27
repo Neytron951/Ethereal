@@ -71,13 +71,23 @@ object SpaceRepository {
         getAllSpaces(context).firstOrNull { it.id == spaceId }
 
     /**
-     * Раскладка канваса обзора.
+     * Раскладка мира пространств.
      *
-     * Дети встают кольцом вокруг своего родителя (по часовой стрелке, в порядке создания),
-     * поэтому структура читается как дерево, а не как случайные точки. ROOT — в (0, 0).
-     * Ручные позиции ([SpaceMeta.canvasManual]) не трогаем.
+     * Пространство в мире — это настоящий экран размером [screenWidthDp]×[screenHeightDp],
+     * поэтому канвас держит структуру деревом: глубина — колонка, братья — вертикаль.
+     * Родитель стоит по центру своих детей, между ними остаётся зазор, в котором
+     * видна нитка. Поддеревья не перекрываются. ROOT всегда в (0, 0).
+     *
+     * Ручные позиции ([SpaceMeta.canvasManual]) не трогаем — их человек
+     * расставил сам, и они переживают пересчёт.
      */
-    fun ensureCanvasPositions(context: Context): List<SpaceMeta> {
+    fun ensureCanvasPositions(
+        context: Context,
+        screenWidthDp: Float,
+        screenHeightDp: Float
+    ): List<SpaceMeta> {
+        migrateCanvasLayout(context, screenWidthDp)
+
         val spaces = getAllSpaces(context)
         if (spaces.isEmpty()) return spaces
 
@@ -113,33 +123,64 @@ object SpaceRepository {
             }
         }
 
+        val frameW = screenWidthDp.coerceAtLeast(320f)
+        val frameH = screenHeightDp.coerceAtLeast(480f)
+        // Зазор между колонками — в нём должна быть видна нитка родитель → ребёнок.
+        val gapX = (frameW * 0.55f).coerceAtLeast(170f)
+        val gapY = (frameH * 0.10f).coerceAtLeast(56f)
+        val stepX = frameW + gapX
+        val stepY = frameH + gapY
+
         val positions = HashMap<String, Pair<Float, Float>>()
-        positions[rootId] = 0f to 0f
+        val placed = HashSet<String>()
+        var leafCursor = 0f
 
-        val queue = ArrayDeque<String>()
-        queue.add(rootId)
-        val visited = HashSet<String>()
-
-        while (queue.isNotEmpty()) {
-            val parent = queue.removeFirst()
-            if (!visited.add(parent)) continue
-
-            val kids = childrenOf[parent].orEmpty()
+        /**
+         * Дерево, а не лента: глубина — это колонка (x), братья — вертикаль (y).
+         * Лист занимает следующий свободный слот, родитель встаёт по центру
+         * своих детей. Поэтому структура читается как древо, и поддеревья
+         * никогда не наезжают друг на друга.
+         */
+        fun layoutSubtree(id: String, depth: Int): Float {
+            placed.add(id)
+            val kids = childrenOf[id].orEmpty()
+                .filter { byId.containsKey(it) && !placed.contains(it) }
                 .sortedBy { byId[it]?.createdAt ?: 0L }
-            if (kids.isEmpty()) continue
 
-            val (px, py) = positions[parent] ?: (0f to 0f)
-            val count = kids.size
-            // Кольцо: при 1–4 детях радиус фиксированный, дальше чуть растёт
-            val radius = if (count <= 4) 800.0 else 800.0 + (count - 4) * 140.0
-
-            kids.forEachIndexed { index, childId ->
-                if (positions.containsKey(childId)) return@forEachIndexed
-                val angle = -Math.PI / 2.0 + index * (2.0 * Math.PI / count)
-                positions[childId] = (px + Math.cos(angle) * radius).toFloat() to
-                    (py + Math.sin(angle) * radius).toFloat()
-                queue.add(childId)
+            val centerY: Float
+            if (kids.isEmpty()) {
+                centerY = leafCursor + frameH / 2f
+                leafCursor += stepY
+            } else {
+                var first = 0f
+                var last = 0f
+                kids.forEachIndexed { index, childId ->
+                    val childCenter = layoutSubtree(childId, depth + 1)
+                    if (index == 0) first = childCenter
+                    last = childCenter
+                }
+                centerY = (first + last) / 2f
             }
+
+            positions[id] = (depth * stepX) to (centerY - frameH / 2f)
+            return centerY
+        }
+
+        layoutSubtree(rootId, 0)
+
+        // Кто не попал в дерево (циклы, битые порталы) — отдельными слотами справа,
+        // но не теряем: они остаются на канвасе.
+        spaces.forEach { meta ->
+            if (!positions.containsKey(meta.id)) {
+                positions[meta.id] = stepX to leafCursor
+                leafCursor += stepY
+            }
+        }
+
+        // ROOT всегда в (0, 0): от него отсчитывается камера и все остальные.
+        val rootPos = positions[rootId] ?: (0f to 0f)
+        positions.replaceAll { _, pos ->
+            (pos.first - rootPos.first) to (pos.second - rootPos.second)
         }
 
         var changed = false
@@ -154,8 +195,51 @@ object SpaceRepository {
             }
         }
 
-        if (changed) saveAll(context, updated)
+        if (changed) {
+            // Перечитываем перед записью: пока считали раскладку, человек мог
+            // перетащить экран. Его ручную позицию авто-раскладка не затирает.
+            val latest = getAllSpaces(context).associateBy { it.id }
+            val merged = updated.map { meta ->
+                val fresh = latest[meta.id]
+                if (fresh != null && fresh.canvasManual && !meta.canvasManual) fresh else meta
+            }
+            saveAll(context, merged)
+            return merged
+        }
         return updated
+    }
+
+    /** Версия раскладки мира: 1 — старые карточки 230×480, 3 — дерево экранов. */
+    private const val KEY_CANVAS_VERSION = "spaces_canvas_version"
+    private const val CANVAS_VERSION = 3
+
+    /**
+     * Старые позиции считались для карточек 230×480 dp. Не выбрасываем ручную
+     * расстановку, а переводим её в новый масштаб экранов: человек свою
+     * раскладку не теряет (в версии 2 она, к сожалению, уже сбрасывалась).
+     */
+    private fun migrateCanvasLayout(context: Context, screenWidthDp: Float) {
+        val prefs = prefs(context)
+        val version = prefs.getInt(KEY_CANVAS_VERSION, 1)
+        if (version >= CANVAS_VERSION) return
+
+        if (version < 2) {
+            val factor = (screenWidthDp / 230f).coerceIn(1f, 3f)
+            val spaces = getAllSpaces(context)
+            if (spaces.isNotEmpty()) {
+                saveAll(
+                    context,
+                    spaces.map { meta ->
+                        if (meta.canvasManual && !meta.canvasX.isNaN() && !meta.canvasY.isNaN()) {
+                            meta.copy(canvasX = meta.canvasX * factor, canvasY = meta.canvasY * factor)
+                        } else {
+                            meta
+                        }
+                    }
+                )
+            }
+        }
+        prefs.edit().putInt(KEY_CANVAS_VERSION, CANVAS_VERSION).apply()
     }
 
     /** Сохраняет позицию карточки, перетащенной пользователем. */

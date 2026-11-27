@@ -193,7 +193,6 @@ fun applyDesignPreset(context: Context, preset: DesignPreset) {
                     borderStyle = spec.borderStyle,
                     borderWidth = spec.borderWidth,
                     borderOpacity = spec.borderOpacity,
-                    texture = TileTexture.NONE,
                     shape = spec.tileShape
                 )
             )

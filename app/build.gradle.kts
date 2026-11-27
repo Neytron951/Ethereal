@@ -1,8 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    id("com.google.gms.google-services")
-    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -15,8 +13,8 @@ android {
         applicationId = "com.neytron.ethereal"
         minSdk = 27
         targetSdk = 37
-        versionCode = 13
-        versionName = "1.8.1"
+        versionCode = 14
+        versionName = "1.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -26,6 +24,16 @@ android {
             optimization {
                 enable = false
             }
+        }
+    }
+    signingConfigs {
+        getByName("debug") {
+            // Отладочный ключ лежит в проекте, чтобы сборка не зависела от
+            // C:\Users\<user>\.android (внешняя папка может быть недоступна на запись)
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
         }
     }
     compileOptions {
@@ -51,10 +59,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil-gif:2.6.0")
 
-    // === Firebase ===
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-    implementation("com.google.firebase:firebase-analytics-ktx")
-    implementation("com.google.firebase:firebase-crashlytics-ktx")
+    // Firebase / AdMob / Crashlytics удалены полностью
 
     // === WorkManager (фоновые проверки обновлений) ===
     implementation("androidx.work:work-runtime-ktx:2.11.2")

@@ -84,7 +84,6 @@ object BackupRepository {
                 put("resize_indicator_enabled", SettingsRepository.getResizeIndicatorEnabled(context))
 
                 put("wallpaper_scale_mode", SettingsRepository.getWallpaperScaleMode(context))
-                put("analytics_enabled", SettingsRepository.getAnalyticsEnabled(context))
 
                 // Полный снимок настроек: так в бэкап попадает всё, включая новые ключи,
                 // которые появились уже после этой версии формата.
@@ -405,6 +404,9 @@ object BackupRepository {
         File(context.filesDir, "space_icons").listFiles()
             ?.filter { it.isFile }
             ?.forEach { files += it to "space_icon" }
+        File(context.filesDir, "fonts").listFiles()
+            ?.filter { it.isFile && (it.name.endsWith(".ttf", ignoreCase = true) || it.name.endsWith(".otf", ignoreCase = true)) }
+            ?.forEach { files += it to "font" }
 
         var totalBytes = 0L
         return files.mapNotNull { (file, kind) ->
@@ -415,13 +417,14 @@ object BackupRepository {
                 totalBytes += len
                 if (totalBytes > 128L * 1024 * 1024) return@mapNotNull null
                 val bytes = file.readBytes()
-                val compressedBytes = compressImageBytes(bytes)
+                val ext = file.extension.lowercase().ifEmpty { if (kind == "font") "ttf" else "jpg" }
+                val processedBytes = if (kind == "font") bytes else compressImageBytes(bytes)
                 BackupAsset(
                     id = UUID.randomUUID().toString(),
                     kind = kind,
-                    extension = "jpg",
-                    sha256 = sha256(compressedBytes),
-                    bytes = compressedBytes,
+                    extension = ext,
+                    sha256 = sha256(processedBytes),
+                    bytes = processedBytes,
                     source = file
                 )
             } catch (_: Exception) {
@@ -487,11 +490,11 @@ object BackupRepository {
             val id = item.getString("id")
             require(id.matches(Regex("[0-9a-fA-F-]{36}")) && ids.add(id)) { "Invalid or duplicate asset id" }
             val kind = item.getString("kind")
-            require(kind in setOf("current_wallpaper", "wallpaper", "tile_image", "space_icon")) { "Unknown asset type" }
+            require(kind in setOf("current_wallpaper", "wallpaper", "tile_image", "space_icon", "font")) { "Unknown asset type" }
             if (kind == "current_wallpaper") currentWallpaperCount++
             require(currentWallpaperCount <= 1) { "Multiple current wallpapers" }
             val extension = item.getString("extension").lowercase()
-            require(extension in setOf("jpg", "jpeg", "png", "webp", "gif")) { "Invalid asset extension" }
+            require(extension in setOf("jpg", "jpeg", "png", "webp", "gif", "ttf", "otf")) { "Invalid asset extension" }
             val expectedHash = item.getString("sha256")
             require(expectedHash.matches(Regex("[0-9a-f]{64}"))) { "Invalid asset checksum" }
             val encoded = item.getString("data")
@@ -512,6 +515,7 @@ object BackupRepository {
             "current_wallpaper" -> return WallpaperRepository.getCurrentFile(context)
             "wallpaper" -> File(context.filesDir, "wallpapers")
             "space_icon" -> File(context.filesDir, "space_icons")
+            "font" -> File(context.filesDir, "fonts")
             else -> File(context.filesDir, "tile_images")
         }
         if (!dir.exists()) dir.mkdirs()
@@ -530,6 +534,7 @@ object BackupRepository {
         val prefix = when (asset.kind) {
             "wallpaper" -> "wallpaper_user_restore_"
             "space_icon" -> "space_restore_"
+            "font" -> "custom_font_restore_"
             else -> "tile_restore_"
         }
         return File(dir, "$prefix${asset.id}.${asset.extension}")
@@ -618,7 +623,7 @@ object BackupRepository {
         val booleanKeys = listOf(
             "dock_use_override", "dock_scrollable", "dock_show_icon_bg",
             "dock_themed_icons", "esearch_use_override", "esearch_auto_keyboard",
-            "analytics_enabled", "resize_indicator_enabled"
+                "resize_indicator_enabled"
         )
         booleanKeys.forEach { key ->
             if (settings.has(key)) require(settings.get(key) is Boolean) { "Invalid setting: $key" }
@@ -685,7 +690,6 @@ object BackupRepository {
             "dock_themed_icons" to "dock_themed_icons",
             "esearch_use_override" to "esearch_use_override",
             "esearch_auto_keyboard" to "esearch_auto_keyboard",
-            "analytics_enabled" to "analytics_enabled",
             "resize_indicator_enabled" to "resize_indicator_enabled"
         )
         booleans.forEach { (source, target) ->

@@ -25,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -35,7 +37,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.neytron.ethereal.ui.theme.LocalWallpaperContainerCoordinates
 import androidx.lifecycle.Lifecycle
@@ -57,7 +61,6 @@ import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
 import coil.compose.AsyncImage
 import java.io.File
-import com.neytron.ethereal.data.AnalyticsHelper
 import com.neytron.ethereal.data.AppInfo
 import com.neytron.ethereal.data.AppIconStore
 import com.neytron.ethereal.data.Notices
@@ -65,6 +68,7 @@ import com.neytron.ethereal.data.AppRepository
 import com.neytron.ethereal.data.IconPackInfo
 import com.neytron.ethereal.data.IconPackRepository
 import com.neytron.ethereal.data.BackupRepository
+import com.neytron.ethereal.data.CustomFontRepository
 import com.neytron.ethereal.data.SettingsRepository
 import com.neytron.ethereal.data.UpdateCheckWorker
 import com.neytron.ethereal.data.UpdateInfo
@@ -86,7 +90,12 @@ import com.neytron.ethereal.ui.DockBar
 import com.neytron.ethereal.ui.ESearchOverlay
 import com.neytron.ethereal.ui.NoticeOverlay
 import com.neytron.ethereal.ui.SpacePreview
-import com.neytron.ethereal.ui.SpacesOverview
+import com.neytron.ethereal.ui.SpaceGridParams
+import com.neytron.ethereal.ui.SpacesOverlay
+import com.neytron.ethereal.ui.SpacesWorldLayer
+import com.neytron.ethereal.ui.SpacesWorldState
+import com.neytron.ethereal.ui.animateCameraTo
+import com.neytron.ethereal.ui.neighborhoodCamera
 import com.neytron.ethereal.ui.OnboardingOverlay
 import com.neytron.ethereal.ui.StarterLayout
 import com.neytron.ethereal.ui.applyStarterLayout
@@ -112,6 +121,7 @@ import com.neytron.ethereal.ui.theme.WallpaperPaletteProvider
 import com.neytron.ethereal.ui.theme.fontFamilyFor
 import com.neytron.ethereal.ui.theme.paletteById
 import com.neytron.ethereal.utils.DeviceTiltProvider
+import com.neytron.ethereal.utils.AppIconBitmaps
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -201,9 +211,6 @@ fun EtherealApp() {
     var gridColumns by remember { mutableStateOf(SettingsRepository.getTileColumns(context)) }
     var starterPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    var analyticsEnabled by remember {
-        mutableStateOf(SettingsRepository.getAnalyticsEnabled(context))
-    }
 
     var esearchUseOverride by remember { mutableStateOf(SettingsRepository.getESearchUseOverride(context)) }
     var esearchOpacity by remember { mutableStateOf(SettingsRepository.getESearchOpacity(context)) }
@@ -271,9 +278,18 @@ fun EtherealApp() {
     var updateChecking by remember { mutableStateOf(false) }
     var showUpdateOverlay by remember { mutableStateOf(false) }
     var showNotice by remember { mutableStateOf(false) }
-    var showSpacesOverview by remember { mutableStateOf(false) }
+    // Камера мира пространств: один и тот же трансформ двигает и домашний экран,
+    // и мир вокруг него. Обзор здесь — это не оверлей, а отъезд камеры.
+    val spacesWorld = remember { SpacesWorldState() }
     var overviewRefresh by remember { mutableStateOf(0) }
     var spacePreviews by remember { mutableStateOf<List<SpacePreview>>(emptyList()) }
+    // Последний центроид/размах жеста в экранных координатах — чтобы зум не
+    // зацикливался на собственном масштабе домашнего экрана.
+    var pinchLastSpan by remember { mutableFloatStateOf(0f) }
+    var pinchLastFocal by remember { mutableStateOf(Offset.Zero) }
+    // Вход из мира Spatial: внутренний переход TilesScreen нужно пропустить,
+    // иначе открытие анимируется дважды.
+    var instantSpaceSwitch by remember { mutableStateOf(false) }
 
     val esearchPlaceholder = stringResource(R.string.esearch_placeholder)
     val backupExportSuccessMessage = stringResource(R.string.settings_backup_export_success)
@@ -345,71 +361,15 @@ fun EtherealApp() {
         }
     }
 
-    // === Обзор пространств ===
-    // Карточки показываем сразу из метаданных и кэша, а раскладки догружаем по одной:
-    // так открытие не ждёт разбора всех JSON и не дёргает анимацию.
+    // === Мир пространств ===
+    // Раскладки всех пространств держим готовыми заранее: жест «отдаление»
+    // ведёт камеру с первого кадра. Сборка вынесена ниже (после palette),
+    // потому что перед первой отрисовкой мира нужно прогреть иконки.
     val previewTilesCache = remember { mutableStateMapOf<String, List<Tile>>() }
 
-    LaunchedEffect(showSpacesOverview, overviewRefresh) {
-        if (showSpacesOverview) {
-            // Обзор открывается поверх — поиск не должен оставаться висеть
-            searchVisible = false
+    // Сама сборка мира — ниже, после palette: иконки прогреваются ДО первого
+    // присваивания spacePreviews, иначе миниатюры видны без иконок.
 
-            val metas = withContext(Dispatchers.IO) { SpaceRepository.ensureCanvasPositions(context) }
-
-            // 1. Мгновенный кадр: карточки без миниатюр (или с тем, что уже в кэше)
-            spacePreviews = buildList {
-                add(
-                    SpacePreview(
-                        id = ScreenStack.ROOT_ID,
-                        name = "Home",
-                        iconText = null,
-                        tiles = previewTilesCache[ScreenStack.ROOT_ID].orEmpty(),
-                        canvasX = 0f,
-                        canvasY = 0f,
-                        isRoot = true,
-                        parentId = null
-                    )
-                )
-                metas.forEach { meta ->
-                    add(
-                        SpacePreview(
-                            id = meta.id,
-                            name = meta.name,
-                            iconText = meta.iconText,
-                            tiles = previewTilesCache[meta.id].orEmpty(),
-                            canvasX = meta.canvasX,
-                            canvasY = meta.canvasY,
-                            parentId = null
-                        )
-                    )
-                }
-            }
-
-            // 2. Догружаем раскладки: обновляем миниатюры и находим родителей для ниток
-            val parentOf = HashMap<String, String>()
-            val ids = listOf(ScreenStack.ROOT_ID) + metas.map { it.id }
-
-            ids.forEach { ownerId ->
-                val tiles = previewTilesCache[ownerId] ?: withContext(Dispatchers.IO) {
-                    TileLayoutRepository.getTiles(context, ownerId)
-                }.also { previewTilesCache[ownerId] = it }
-
-                tiles.filter { it.type == TileType.SPACE && !it.payload.isNullOrBlank() }
-                    .forEach { tile -> parentOf.putIfAbsent(tile.payload!!, ownerId) }
-
-                spacePreviews = spacePreviews.map { preview ->
-                    if (preview.id == ownerId) {
-                        preview.copy(tiles = tiles, parentId = parentOf[preview.id])
-                    } else if (parentOf.containsKey(preview.id)) {
-                        preview.copy(parentId = parentOf[preview.id])
-                    } else {
-                        preview
-                    }
-                }
-            }
-        }
-    }
 
     // === Перехват кнопки Домой (Home) ===
     DisposableEffect(activity) {
@@ -421,11 +381,11 @@ fun EtherealApp() {
                     tileEditorState.editing.value ||
                     showUpdateOverlay ||
                     showNotice ||
-                    showSpacesOverview ||
+                    spacesWorld.isZoomedOut ||
                     screenStack.canGoBack
 
             if (isAnyOverlayOpen) {
-                showSpacesOverview = false
+                spacesWorld.reset()
                 showWidgetPickerSheet = false
                 showCreateSpaceDialog = false
                 settingsVisible = false
@@ -444,20 +404,6 @@ fun EtherealApp() {
         }
         onDispose {
             activity?.onHomePressed = null
-        }
-    }
-
-    // === Analytics: онбординг начинается ===
-    LaunchedEffect(isSetupCompleted) {
-        if (!isSetupCompleted) {
-            AnalyticsHelper.logOnboardingBegin(context)
-        }
-    }
-
-    // === Analytics: вход в режим редактирования ===
-    LaunchedEffect(tileEditorState.editing.value) {
-        if (tileEditorState.editing.value) {
-            AnalyticsHelper.logEditModeEntered(context)
         }
     }
 
@@ -541,15 +487,6 @@ fun EtherealApp() {
         }
     }
 
-    // === Firebase Analytics: инициализация и применение настройки ===
-    LaunchedEffect(analyticsEnabled) {
-        try {
-            com.google.firebase.FirebaseApp.initializeApp(context)
-            com.google.firebase.analytics.FirebaseAnalytics.getInstance(context)
-                .setAnalyticsCollectionEnabled(analyticsEnabled)
-        } catch (_: Exception) {
-        }
-    }
 
     // === Загрузка tiles при смене пространства ===
     val configuration = LocalConfiguration.current
@@ -738,6 +675,88 @@ fun EtherealApp() {
         }
     }
 
+    // === Мир пространств: раскладки + прогрев иконок ===
+    // Собираем всё разом и только потом показываем миру содержимое: иконки
+    // к этому моменту уже в кэше, поэтому миниатюры появляются сразу целиком,
+    // а не «догружаются» плитка за плиткой.
+    LaunchedEffect(overviewRefresh, currentSpaceId, apps.size, dockThemedIcons, palette.id) {
+        val displayMetrics = context.resources.displayMetrics
+        val screenWidthDp = displayMetrics.widthPixels / displayMetrics.density
+        val screenHeightDp = displayMetrics.heightPixels / displayMetrics.density
+
+        val metas = withContext(Dispatchers.IO) {
+            SpaceRepository.ensureCanvasPositions(context, screenWidthDp, screenHeightDp)
+        }
+
+        val ids = listOf(ScreenStack.ROOT_ID) + metas.map { it.id }
+        val layouts = withContext(Dispatchers.IO) {
+            ids.associateWith { ownerId ->
+                previewTilesCache[ownerId] ?: TileLayoutRepository.getTiles(context, ownerId)
+                    .also { previewTilesCache[ownerId] = it }
+            }
+        }
+
+        // Родитель = пространство, в чьей раскладке лежит портал в ребёнка
+        val parentOf = HashMap<String, String>()
+        ids.forEach { ownerId ->
+            layouts[ownerId].orEmpty()
+                .filter { it.type == TileType.SPACE && !it.payload.isNullOrBlank() }
+                .forEach { tile -> parentOf.putIfAbsent(tile.payload!!, ownerId) }
+        }
+
+        val previews = buildList {
+            add(
+                SpacePreview(
+                    id = ScreenStack.ROOT_ID,
+                    name = "Home",
+                    iconText = null,
+                    tiles = layouts[ScreenStack.ROOT_ID].orEmpty(),
+                    canvasX = 0f,
+                    canvasY = 0f,
+                    isRoot = true,
+                    parentId = null
+                )
+            )
+            metas.forEach { meta ->
+                add(
+                    SpacePreview(
+                        id = meta.id,
+                        name = meta.name,
+                        iconText = meta.iconText,
+                        tiles = layouts[meta.id].orEmpty(),
+                        // Позиция когда-то могла не сохраниться — не даём NaN уехать в layout
+                        canvasX = meta.canvasX.takeUnless { it.isNaN() } ?: 0f,
+                        canvasY = meta.canvasY.takeUnless { it.isNaN() } ?: 0f,
+                        parentId = parentOf[meta.id]
+                    )
+                )
+            }
+        }
+
+        // Прогрев ДО публикации: первый кадр мира уже с иконками.
+        val appsByPackage = apps.associateBy { it.packageName }
+        if (appsByPackage.isNotEmpty()) {
+            val tilesToWarm = previews.flatMap { it.tiles }
+            withContext(Dispatchers.Default) {
+                tilesToWarm.forEach { tile ->
+                    if (tile.type != TileType.APP_LAUNCHER) return@forEach
+                    val config = AppLauncherConfig.fromJson(tile.config)
+                    val packageName = config.packageName ?: return@forEach
+                    val app = appsByPackage[packageName] ?: return@forEach
+                    AppIconBitmaps.prewarm(
+                        packageName = packageName,
+                        icon = app.icon,
+                        themed = dockThemedIcons,
+                        palette = palette,
+                        foregroundOnly = config.showOnlyForegroundIcon
+                    )
+                }
+            }
+        }
+
+        spacePreviews = previews
+    }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -748,11 +767,7 @@ fun EtherealApp() {
         }
     }
 
-    val fontFamily = try {
-        fontFamilyFor(EtherealFont.valueOf(fontFamilyName))
-    } catch (e: Exception) {
-        null
-    }
+    val fontFamily = CustomFontRepository.getFontFamily(context, fontFamilyName)
 
     val appearance = AppearanceState(
         opacity = opacity,
@@ -794,21 +809,37 @@ fun EtherealApp() {
 
     val density = LocalDensity.current
 
-    // === ЕДИНЫЙ BackHandler ===
-    val isAnyOverlayOpen = showWidgetPickerSheet ||
-            showCreateSpaceDialog ||
-            settingsVisible ||
-            searchVisible ||
-            tileEditorState.editing.value ||
-            showUpdateOverlay ||
-            showNotice ||
-            showSpacesOverview ||
-            screenStack.canGoBack
+    // Закрытие мира: камера возвращается ровно на текущий экран.
+    val closeSpacesWorld: () -> Unit = {
+        if (spacesWorld.open || spacesWorld.scale < 0.999f) {
+            appScope.launch {
+                spacesWorld.open = false
+                try {
+                    animateCameraTo(spacesWorld, 1f, Offset.Zero, durationMillis = 300)
+                } finally {
+                    spacesWorld.reset()
+                }
+            }
+        }
+    }
 
+    // === ЕДИНЫЙ BackHandler ===
+    // Состояние камеры читаем ВНУТРИ обработчика: иначе каждый кадр жеста
+    // пересобирал бы весь домашний экран.
     BackHandler(enabled = true) {
+        val isAnyOverlayOpen = showWidgetPickerSheet ||
+                showCreateSpaceDialog ||
+                settingsVisible ||
+                searchVisible ||
+                tileEditorState.editing.value ||
+                showUpdateOverlay ||
+                showNotice ||
+                spacesWorld.isZoomedOut ||
+                screenStack.canGoBack
+
         if (isAnyOverlayOpen) {
             when {
-                showSpacesOverview -> showSpacesOverview = false
+                spacesWorld.isZoomedOut -> closeSpacesWorld()
                 showNotice -> {
                     showNotice = false
                     SettingsRepository.setNoticeShown(context, true)
@@ -917,7 +948,7 @@ fun EtherealApp() {
         )
     ) {
         EtherealLauncherTheme(palette = palette, fontFamily = fontFamily) {
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(palette.background)
@@ -925,7 +956,63 @@ fun EtherealApp() {
                         wallpaperContainerCoordinates = coordinates
                     }
             ) {
-                if (currentWallpaperPath != null) {
+                val frameWidth: Dp = maxWidth
+                val frameHeight: Dp = maxHeight
+                val frameWidthPx = with(density) { frameWidth.toPx() }
+                val frameHeightPx = with(density) { frameHeight.toPx() }
+                val isLandscapeWorld = LocalConfiguration.current.let {
+                    it.screenWidthDp > it.screenHeightDp
+                }
+                val worldGrid = SpaceGridParams(
+                    tileSizeDp = tileSize,
+                    spacingDp = tileSpacing,
+                    radiusDp = tileRadius,
+                    defaultShape = tileShape,
+                    fixedColumns = tileColumns,
+                    fixedRows = tileRows,
+                    isLandscape = isLandscapeWorld,
+                    dockIconSizeDp = dockIconSize,
+                    dockBottomPaddingDp = dockBottomPadding,
+                    dockEnabled = dockPackages.isNotEmpty(),
+                    themedIcons = dockThemedIcons,
+                    dockPanelBackground = dockBackground,
+                    dockIconBorderStyle = dockIconBorder,
+                    dockIconBorderWidth = dockIconBorderWidth,
+                    dockIconBorderOpacity = dockIconBorderOpacity,
+                    dockIconBackgroundOpacity = dockIconBgOpacity
+                )
+
+                // Мир рисуется ПОД домашним экраном: домашний экран — это текущее
+                // пространство, уменьшенное той же камерой.
+                SpacesWorldLayer(
+                    spaces = spacePreviews,
+                    currentSpaceId = currentSpaceId,
+                    state = spacesWorld,
+                    palette = palette,
+                    frameWidth = frameWidth,
+                    frameHeight = frameHeight,
+                    grid = worldGrid,
+                    installedApps = apps,
+                    wallpaperPath = currentWallpaperPath,
+                    dockPackages = dockPackages
+                )
+
+                // Один трансформ на обои, плитки и док: при отдалении уменьшается
+                // весь экран целиком, а не отдельные элементы.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            transformOrigin = TransformOrigin(0f, 0f)
+                            scaleX = spacesWorld.scale
+                            scaleY = spacesWorld.scale
+                            // homeDragPx — сдвиг текущего пространства под пальцем
+                            // во время перетаскивания в мире.
+                            translationX = spacesWorld.offset.x + spacesWorld.homeDragPx.x
+                            translationY = spacesWorld.offset.y + spacesWorld.homeDragPx.y
+                        }
+                ) {
+                    if (currentWallpaperPath != null) {
                     val contentScaleMode = when (wallpaperScaleMode) {
                         "FIT" -> ContentScale.Fit
                         "STRETCH" -> ContentScale.FillBounds
@@ -979,21 +1066,88 @@ fun EtherealApp() {
                     onWidgetPickerVisibilityChange = { visible ->
                         showWidgetPickerSheet = visible
                     },
-                    onOpenSettings = { settingsVisible = true },
+                    onOpenSettings = { if (!spacesWorld.open) settingsVisible = true },
                     onSwipeUp = {
-                        searchVisible = true
-                        AnalyticsHelper.logESearchOpened(context)
+                        if (!spacesWorld.open) searchVisible = true
                     },
                     onLaunchApp = { packageName, sourceBounds, tileStyle, iconContentScale, foregroundOnlyIcon ->
-                        launchApp(packageName, sourceBounds, true, true, false, false, tileStyle, iconContentScale, 0f, foregroundOnlyIcon)
+                        if (!spacesWorld.open) {
+                            launchApp(packageName, sourceBounds, true, true, false, false, tileStyle, iconContentScale, 0f, foregroundOnlyIcon)
+                        }
                     },
                     editorState = tileEditorState,
                     currentSpaceId = currentSpaceId,
                     onOpenSpace = { spaceId ->
-                        screenStack.push(spaceId)
+                        if (!spacesWorld.open) screenStack.push(spaceId)
                     },
-                    onRequestSpacesOverview = { showSpacesOverview = true },
-                    swipeUpEnabled = !showSpacesOverview,
+                    onSpaceZoom = { focalLocal, spanLocal ->
+                        // Пока мир зафиксирован, жест ведёт сам обзор, а не домашний экран.
+                        if (!spacesWorld.open) {
+                            // Локальные координаты TilesScreen переводим в экранные
+                            // текущей камерой: иначе масштаб влиял бы сам на себя.
+                            val cameraScale = spacesWorld.scale
+                            val focalScreen = Offset(
+                                focalLocal.x * cameraScale + spacesWorld.offset.x,
+                                focalLocal.y * cameraScale + spacesWorld.offset.y
+                            )
+                            val spanScreen = spanLocal * cameraScale
+                            if (pinchLastSpan > 1f && spanScreen > 1f) {
+                                val zoom = (spanScreen / pinchLastSpan).coerceIn(0.6f, 1.6f)
+                                val pan = if (cameraScale < 0.999f) {
+                                    focalScreen - pinchLastFocal
+                                } else {
+                                    Offset.Zero
+                                }
+                                spacesWorld.applyTransform(zoom, focalScreen, pan)
+                            }
+                            pinchLastSpan = spanScreen
+                            pinchLastFocal = focalScreen
+                        }
+                    },
+                    onSpaceZoomEnd = {
+                        pinchLastSpan = 0f
+                        if (!spacesWorld.open) {
+                            val committed = spacesWorld.scale < 0.93f && spacePreviews.size > 1
+                            appScope.launch {
+                                if (committed) {
+                                    // Мир — это режим просмотра: редактор плиток закрываем.
+                                    if (tileEditorState.editing.value) tileEditorState.exitEdit()
+                                    // Шаг назад, а не «уместить всё»: в кадре текущее
+                                    // пространство и его соседи, остальное — панорамированием.
+                                    val fit = neighborhoodCamera(
+                                        spaces = spacePreviews,
+                                        currentSpaceId = currentSpaceId,
+                                        frameWidthDp = frameWidth.value,
+                                        frameHeightDp = frameHeight.value,
+                                        viewportWidthPx = frameWidthPx,
+                                        viewportHeightPx = frameHeightPx,
+                                        density = density.density
+                                    )
+                                    // Не подтягиваем экран обратно, если человек уже
+                                    // свёл пальцы сильнее, чем нужно для кадра.
+                                    val targetScale = minOf(fit.scale, spacesWorld.scale)
+                                    val targetOffset = Offset(
+                                        frameWidthPx / 2f - fit.centerPx.x * targetScale,
+                                        frameHeightPx / 2f - fit.centerPx.y * targetScale
+                                    )
+                                    spacesWorld.open = true
+                                    animateCameraTo(spacesWorld, targetScale, targetOffset, 380)
+                                } else {
+                                    spacesWorld.open = false
+                                    try {
+                                        animateCameraTo(spacesWorld, 1f, Offset.Zero, 260)
+                                    } finally {
+                                        spacesWorld.reset()
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    // Читаем только open (меняется редко): scale во время жеста
+                    // здесь читать нельзя, иначе пересобирается весь экран.
+                    swipeUpEnabled = !spacesWorld.open,
+                    instantSpaceSwitch = instantSpaceSwitch,
+                    onInstantSpaceSwitchConsumed = { instantSpaceSwitch = false },
                     showCreateSpaceDialog = showCreateSpaceDialog,
                     onShowCreateSpaceDialogChange = { v -> showCreateSpaceDialog = v },
                     introReveal = isTilesRevealing,
@@ -1022,8 +1176,10 @@ fun EtherealApp() {
                         iconBorderOpacity = dockIconBorderOpacity,
                         iconBackgroundOpacity = dockIconBgOpacity,
                         onAppClick = { app, sourceBounds ->
-                            SettingsRepository.recordLaunch(context, app.packageName)
-                            launchApp(app.packageName, sourceBounds, true, true, false, dockShowIconBackground, null, 1f, 4f, false)
+                            if (!spacesWorld.open) {
+                                SettingsRepository.recordLaunch(context, app.packageName)
+                                launchApp(app.packageName, sourceBounds, true, true, false, dockShowIconBackground, null, 1f, 4f, false)
+                            }
                         },
                         showPresets = showPresetsInDock,
                         presets = defaultPresets(),
@@ -1044,6 +1200,58 @@ fun EtherealApp() {
                             .padding(bottom = dockBottomPadding.dp)
                     )
                 }
+                }
+                // Конец трансформируемого домашнего экрана
+
+                // Слой мира: HUD и жесты поверх уменьшенного домашнего экрана.
+                SpacesOverlay(
+                    spaces = spacePreviews,
+                    currentSpaceId = currentSpaceId,
+                    state = spacesWorld,
+                    palette = palette,
+                    frameWidth = frameWidth,
+                    frameHeight = frameHeight,
+                    onOpenSpace = { spaceId ->
+                        spacesWorld.reset()
+                        // Вход из мира: камера уже показала этот экран,
+                        // внутренний переход TilesScreen здесь только мешает.
+                        instantSpaceSwitch = spaceId != currentSpaceId
+                        if (spaceId != currentSpaceId) {
+                            // Раскладка цели уже загружена для превью — подставляем
+                            // её сразу, иначе экран ждёт чтения JSON с диска и
+                            // на это время остаётся тёмным.
+                            previewTilesCache[spaceId]?.let { cached -> tiles = cached }
+                        }
+                        screenStack.resetToRoot()
+                        if (spaceId != ScreenStack.ROOT_ID) screenStack.push(spaceId)
+                    },
+                    onMoveSpace = { spaceId, x, y ->
+                        spacePreviews = spacePreviews.map {
+                            if (it.id == spaceId) it.copy(canvasX = x, canvasY = y) else it
+                        }
+                    },
+                    onCommitSpace = { spaceId, x, y ->
+                        appScope.launch(Dispatchers.IO) {
+                            SpaceRepository.updateCanvasPosition(context, spaceId, x, y)
+                        }
+                    },
+                    onDeleteSpace = { id ->
+                        appScope.launch(Dispatchers.IO) {
+                            SpaceRepository.deleteSpaceRecursive(context, id)
+                            previewTilesCache.remove(id)
+                            SpaceRepository.ensureCanvasPositions(
+                                context,
+                                context.resources.displayMetrics.widthPixels / context.resources.displayMetrics.density,
+                                context.resources.displayMetrics.heightPixels / context.resources.displayMetrics.density
+                            )
+                            withContext(Dispatchers.Main) {
+                                if (currentSpaceId == id) screenStack.resetToRoot()
+                                overviewRefresh++
+                            }
+                        }
+                    },
+                    onDismiss = closeSpacesWorld
+                )
 
                 if (showMultiAppsPickerInDock) {
                     MultiAppsPickerDialog(
@@ -1216,7 +1424,6 @@ fun EtherealApp() {
                             // иконки перекрашиваются темой: сбрасываем растровые кэши
                             com.neytron.ethereal.utils.AppIconBitmaps.clear()
                             com.neytron.ethereal.data.AppIconStore.clear()
-                            AnalyticsHelper.logPaletteSelected(context, newPalette.id)
                         },
                         onDockChange = { newDock ->
                             dockPackages = newDock
@@ -1243,7 +1450,6 @@ fun EtherealApp() {
                         onFontFamilyChange = { v ->
                             fontFamilyName = v
                             SettingsRepository.setFont(context, v)
-                            AnalyticsHelper.logFontSelected(context, v)
                         },
 
                         wallpapers = wallpaperList,
@@ -1262,7 +1468,6 @@ fun EtherealApp() {
                             WallpaperRepository.applyToHomeScreen(context, file)
                             currentWallpaperPath = file.absolutePath
                             wallpaperPalette = WallpaperPaletteProvider.load(context)
-                            AnalyticsHelper.logWallpaperChanged(context)
                         },
                         onApplyWallpaperLockScreen = { file ->
                             WallpaperRepository.applyToLockScreen(context, file)
@@ -1271,7 +1476,6 @@ fun EtherealApp() {
                             WallpaperRepository.applyEverywhere(context, file)
                             currentWallpaperPath = file.absolutePath
                             wallpaperPalette = WallpaperPaletteProvider.load(context)
-                            AnalyticsHelper.logWallpaperChanged(context)
                         },
                         onDeleteWallpaper = { file ->
                             WallpaperRepository.deleteUserWallpaper(context, file)
@@ -1375,7 +1579,6 @@ fun EtherealApp() {
                         onDockThemedIconsChange = { v ->
                             dockThemedIcons = v
                             SettingsRepository.setDockThemedIcons(context, v)
-                            AnalyticsHelper.logThemedIconsToggled(context, v)
                         },
                         iconPacks = iconPacks,
                         selectedIconPack = iconPackPackage,
@@ -1439,12 +1642,6 @@ fun EtherealApp() {
                         },
                         onClose = { settingsVisible = false },
 
-                        analyticsEnabled = analyticsEnabled,
-                        onAnalyticsEnabledChange = { value ->
-                            analyticsEnabled = value
-                            SettingsRepository.setAnalyticsEnabled(context, value)
-                        },
-
                         updateInfo = updateInfo,
                         updateChecking = updateChecking,
                         onCheckForUpdates = handleCheckForUpdates,
@@ -1492,49 +1689,7 @@ fun EtherealApp() {
             )
 
             // === Обзор пространств ===
-            SpacesOverview(
-                visible = showSpacesOverview,
-                spaces = spacePreviews,
-                currentSpaceId = currentSpaceId,
-                palette = palette,
-                onOpenSpace = { spaceId ->
-                    showSpacesOverview = false
-                    screenStack.resetToRoot()
-                    if (spaceId != ScreenStack.ROOT_ID) screenStack.push(spaceId)
-                },
-                onMoveSpace = { spaceId, x, y ->
-                    spacePreviews = spacePreviews.map {
-                        if (it.id == spaceId) it.copy(canvasX = x, canvasY = y) else it
-                    }
-                },
-                onCommitSpace = { spaceId, x, y ->
-                    appScope.launch(Dispatchers.IO) {
-                        SpaceRepository.updateCanvasPosition(context, spaceId, x, y)
-                    }
-                },
-                onDeleteOrphans = { ids ->
-                    appScope.launch(Dispatchers.IO) {
-                        ids.forEach { id ->
-                            SpaceRepository.deleteSpaceRecursive(context, id)
-                            previewTilesCache.remove(id)
-                        }
-                        SpaceRepository.ensureCanvasPositions(context)
-                        overviewRefresh++
-                    }
-                },
-                onDeleteSpace = { id ->
-                    appScope.launch(Dispatchers.IO) {
-                        SpaceRepository.deleteSpaceRecursive(context, id)
-                        previewTilesCache.remove(id)
-                        SpaceRepository.ensureCanvasPositions(context)
-                        withContext(Dispatchers.Main) {
-                            if (currentSpaceId == id) screenStack.resetToRoot()
-                            overviewRefresh++
-                        }
-                    }
-                },
-                onDismiss = { showSpacesOverview = false }
-            )
+            // Живёт выше по стеку: мир — это слой под домашним экраном, а не оверлей.
 
             OnboardingOverlay(
                 visible = !isSetupCompleted,
@@ -1545,12 +1700,10 @@ fun EtherealApp() {
                 onPaletteChange = { newPaletteId ->
                     paletteId = newPaletteId
                     SettingsRepository.setPaletteId(context, newPaletteId)
-                    AnalyticsHelper.logPaletteSelected(context, newPaletteId)
                 },
                 onFontChange = { newFontName ->
                     fontFamilyName = newFontName
                     SettingsRepository.setFont(context, newFontName)
-                    AnalyticsHelper.logFontSelected(context, newFontName)
                 },
                 onDockPackagesChange = { newDock ->
                     dockPackages = newDock
@@ -1602,7 +1755,6 @@ fun EtherealApp() {
                     isIntroActive = true
                     isIntroRoulette = true
                     searchVisible = true
-                    AnalyticsHelper.logOnboardingComplete(context)
                 }
             )
         }
